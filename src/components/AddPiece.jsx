@@ -50,7 +50,7 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
         localStorage.setItem('potheads_last_clay_body', trimmedClay)
       }
       if (file) {
-        await uploadPhoto({ file, userId: user.id, pieceId: piece.id })
+        await uploadPhoto({ file, userId: user.id, pieceId: piece.id, stage: 'drying' })
       }
       if (selectedForm) {
         const tagId = await getOrCreateTag(selectedForm, 'form', user.id)

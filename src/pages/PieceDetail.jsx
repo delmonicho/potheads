@@ -6,6 +6,7 @@ import { getPhotosForPiece, uploadPhoto, getPhotoUrl } from '../lib/photos.js'
 import { getTagsForPiece, getOrCreateTag, addTagToPiece, removeTagFromPiece, PRESET_TAGS } from '../lib/tags.js'
 import TagChip from '../components/TagChip.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
+import PotteryPlaceholder from '../components/PotteryPlaceholder.jsx'
 
 export default function PieceDetail({ user }) {
   const { id } = useParams()
@@ -149,8 +150,10 @@ export default function PieceDetail({ user }) {
     <div className="flex flex-col min-h-screen bg-[#fafaf9]">
       {/* Full-bleed hero photo */}
       <div className="relative h-[40vh] flex-shrink-0 bg-[#c4a882] overflow-hidden">
-        {heroUrl && (
+        {heroUrl ? (
           <img src={heroUrl} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <PotteryPlaceholder formTag={tags.find((t) => t.category === 'form')?.name} className="rounded-none" />
         )}
 
         {/* Back button */}

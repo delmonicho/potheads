@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { STAGE_LABELS } from '../lib/pieces.js'
 import { getPhotosForPiece, getPhotoUrl } from '../lib/photos.js'
 import { getTagsForPiece } from '../lib/tags.js'
+import PotteryPlaceholder from './PotteryPlaceholder.jsx'
 
 function PieceCard({ piece }) {
   const navigate = useNavigate()
@@ -33,7 +34,7 @@ function PieceCard({ piece }) {
         {thumbUrl ? (
           <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full bg-[#c4a882]" />
+          <PotteryPlaceholder formTag={formTag} />
         )}
       </div>
       {/* Card footer */}
