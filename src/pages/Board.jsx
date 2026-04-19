@@ -1,25 +1,20 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { getPieces, markLost, STAGES } from '../lib/pieces.js'
-import { getOrCreateTag, addTagToPiece, removeTagFromPiece, PRESET_TAGS } from '../lib/tags.js'
+import { getOrCreateTag, addTagToPiece, PRESET_TAGS } from '../lib/tags.js'
 import StageColumn from '../components/StageColumn.jsx'
 import AddPiece from '../components/AddPiece.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
 
-function StudioIcon({ active }) {
+function SelectIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={active ? '#78350f' : '#a8a29e'} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <polyline points="9 22 9 12 15 12 15 22" />
-    </svg>
-  )
-}
-
-function ProfileIcon({ active }) {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={active ? '#78350f' : '#a8a29e'} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="6" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="12" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="18" r="1.5" fill="currentColor" stroke="none" />
+      <line x1="14" y1="6" x2="21" y2="6" />
+      <line x1="14" y1="12" x2="21" y2="12" />
+      <line x1="14" y1="18" x2="21" y2="18" />
     </svg>
   )
 }
@@ -29,7 +24,7 @@ export default function Board({ user }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showAddPiece, setShowAddPiece] = useState(false)
-  const [activeTab, setActiveTab] = useState('studio')
+  const [showProfile, setShowProfile] = useState(false)
 
   // Multi-select
   const [selectMode, setSelectMode] = useState(false)
@@ -101,6 +96,8 @@ export default function Board({ user }) {
     return acc
   }, {})
 
+  const userInitial = (user.user_metadata?.full_name || user.email || '?')[0].toUpperCase()
+
   return (
     <div className="flex flex-col min-h-screen bg-[#fafaf9]">
       {/* Header */}
@@ -109,8 +106,8 @@ export default function Board({ user }) {
           <p className="text-xs uppercase tracking-widest text-stone-400">
             Studio · {pieces.length} {pieces.length === 1 ? 'piece' : 'pieces'}
           </p>
-          {activeTab === 'studio' && (
-            selectMode ? (
+          <div className="flex items-center gap-3">
+            {selectMode ? (
               <button
                 onClick={exitSelectMode}
                 className="text-xs uppercase tracking-widest text-[#78350f] font-semibold"
@@ -120,59 +117,51 @@ export default function Board({ user }) {
             ) : (
               <button
                 onClick={() => setSelectMode(true)}
-                className="text-xs uppercase tracking-widest text-stone-400 active:text-stone-600"
+                className="text-stone-400 active:text-stone-600"
+                aria-label="Select pieces"
               >
-                Select
+                <SelectIcon />
               </button>
-            )
-          )}
+            )}
+            <button
+              onClick={() => setShowProfile(true)}
+              className="w-9 h-9 rounded-full bg-[#78350f] flex items-center justify-center active:bg-[#5c2709]"
+              aria-label="Profile"
+            >
+              <span className="text-white text-sm font-semibold">{userInitial}</span>
+            </button>
+          </div>
         </div>
         <h1 className="font-display italic text-4xl text-[#1c1917] pb-3">Potheads.</h1>
       </header>
 
-      {/* Body */}
-      {activeTab === 'studio' ? (
-        <main className="flex-1 overflow-y-auto px-4 py-4 pb-28">
-          {loading && (
-            <div className="flex justify-center py-12">
-              <div className="w-8 h-8 border-4 border-[#78350f] border-t-transparent rounded-full animate-spin" />
-            </div>
-          )}
-          {error && (
-            <p className="text-red-600 text-sm text-center py-4">{error}</p>
-          )}
-          {!loading && !error && STAGES.map((stage) => (
-            <StageColumn
-              key={stage}
-              stage={stage}
-              pieces={piecesByStage[stage]}
-              selectMode={selectMode}
-              selectedIds={selectedIds}
-              onToggleSelect={toggleSelect}
-            />
-          ))}
-        </main>
-      ) : (
-        <main className="flex-1 overflow-y-auto px-5 py-8 pb-28">
-          <div className="flex flex-col gap-2">
-            <p className="text-xs uppercase tracking-widest text-stone-400 mb-4">Account</p>
-            <p className="text-sm text-[#1c1917] font-medium">{user.user_metadata?.full_name || user.email}</p>
-            <p className="text-xs text-stone-400">{user.email}</p>
-            <button
-              onClick={handleLogout}
-              className="mt-6 text-left text-sm text-red-500"
-            >
-              Sign out
-            </button>
+      {/* Main */}
+      <main className="flex-1 overflow-y-auto px-4 py-4 pb-24">
+        {loading && (
+          <div className="flex justify-center py-12">
+            <div className="w-8 h-8 border-4 border-[#78350f] border-t-transparent rounded-full animate-spin" />
           </div>
-        </main>
-      )}
+        )}
+        {error && (
+          <p className="text-red-600 text-sm text-center py-4">{error}</p>
+        )}
+        {!loading && !error && STAGES.map((stage) => (
+          <StageColumn
+            key={stage}
+            stage={stage}
+            pieces={piecesByStage[stage]}
+            selectMode={selectMode}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+          />
+        ))}
+      </main>
 
-      {/* FAB — only on studio tab, hidden in select mode */}
-      {activeTab === 'studio' && !selectMode && (
+      {/* FAB */}
+      {!selectMode && (
         <button
           onClick={() => setShowAddPiece(true)}
-          className="fixed bottom-20 right-5 w-14 h-14 bg-[#78350f] text-white text-3xl rounded-full shadow-lg flex items-center justify-center active:bg-[#5c2709]"
+          className="fixed bottom-8 right-5 w-14 h-14 bg-[#78350f] text-white text-3xl rounded-full shadow-lg flex items-center justify-center active:bg-[#5c2709]"
           aria-label="Add piece"
         >
           +
@@ -204,34 +193,30 @@ export default function Board({ user }) {
         </div>
       )}
 
-      {/* Bottom nav */}
-      <nav className="fixed bottom-0 inset-x-0 pb-safe bg-white border-t border-stone-200 flex" style={{ display: selectMode && selectedIds.size > 0 ? 'none' : undefined }}>
-        <button
-          className="flex-1 flex flex-col items-center justify-center pt-3 pb-2 gap-0.5"
-          onClick={() => setActiveTab('studio')}
-        >
-          <StudioIcon active={activeTab === 'studio'} />
-          <span className={`text-[10px] uppercase tracking-widest font-medium ${activeTab === 'studio' ? 'text-[#78350f]' : 'text-stone-400'}`}>
-            Studio
-          </span>
-        </button>
-        <button
-          className="flex-1 flex flex-col items-center justify-center pt-3 pb-2 gap-0.5"
-          onClick={() => setActiveTab('profile')}
-        >
-          <ProfileIcon active={activeTab === 'profile'} />
-          <span className={`text-[10px] uppercase tracking-widest font-medium ${activeTab === 'profile' ? 'text-[#78350f]' : 'text-stone-400'}`}>
-            Profile
-          </span>
-        </button>
-      </nav>
-
       <AddPiece
         open={showAddPiece}
         onClose={() => setShowAddPiece(false)}
         onAdded={handlePieceAdded}
         user={user}
       />
+
+      {/* Profile sheet */}
+      <BottomSheet
+        open={showProfile}
+        onClose={() => setShowProfile(false)}
+        title="Account"
+      >
+        <div className="flex flex-col gap-2 pb-4">
+          <p className="text-sm text-[#1c1917] font-medium">{user.user_metadata?.full_name || user.email}</p>
+          <p className="text-xs text-stone-400">{user.email}</p>
+          <button
+            onClick={handleLogout}
+            className="mt-6 text-left text-sm text-red-500"
+          >
+            Sign out
+          </button>
+        </div>
+      </BottomSheet>
 
       {/* Bulk tag sheet */}
       <BottomSheet
