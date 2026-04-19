@@ -140,7 +140,7 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="w-full bg-[#78350f] text-white font-semibold py-3.5 rounded-2xl active:bg-[#5c2709] disabled:opacity-50 text-base"
+          className="w-full bg-[#78350f] text-white font-semibold py-3.5 rounded-2xl active:bg-[#5c2709] disabled:opacity-50 text-base mb-2"
         >
           {saving ? 'Saving…' : 'Start tracking'}
         </button>
