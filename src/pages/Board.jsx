@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase.js'
-import { getPieces, STAGES } from '../lib/pieces.js'
+import { getPieces, markLost, STAGES } from '../lib/pieces.js'
+import { getOrCreateTag, addTagToPiece, removeTagFromPiece, PRESET_TAGS } from '../lib/tags.js'
 import StageColumn from '../components/StageColumn.jsx'
 import AddPiece from '../components/AddPiece.jsx'
+import BottomSheet from '../components/BottomSheet.jsx'
 
 function StudioIcon({ active }) {
   return (
@@ -29,6 +31,12 @@ export default function Board({ user }) {
   const [showAddPiece, setShowAddPiece] = useState(false)
   const [activeTab, setActiveTab] = useState('studio')
 
+  // Multi-select
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [showTagSheet, setShowTagSheet] = useState(false)
+  const [bulkSaving, setBulkSaving] = useState(false)
+
   const fetchPieces = useCallback(async () => {
     try {
       const data = await getPieces(user.id)
@@ -53,6 +61,41 @@ export default function Board({ user }) {
     fetchPieces()
   }
 
+  function toggleSelect(id) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function exitSelectMode() {
+    setSelectMode(false)
+    setSelectedIds(new Set())
+  }
+
+  async function handleBulkDelete() {
+    setBulkSaving(true)
+    try {
+      for (const id of selectedIds) await markLost(id)
+      await fetchPieces()
+      exitSelectMode()
+    } finally {
+      setBulkSaving(false)
+    }
+  }
+
+  async function handleBulkToggleTag(tagName, category) {
+    const tagId = await getOrCreateTag(tagName, category, user.id)
+    for (const id of selectedIds) await addTagToPiece(id, tagId)
+  }
+
+  async function handleTagSheetDone() {
+    setShowTagSheet(false)
+    await fetchPieces()
+    exitSelectMode()
+  }
+
   const piecesByStage = STAGES.reduce((acc, stage) => {
     acc[stage] = pieces.filter((p) => p.current_stage === stage)
     return acc
@@ -66,12 +109,23 @@ export default function Board({ user }) {
           <p className="text-xs uppercase tracking-widest text-stone-400">
             Studio · {pieces.length} {pieces.length === 1 ? 'piece' : 'pieces'}
           </p>
-          <button aria-label="Search" className="text-stone-400 active:text-stone-600">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-          </button>
+          {activeTab === 'studio' && (
+            selectMode ? (
+              <button
+                onClick={exitSelectMode}
+                className="text-xs uppercase tracking-widest text-[#78350f] font-semibold"
+              >
+                Cancel
+              </button>
+            ) : (
+              <button
+                onClick={() => setSelectMode(true)}
+                className="text-xs uppercase tracking-widest text-stone-400 active:text-stone-600"
+              >
+                Select
+              </button>
+            )
+          )}
         </div>
         <h1 className="font-display italic text-4xl text-[#1c1917] pb-3">Potheads.</h1>
       </header>
@@ -92,6 +146,9 @@ export default function Board({ user }) {
               key={stage}
               stage={stage}
               pieces={piecesByStage[stage]}
+              selectMode={selectMode}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelect}
             />
           ))}
         </main>
@@ -111,8 +168,8 @@ export default function Board({ user }) {
         </main>
       )}
 
-      {/* FAB — only on studio tab */}
-      {activeTab === 'studio' && (
+      {/* FAB — only on studio tab, hidden in select mode */}
+      {activeTab === 'studio' && !selectMode && (
         <button
           onClick={() => setShowAddPiece(true)}
           className="fixed bottom-20 right-5 w-14 h-14 bg-[#78350f] text-white text-3xl rounded-full shadow-lg flex items-center justify-center active:bg-[#5c2709]"
@@ -122,8 +179,33 @@ export default function Board({ user }) {
         </button>
       )}
 
+      {/* Bulk action bar */}
+      {selectMode && selectedIds.size > 0 && (
+        <div className="fixed bottom-0 inset-x-0 pb-safe bg-white border-t border-stone-200 px-4 pt-3">
+          <div className="flex items-center gap-3 pb-3">
+            <span className="text-sm text-stone-500 flex-1">
+              {selectedIds.size} {selectedIds.size === 1 ? 'piece' : 'pieces'} selected
+            </span>
+            <button
+              onClick={() => setShowTagSheet(true)}
+              disabled={bulkSaving}
+              className="px-4 py-2 rounded-xl border border-stone-300 text-sm text-[#1c1917] font-medium active:bg-stone-100 disabled:opacity-50"
+            >
+              Edit Tags
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              disabled={bulkSaving}
+              className="px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-medium active:bg-red-600 disabled:opacity-50"
+            >
+              {bulkSaving ? 'Deleting…' : 'Delete'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Bottom nav */}
-      <nav className="fixed bottom-0 inset-x-0 pb-safe bg-white border-t border-stone-200 flex">
+      <nav className="fixed bottom-0 inset-x-0 pb-safe bg-white border-t border-stone-200 flex" style={{ display: selectMode && selectedIds.size > 0 ? 'none' : undefined }}>
         <button
           className="flex-1 flex flex-col items-center justify-center pt-3 pb-2 gap-0.5"
           onClick={() => setActiveTab('studio')}
@@ -150,6 +232,50 @@ export default function Board({ user }) {
         onAdded={handlePieceAdded}
         user={user}
       />
+
+      {/* Bulk tag sheet */}
+      <BottomSheet
+        open={showTagSheet}
+        onClose={() => setShowTagSheet(false)}
+        title={`Edit tags · ${selectedIds.size} ${selectedIds.size === 1 ? 'piece' : 'pieces'}`}
+      >
+        <div className="flex flex-col gap-5">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-stone-500 mb-2">Form</p>
+            <div className="flex flex-wrap gap-2">
+              {PRESET_TAGS.form.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => handleBulkToggleTag(tag, 'form')}
+                  className="px-4 py-1.5 rounded-full text-sm border border-stone-300 text-stone-700 bg-white active:bg-stone-100"
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-widest text-stone-500 mb-2">Glaze</p>
+            <div className="flex flex-wrap gap-2">
+              {PRESET_TAGS.glaze.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => handleBulkToggleTag(tag, 'glaze')}
+                  className="px-4 py-1.5 rounded-full text-sm border border-stone-300 text-stone-700 bg-white active:bg-stone-100"
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={handleTagSheetDone}
+            className="w-full bg-[#78350f] text-white font-semibold py-3.5 rounded-2xl active:bg-[#5c2709] mb-2"
+          >
+            Done
+          </button>
+        </div>
+      </BottomSheet>
     </div>
   )
 }

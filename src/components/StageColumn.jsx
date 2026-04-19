@@ -5,7 +5,7 @@ import { getPhotosForPiece, getPhotoUrl } from '../lib/photos.js'
 import { getTagsForPiece } from '../lib/tags.js'
 import PotteryPlaceholder from './PotteryPlaceholder.jsx'
 
-function PieceCard({ piece }) {
+function PieceCard({ piece, selectMode, selected, onToggleSelect }) {
   const navigate = useNavigate()
   const [thumbUrl, setThumbUrl] = useState(null)
   const [formTag, setFormTag] = useState(null)
@@ -24,10 +24,18 @@ function PieceCard({ piece }) {
     }).catch(() => {})
   }, [piece.id])
 
+  function handleTap() {
+    if (selectMode) {
+      onToggleSelect(piece.id)
+    } else {
+      navigate(`/piece/${piece.id}`)
+    }
+  }
+
   return (
     <div
-      className="flex flex-col rounded-2xl overflow-hidden active:opacity-75 cursor-pointer"
-      onClick={() => navigate(`/piece/${piece.id}`)}
+      className="flex flex-col rounded-2xl overflow-hidden active:opacity-75 cursor-pointer relative"
+      onClick={handleTap}
     >
       {/* Square photo thumbnail */}
       <div className="aspect-square bg-[#c4a882] overflow-hidden">
@@ -37,6 +45,24 @@ function PieceCard({ piece }) {
           <PotteryPlaceholder formTag={formTag} />
         )}
       </div>
+
+      {/* Selection overlay */}
+      {selectMode && (
+        <div className={`absolute inset-0 rounded-2xl transition-colors ${selected ? 'bg-[#78350f]/20' : ''}`}>
+          <div className={`absolute top-2 left-2 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+            selected
+              ? 'bg-[#78350f] border-[#78350f]'
+              : 'bg-white/70 border-white'
+          }`}>
+            {selected && (
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="2 6 5 9 10 3" />
+              </svg>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Card footer */}
       <div className="px-1.5 py-1.5 bg-[#fafaf9]">
         <p className="text-xs font-semibold text-[#1c1917] truncate leading-snug">{piece.name}</p>
@@ -48,7 +74,7 @@ function PieceCard({ piece }) {
   )
 }
 
-export default function StageColumn({ stage, pieces }) {
+export default function StageColumn({ stage, pieces, selectMode, selectedIds, onToggleSelect }) {
   if (!pieces || pieces.length === 0) return null
 
   return (
@@ -63,7 +89,13 @@ export default function StageColumn({ stage, pieces }) {
       </div>
       <div className="grid grid-cols-3 gap-2">
         {pieces.map((piece) => (
-          <PieceCard key={piece.id} piece={piece} />
+          <PieceCard
+            key={piece.id}
+            piece={piece}
+            selectMode={selectMode}
+            selected={selectedIds?.has(piece.id) ?? false}
+            onToggleSelect={onToggleSelect}
+          />
         ))}
       </div>
     </div>

@@ -304,7 +304,6 @@ export default function PieceDetail({ user }) {
             <input
               type="file"
               accept="image/*"
-              capture="environment"
               className="text-sm text-stone-700"
               onChange={(e) => setAdvanceFile(e.target.files[0] || null)}
             />
