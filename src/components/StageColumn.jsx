@@ -8,6 +8,8 @@ import PotteryPlaceholder from './PotteryPlaceholder.jsx'
 function PieceCard({ piece, selectMode, selected, onToggleSelect }) {
   const navigate = useNavigate()
   const [thumbUrl, setThumbUrl] = useState(null)
+  const [photoLoading, setPhotoLoading] = useState(true)
+  const [imgLoaded, setImgLoaded] = useState(false)
   const [formTag, setFormTag] = useState(null)
 
   useEffect(() => {
@@ -16,7 +18,8 @@ function PieceCard({ piece, selectMode, selected, onToggleSelect }) {
         const url = await getPhotoUrl(photos[photos.length - 1].storage_path)
         setThumbUrl(url)
       }
-    }).catch(() => {})
+      setPhotoLoading(false)
+    }).catch(() => { setPhotoLoading(false) })
 
     getTagsForPiece(piece.id).then((tags) => {
       const ft = tags.find((t) => t.category === 'form')
@@ -38,12 +41,17 @@ function PieceCard({ piece, selectMode, selected, onToggleSelect }) {
       onClick={handleTap}
     >
       {/* Square photo thumbnail */}
-      <div className="aspect-square bg-[#c4a882] overflow-hidden">
+      <div className="aspect-square bg-tan overflow-hidden">
         {thumbUrl ? (
-          <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
-        ) : (
+          <img
+            src={thumbUrl}
+            alt=""
+            className={`w-full h-full object-cover transition-opacity duration-300 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+            onLoad={() => setImgLoaded(true)}
+          />
+        ) : !photoLoading ? (
           <PotteryPlaceholder formTag={formTag} />
-        )}
+        ) : null}
       </div>
 
       {/* Selection overlay */}
