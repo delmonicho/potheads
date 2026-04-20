@@ -3,4 +3,17 @@ id like to add a couple things:
 - to be able to keyboard controls for navigating thru the photo carousel
 - to have the ability to filter the catalog of pieces by form, glaze, etc
 - to automatically add to the catalog of colors detected when a new glaze is added and a user selects and saves a color for that glaze.
-- to be able to rename/delete tags
+- to be able to rename/delete tag
+- when editting tags, to be able to use a color dropper on the page to for color selection
+- a separate section for form and glazed on the piece details page
+- different wording other than tags on the piece details page
+- for the lost pieces to be stored somewhere like 'Reclaim' and for them to be able to be brought back from deletion/lost pile at any time
+- for the edit stage function to be able to be accomplished by clicking on the left side circular icon areas, when hovering it gets bigger to signify interactability and then clicking will bring up a confirmation modal to select this phase the current phase,  although would have to consider how to handle the backwards stage interaction and what makes sense, especially when there is already a photo of a late stage.
+- for there to be some more UX design consideration aronund the edit tags experience, when the tags lists grow super long, what is the best experience? should we have a serachable selector for a tag?  
+- when selecting a tag, the text saving appears below the tags and pushes up the tags, increasing the size of the modal, this is distracting
+- for a diff title than 'Edit tags' ?
+- to be able to rename the titles of pieces as well as the clay body
+- for a default template state for a new board without any pieces, consider the UI for the empty state board.  How will a newcomer get started with using the application?
+-work on the header, brand logo, etc.
+- consider any other information valuable for a person's profile
+- consider preferences like a large or small tiles, or dark mode
