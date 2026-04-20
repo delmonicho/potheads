@@ -477,7 +477,7 @@ export default function PieceDetail({ user }) {
           ) : (
             <div className="flex flex-wrap gap-2">
               {tags.map((tag) => (
-                <TagChip key={tag.id} tag={tag} selected color={tagColors[tag.name]} />
+                <TagChip key={tag.id} tag={tag} selected color={tag.color || tagColors[tag.name]} />
               ))}
             </div>
           )}
