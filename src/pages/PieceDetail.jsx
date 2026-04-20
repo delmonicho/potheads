@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import { STAGES, STAGE_LABELS, nextStage, advanceStage, markLost, updateStage } from '../lib/pieces.js'
 import { getPhotosForPiece, uploadPhoto, getPhotoUrl, updatePhotoStage } from '../lib/photos.js'
-import { getTagsForPiece, getOrCreateTag, addTagToPiece, removeTagFromPiece, getUserTags, PRESET_TAGS } from '../lib/tags.js'
+import { getTagsForPiece, getOrCreateTag, addTagToPiece, removeTagFromPiece, getUserTags, updateTagColor, PRESET_TAGS } from '../lib/tags.js'
 import TagChip from '../components/TagChip.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
 import PotteryPlaceholder from '../components/PotteryPlaceholder.jsx'
@@ -134,6 +134,16 @@ export default function PieceDetail({ user }) {
     fetchAll()
   }, [fetchAll])
 
+  useEffect(() => {
+    if (!userTags.length) return
+    const stored = getTagColors()
+    for (const tag of userTags) {
+      if (!tag.color && stored[tag.name]) {
+        updateTagColor(tag.id, stored[tag.name]).catch(() => {})
+      }
+    }
+  }, [userTags])
+
   async function handleAdvance() {
     if (!piece) return
     const next = nextStage(piece.current_stage)
@@ -183,10 +193,10 @@ export default function PieceDetail({ user }) {
     }
   }
 
-  async function handleTagToggle(name, category) {
+  async function handleTagToggle(name, category, color) {
     setTogglingTag(name)
     try {
-      const tagId = await getOrCreateTag(name, category, user.id)
+      const tagId = await getOrCreateTag(name, category, user.id, color)
       const existing = tags.find((t) => t.name === name)
       if (existing) {
         await removeTagFromPiece(id, tagId)
@@ -209,7 +219,7 @@ export default function PieceDetail({ user }) {
     addRecentColor(addTagColor)
     setTagColors(getTagColors())
     setRecentColors(getRecentColors())
-    await handleTagToggle(name, addTagCategory)
+    await handleTagToggle(name, addTagCategory, addTagColor)
     const allUserTags = await getUserTags(user.id)
     setUserTags(allUserTags)
     setShowAddTagSheet(false)
@@ -556,6 +566,7 @@ export default function PieceDetail({ user }) {
                         tag={{ id: name, name, category }}
                         selected={isSelected}
                         color={tagColors[name]}
+                        color={userTags.find(t => t.name === name)?.color || tagColors[name]}
                         onToggle={() => handleTagToggle(name, category)}
                       />
                     )

@@ -5,20 +5,25 @@ export const PRESET_TAGS = {
   glaze: ['celadon', 'shino', 'tenmoku', 'ash', 'copper', 'cobalt', 'iron oxide'],
 }
 
-export async function getOrCreateTag(name, category, userId) {
+export async function getOrCreateTag(name, category, userId, color) {
   const { data: existing } = await supabase
     .from('tags')
-    .select('id')
+    .select('id, color')
     .eq('name', name)
     .eq('category', category)
     .eq('user_id', userId)
     .maybeSingle()
 
-  if (existing) return existing.id
+  if (existing) {
+    if (color && color !== existing.color) {
+      await supabase.from('tags').update({ color }).eq('id', existing.id)
+    }
+    return existing.id
+  }
 
   const { data, error } = await supabase
     .from('tags')
-    .insert({ name, category, user_id: userId })
+    .insert({ name, category, user_id: userId, color: color || null })
     .select('id')
     .single()
 
@@ -29,7 +34,7 @@ export async function getOrCreateTag(name, category, userId) {
 export async function getTagsForPiece(pieceId) {
   const { data, error } = await supabase
     .from('piece_tags')
-    .select('tag_id, tags(id, name, category)')
+    .select('tag_id, tags(id, name, category, color)')
     .eq('piece_id', pieceId)
 
   if (error) throw error
@@ -57,9 +62,14 @@ export async function removeTagFromPiece(pieceId, tagId) {
 export async function getUserTags(userId) {
   const { data, error } = await supabase
     .from('tags')
-    .select('id, name, category')
+    .select('id, name, category, color')
     .eq('user_id', userId)
 
   if (error) throw error
   return data
+}
+
+export async function updateTagColor(tagId, color) {
+  const { error } = await supabase.from('tags').update({ color }).eq('id', tagId)
+  if (error) throw error
 }
