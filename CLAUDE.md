@@ -11,12 +11,25 @@ Built for iPhone (add to home screen). Private by default — each user sees onl
 - vite-plugin-pwa (installed with --legacy-peer-deps, .npmrc configured)
 - browser-image-compression
 
+## Infrastructure Decisions
+- `vite-plugin-pwa` installed with `--legacy-peer-deps`; `.npmrc` contains `legacy-peer-deps=true` — required for Vercel builds
+- `vercel.json` contains the `/auth/callback` → Supabase rewrite rule (see Auth & Routing)
+- PWA icons at `public/icon-192.png` and `public/icon-512.png`
+- Deployed at: `https://potheads-two.vercel.app`
+
 ## Supabase
 - Project URL in VITE_SUPABASE_URL
 - Anon key in VITE_SUPABASE_ANON_KEY
 - Client initialized in src/lib/supabase.js
 - Auth: Google OAuth only
 - RLS enabled on all tables — users see only their own data
+
+## Auth & Routing
+- Google OAuth via Supabase (`auth.signInWithOAuth`)
+- `redirectTo` is hard-coded to `https://potheads-two.vercel.app/auth/callback` in `src/lib/supabase.js`
+- Vercel proxies `/auth/callback` → `https://kkagpnsekzsupwswnryo.supabase.co/auth/v1/callback` via rewrite in `vercel.json`
+- Post-login redirect lands on `/board` — handled by `onAuthStateChange` in `App.jsx`
+- Routes: `/` redirects to `/board`, `/board`, `/piece/:id`
 
 ## Database Schema
 Five tables: pieces, stage_events, photos, tags, piece_tags
@@ -56,11 +69,12 @@ src/
     Board.jsx          — home, pieces grouped by stage
     PieceDetail.jsx    — photo timeline, stage advance, tags
   components/
-    AddPiece.jsx       — camera-first new piece flow
-    StageColumn.jsx    — one stage group on the board
-    PhotoTimeline.jsx  — vertical photo log per piece
-    TagChip.jsx        — colored tag pill
-    BottomSheet.jsx    — reusable mobile sheet for modals
+    AddPiece.jsx           — camera-first new piece flow
+    StageColumn.jsx        — one stage group on the board
+    PhotoTimeline.jsx      — vertical photo log per piece (UNUSED — superseded by PieceDetail inline photo handling)
+    TagChip.jsx            — colored tag pill
+    BottomSheet.jsx        — reusable mobile sheet for modals
+    PotteryPlaceholder.jsx — SVG fallback illustration when piece has no photos
   App.jsx              — router + auth gate
   main.jsx             — entry point
 
@@ -94,8 +108,42 @@ Defined in `src/index.css`. Use these class names:
 - Camera input: use <input type="file" accept="image/*" capture="environment"> 
 - Do NOT use getUserMedia API — not reliable in iOS PWA context
 
-## Out of Scope (for now)
-- Shared studio / multi-user viewing
-- Analytics or drying time tracking
-- Marketplace / public portfolio (public boolean on pieces is reserved for later)
-- Push notifications
+## Placeholder Assets
+- 8 SVG illustrations in `public/placeholders/`: bowl, mug, cup, vase, plate, pitcher, teapot, planter
+- `PotteryPlaceholder` component in `src/components/PotteryPlaceholder.jsx`
+- SVGs loaded as `<img>` tags, not inline JSX
+- Usage: show placeholder when piece has no photos; show real photo when one exists
+- Default fallback for unknown form: `vase.svg`
+
+## Explicitly Parked — Do Not Build These
+- **Kiln batch mode** — user does not manage the kiln; never add bulk kiln actions
+- **Analytics or drying time tracking** — no timers, no stage duration metrics
+- **Shared studio / multi-user piece viewing** — app is strictly private per user
+- **Marketplace or public portfolio** — `public` boolean on pieces is reserved for this later; do not wire it up yet
+- **Push notifications**
+- **Search** — stub the search icon only, do not implement search logic
+
+## Current App State
+Last updated: 2026-04-20
+
+| File | Status | Notes |
+|------|--------|-------|
+| src/pages/Login.jsx | Complete | Google OAuth UI, error + loading states |
+| src/pages/Board.jsx | Complete | Stage columns, multi-select, bulk delete, bulk tag edit |
+| src/pages/PieceDetail.jsx | Complete | Hero photo carousel, lightbox, stage timeline, tag management, advance stage |
+| src/components/StageColumn.jsx | Complete | Piece card grid per stage, lazy photo load, select mode |
+| src/components/AddPiece.jsx | Complete | New piece bottom sheet, stage selector, form tag, clay body memory |
+| src/components/BottomSheet.jsx | Complete | Generic reusable bottom modal |
+| src/components/TagChip.jsx | Complete | Colored tag pill, selected/remove states |
+| src/components/PotteryPlaceholder.jsx | Complete | SVG fallback when no photos |
+| src/components/PhotoTimeline.jsx | Unused | Implemented but superseded by PieceDetail inline photo handling |
+| src/lib/supabase.js | Complete | Client init, OAuth redirectTo hard-coded to production URL |
+| src/lib/pieces.js | Complete | CRUD, stage progression, markLost |
+| src/lib/photos.js | Complete | Compressed upload, signed URLs, stage tagging |
+| src/lib/tags.js | Complete | Preset + custom tags, CRUD |
+| src/App.jsx | Complete | Router + auth guard |
+| src/main.jsx | Complete | React 19 entry point |
+| public/placeholders/*.svg | Complete | 8 form illustrations (bowl, mug, cup, vase, plate, pitcher, teapot, planter) |
+| public/icon-192.png, icon-512.png | Complete | PWA icons |
+| vercel.json | Complete | Auth callback rewrite rule |
+| .npmrc | Complete | legacy-peer-deps=true |

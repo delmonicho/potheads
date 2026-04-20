@@ -30,6 +30,7 @@ export default function Board({ user }) {
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [showTagSheet, setShowTagSheet] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [bulkSaving, setBulkSaving] = useState(false)
 
   const fetchPieces = useCallback(async () => {
@@ -183,11 +184,11 @@ export default function Board({ user }) {
               Edit Tags
             </button>
             <button
-              onClick={handleBulkDelete}
+              onClick={() => setShowDeleteConfirm(true)}
               disabled={bulkSaving}
               className="px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-medium active:bg-red-600 disabled:opacity-50"
             >
-              {bulkSaving ? 'Deleting…' : 'Delete'}
+              Delete
             </button>
           </div>
         </div>
@@ -258,6 +259,35 @@ export default function Board({ user }) {
             className="w-full bg-[#78350f] text-white font-semibold py-3.5 rounded-2xl active:bg-[#5c2709] mb-2"
           >
             Done
+          </button>
+        </div>
+      </BottomSheet>
+
+      {/* Delete confirmation sheet */}
+      <BottomSheet
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        title={`Mark ${selectedIds.size} ${selectedIds.size === 1 ? 'piece' : 'pieces'} as lost?`}
+      >
+        <div className="flex flex-col gap-3 pb-2">
+          <p className="text-sm text-stone-500">
+            Marking as lost hides {selectedIds.size === 1 ? 'it' : 'them'} from your board. This can't be undone.
+          </p>
+          <button
+            onClick={async () => {
+              setShowDeleteConfirm(false)
+              await handleBulkDelete()
+            }}
+            disabled={bulkSaving}
+            className="w-full bg-red-500 text-white font-semibold py-3.5 rounded-2xl active:bg-red-600 disabled:opacity-50"
+          >
+            {bulkSaving ? 'Marking as lost…' : 'Yes, mark as lost'}
+          </button>
+          <button
+            onClick={() => setShowDeleteConfirm(false)}
+            className="w-full bg-stone-100 text-stone-700 font-semibold py-3.5 rounded-2xl active:bg-stone-200"
+          >
+            Cancel
           </button>
         </div>
       </BottomSheet>
