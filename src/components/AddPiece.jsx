@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { addPiece } from '../lib/pieces.js'
+import { addPiece, STAGES, STAGE_LABELS } from '../lib/pieces.js'
 import { uploadPhoto } from '../lib/photos.js'
 import { getOrCreateTag, addTagToPiece, PRESET_TAGS } from '../lib/tags.js'
 import BottomSheet from './BottomSheet.jsx'
@@ -9,6 +9,7 @@ const FORM_TAGS = PRESET_TAGS.form
 export default function AddPiece({ open, onClose, onAdded, user }) {
   const [name, setName] = useState('')
   const [clayBody, setClayBody] = useState(() => localStorage.getItem('potheads_last_clay_body') || '')
+  const [stage, setStage] = useState('drying')
   const [selectedForm, setSelectedForm] = useState(null)
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
@@ -18,6 +19,7 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
   function reset() {
     setName('')
     setClayBody(localStorage.getItem('potheads_last_clay_body') || '')
+    setStage('drying')
     setSelectedForm(null)
     setFile(null)
     setPreview(null)
@@ -45,12 +47,12 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
     setError(null)
     try {
       const trimmedClay = clayBody.trim() || null
-      const piece = await addPiece({ userId: user.id, name: name.trim(), clayBody: trimmedClay })
+      const piece = await addPiece({ userId: user.id, name: name.trim(), clayBody: trimmedClay, stage })
       if (trimmedClay) {
         localStorage.setItem('potheads_last_clay_body', trimmedClay)
       }
       if (file) {
-        await uploadPhoto({ file, userId: user.id, pieceId: piece.id, stage: 'drying' })
+        await uploadPhoto({ file, userId: user.id, pieceId: piece.id, stage })
       }
       if (selectedForm) {
         const tagId = await getOrCreateTag(selectedForm, 'form', user.id)
@@ -112,6 +114,26 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
             value={clayBody}
             onChange={(e) => setClayBody(e.target.value)}
           />
+        </div>
+
+        {/* Stage selector */}
+        <div>
+          <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2">Stage</label>
+          <div className="flex flex-wrap gap-2">
+            {STAGES.map((s) => (
+              <button
+                key={s}
+                onClick={() => setStage(s)}
+                className={`px-4 py-1.5 rounded-full text-sm border transition-colors ${
+                  stage === s
+                    ? 'bg-[#78350f] text-white border-[#78350f]'
+                    : 'border-stone-300 text-stone-700 bg-white'
+                }`}
+              >
+                {STAGE_LABELS[s]}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Form tags */}
