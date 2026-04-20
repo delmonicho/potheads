@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import { STAGES, STAGE_LABELS, nextStage, advanceStage, markLost } from '../lib/pieces.js'
-import { getPhotosForPiece, uploadPhoto, getPhotoUrl } from '../lib/photos.js'
+import { getPhotosForPiece, uploadPhoto, getPhotoUrl, updatePhotoStage } from '../lib/photos.js'
 import { getTagsForPiece, getOrCreateTag, addTagToPiece, removeTagFromPiece, PRESET_TAGS } from '../lib/tags.js'
 import TagChip from '../components/TagChip.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
@@ -36,6 +36,13 @@ export default function PieceDetail({ user }) {
   const [addPhotoNote, setAddPhotoNote] = useState('')
   const [addingPhoto, setAddingPhoto] = useState(false)
 
+  // Lightbox viewer
+  const touchStartX = useRef(null)
+  const [viewerOpen, setViewerOpen] = useState(false)
+  const [viewerIndex, setViewerIndex] = useState(0)
+  const [showEditStageSheet, setShowEditStageSheet] = useState(false)
+  const [savingStage, setSavingStage] = useState(false)
+
   const fetchAll = useCallback(async () => {
     try {
       const [{ data: pieceData, error: pieceError }, photosData, tagsData] = await Promise.all([
@@ -53,7 +60,8 @@ export default function PieceDetail({ user }) {
         photosData.map((p) => getPhotoUrl(p.storage_path).catch(() => null))
       )
       setPhotoUrls(urls)
-      setHeroIndex(photosData.length > 0 ? photosData.length - 1 : 0)
+      // photos[0] is newest (taken_at DESC)
+      setHeroIndex(0)
 
       // Derive piece number: count pieces created at or before this one
       const { count } = await supabase
@@ -141,6 +149,19 @@ export default function PieceDetail({ user }) {
     }
   }
 
+  async function handleEditStage(photoId, stage) {
+    setSavingStage(true)
+    try {
+      await updatePhotoStage(photoId, stage)
+      setShowEditStageSheet(false)
+      await fetchAll()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSavingStage(false)
+    }
+  }
+
   function getStageStatus(stage) {
     if (!piece) return 'pending'
     const currentIdx = STAGES.indexOf(piece.current_stage)
@@ -153,6 +174,19 @@ export default function PieceDetail({ user }) {
   function handleStageTap(stage) {
     const idx = photos.findLastIndex(p => p.stage === stage)
     if (idx !== -1) setHeroIndex(idx)
+  }
+
+  function handleHeroTouchStart(e) {
+    touchStartX.current = e.touches[0].clientX
+  }
+
+  function handleHeroTouchEnd(e) {
+    if (touchStartX.current === null) return
+    const dx = e.changedTouches[0].clientX - touchStartX.current
+    touchStartX.current = null
+    if (Math.abs(dx) < 50) return
+    if (dx < 0 && heroIndex < photos.length - 1) setHeroIndex(heroIndex + 1)
+    else if (dx > 0 && heroIndex > 0) setHeroIndex(heroIndex - 1)
   }
 
   const next = piece ? nextStage(piece.current_stage) : null
@@ -179,7 +213,12 @@ export default function PieceDetail({ user }) {
   return (
     <div className="flex flex-col min-h-screen bg-[#fafaf9]">
       {/* Full-bleed hero photo */}
-      <div className="relative h-[40vh] flex-shrink-0 bg-[#c4a882] overflow-hidden">
+      <div
+        className="relative h-[40vh] flex-shrink-0 bg-[#c4a882] overflow-hidden"
+        onTouchStart={handleHeroTouchStart}
+        onTouchEnd={handleHeroTouchEnd}
+        onClick={() => { if (heroUrl) { setViewerIndex(heroIndex); setViewerOpen(true) } }}
+      >
         {heroUrl ? (
           <img src={heroUrl} alt="" className="w-full h-full object-cover" />
         ) : (
@@ -188,7 +227,7 @@ export default function PieceDetail({ user }) {
 
         {/* Back button */}
         <button
-          onClick={() => navigate(-1)}
+          onClick={(e) => { e.stopPropagation(); navigate(-1) }}
           style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}
           className="absolute left-4 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center text-[#1c1917] text-2xl leading-none"
           aria-label="Back"
@@ -196,13 +235,25 @@ export default function PieceDetail({ user }) {
           ‹
         </button>
 
+        {/* Stage pill — bottom-left */}
+        {photos[heroIndex]?.stage && (
+          <div className="absolute bottom-3 left-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-sm pointer-events-none">
+            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+              photos[heroIndex].stage === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
+            }`} />
+            <span className="text-white text-xs font-medium leading-none">
+              {STAGE_LABELS[photos[heroIndex].stage]}
+            </span>
+          </div>
+        )}
+
         {/* Pagination dots */}
         {photos.length > 1 && (
           <div className="absolute bottom-3 inset-x-0 flex justify-center gap-1.5">
             {photos.map((_, i) => (
               <button
                 key={i}
-                onClick={() => setHeroIndex(i)}
+                onClick={(e) => { e.stopPropagation(); setHeroIndex(i) }}
                 className={`w-2 h-2 rounded-full transition-colors ${i === heroIndex ? 'bg-white' : 'bg-white/50'}`}
               />
             ))}
@@ -211,7 +262,7 @@ export default function PieceDetail({ user }) {
 
         {/* Add photo button */}
         <button
-          onClick={() => { setAddPhotoStage(piece.current_stage); setShowAddPhotoSheet(true) }}
+          onClick={(e) => { e.stopPropagation(); setAddPhotoStage(piece.current_stage); setShowAddPhotoSheet(true) }}
           className="absolute bottom-3 right-4 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center active:bg-white"
           aria-label="Add photo"
         >
@@ -467,6 +518,121 @@ export default function PieceDetail({ user }) {
           >
             {addingPhoto ? 'Uploading…' : 'Add Photo'}
           </button>
+        </div>
+      </BottomSheet>
+
+      {/* Full-screen photo lightbox */}
+      {viewerOpen && (
+        <div className="fixed inset-0 z-[60] bg-black flex flex-col">
+          {/* Top bar: stage pill + close */}
+          <div
+            className="flex items-center justify-between px-4 flex-shrink-0"
+            style={{ paddingTop: 'calc(env(safe-area-inset-top) + 12px)' }}
+          >
+            <div className="flex items-center gap-2">
+              {photos[viewerIndex]?.stage ? (
+                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm">
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                    photos[viewerIndex].stage === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
+                  }`} />
+                  <span className="text-white text-xs font-medium">{STAGE_LABELS[photos[viewerIndex].stage]}</span>
+                </span>
+              ) : (
+                <span className="text-white/40 text-xs">No stage tagged</span>
+              )}
+            </div>
+            <button
+              onClick={() => setViewerOpen(false)}
+              className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center text-white text-xl leading-none active:bg-white/30"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+
+          {/* Photo — swipeable */}
+          <div
+            className="flex-1 flex items-center justify-center overflow-hidden"
+            onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX }}
+            onTouchEnd={(e) => {
+              if (touchStartX.current === null) return
+              const dx = e.changedTouches[0].clientX - touchStartX.current
+              touchStartX.current = null
+              if (Math.abs(dx) < 50) return
+              if (dx < 0 && viewerIndex < photos.length - 1) setViewerIndex(v => v + 1)
+              else if (dx > 0 && viewerIndex > 0) setViewerIndex(v => v - 1)
+            }}
+          >
+            {photoUrls[viewerIndex] ? (
+              <img
+                src={photoUrls[viewerIndex]}
+                alt=""
+                className="max-w-full max-h-full object-contain"
+              />
+            ) : (
+              <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin" />
+            )}
+          </div>
+
+          {/* Bottom bar: note + counter + edit stage */}
+          <div
+            className="flex-shrink-0 px-4 flex flex-col gap-2"
+            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
+          >
+            {photos[viewerIndex]?.note && (
+              <p className="text-white/80 text-sm text-center px-2">{photos[viewerIndex].note}</p>
+            )}
+            <p className="text-white/40 text-xs text-center tabular-nums">
+              {viewerIndex + 1} / {photos.length}
+            </p>
+            <button
+              onClick={() => setShowEditStageSheet(true)}
+              className="w-full py-3 rounded-2xl bg-white/15 text-white text-sm font-semibold active:bg-white/25"
+            >
+              Edit stage
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Edit stage sheet — z-[70] renders above lightbox */}
+      <BottomSheet
+        open={showEditStageSheet}
+        onClose={() => setShowEditStageSheet(false)}
+        title="Set stage for this photo"
+        zClassName="z-[70]"
+      >
+        <div className="flex flex-col gap-3 pb-2">
+          <button
+            onClick={() => handleEditStage(photos[viewerIndex]?.id, null)}
+            disabled={savingStage}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors disabled:opacity-50 ${
+              !photos[viewerIndex]?.stage
+                ? 'bg-stone-100 border-stone-300 text-[#1c1917] font-semibold'
+                : 'border-stone-200 text-stone-500'
+            }`}
+          >
+            <span className="w-3 h-3 rounded-full border-2 border-stone-400 flex-shrink-0" />
+            <span className="text-sm">No stage</span>
+          </button>
+          {STAGES.map((s) => (
+            <button
+              key={s}
+              onClick={() => handleEditStage(photos[viewerIndex]?.id, s)}
+              disabled={savingStage}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors disabled:opacity-50 ${
+                photos[viewerIndex]?.stage === s
+                  ? 'bg-stone-100 border-stone-300 text-[#1c1917] font-semibold'
+                  : 'border-stone-200 text-stone-600'
+              }`}
+            >
+              <span className={`w-3 h-3 rounded-full flex-shrink-0 ${
+                s === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
+              }`} />
+              <span className="text-sm">{STAGE_LABELS[s]}</span>
+            </button>
+          ))}
+          {savingStage && <p className="text-center text-xs text-stone-400">Saving…</p>}
         </div>
       </BottomSheet>
     </div>

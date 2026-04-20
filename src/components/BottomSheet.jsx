@@ -1,7 +1,7 @@
-export default function BottomSheet({ open, onClose, title, children }) {
+export default function BottomSheet({ open, onClose, title, children, zClassName = 'z-50' }) {
   return (
     <div
-      className={`fixed inset-0 z-50 flex flex-col justify-end transition-all duration-300 ${open ? 'pointer-events-auto' : 'pointer-events-none'}`}
+      className={`fixed inset-0 ${zClassName} flex flex-col justify-end transition-all duration-300 ${open ? 'pointer-events-auto' : 'pointer-events-none'}`}
     >
       {/* Backdrop */}
       <div

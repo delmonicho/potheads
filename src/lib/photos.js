@@ -46,3 +46,11 @@ export async function getPhotoUrl(path) {
   if (error) throw error
   return data.signedUrl
 }
+
+export async function updatePhotoStage(photoId, stage) {
+  const { error } = await supabase
+    .from('photos')
+    .update({ stage })
+    .eq('id', photoId)
+  if (error) throw error
+}
