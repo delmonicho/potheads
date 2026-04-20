@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import { STAGES, STAGE_LABELS, nextStage, advanceStage, markLost, updateStage } from '../lib/pieces.js'
 import { getPhotosForPiece, uploadPhoto, getPhotoUrl, updatePhotoStage } from '../lib/photos.js'
-import { getTagsForPiece, getOrCreateTag, addTagToPiece, removeTagFromPiece, PRESET_TAGS } from '../lib/tags.js'
+import { getTagsForPiece, getOrCreateTag, addTagToPiece, removeTagFromPiece, getUserTags, PRESET_TAGS } from '../lib/tags.js'
 import TagChip from '../components/TagChip.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
 import PotteryPlaceholder from '../components/PotteryPlaceholder.jsx'
@@ -38,6 +38,8 @@ export default function PieceDetail({ user }) {
 
   const [showChangePieceStageSheet, setShowChangePieceStageSheet] = useState(false)
   const [changingPieceStage, setChangingPieceStage] = useState(false)
+  const [userTags, setUserTags] = useState([])
+  const [newTagInput, setNewTagInput] = useState({ form: '', glaze: '' })
 
   // Lightbox viewer
   const touchStartX = useRef(null)
@@ -48,15 +50,17 @@ export default function PieceDetail({ user }) {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [{ data: pieceData, error: pieceError }, photosData, tagsData] = await Promise.all([
+      const [{ data: pieceData, error: pieceError }, photosData, tagsData, allUserTags] = await Promise.all([
         supabase.from('pieces').select('*').eq('id', id).single(),
         getPhotosForPiece(id),
         getTagsForPiece(id),
+        getUserTags(user.id),
       ])
       if (pieceError) throw pieceError
       setPiece(pieceData)
       setPhotos(photosData)
       setTags(tagsData)
+      setUserTags(allUserTags)
 
       // Resolve signed URLs for all photos
       const urls = await Promise.all(
@@ -150,6 +154,15 @@ export default function PieceDetail({ user }) {
     } finally {
       setTogglingTag(null)
     }
+  }
+
+  async function handleAddCustomTag(category) {
+    const name = newTagInput[category].trim().toLowerCase()
+    if (!name) return
+    await handleTagToggle(name, category)
+    const allUserTags = await getUserTags(user.id)
+    setUserTags(allUserTags)
+    setNewTagInput(prev => ({ ...prev, [category]: '' }))
   }
 
   async function handleChangePieceStage(newStage) {
@@ -332,13 +345,10 @@ export default function PieceDetail({ user }) {
                       </div>
                     )}
                     {status === 'current' && stage === 'finished' && (
-                      <div className="relative flex-shrink-0">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-300 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-300/50">
-                          <svg width="16" height="16" viewBox="0 0 16 16" fill="white">
-                            <path d="M8 0L9.3 6.7L16 8L9.3 9.3L8 16L6.7 9.3L0 8L6.7 6.7Z" />
-                          </svg>
-                        </div>
-                        <div className="absolute inset-0 rounded-full bg-amber-400/30 animate-ping" />
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-300 to-amber-600 flex items-center justify-center flex-shrink-0">
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="white">
+                          <path d="M8 0L9.3 6.7L16 8L9.3 9.3L8 16L6.7 9.3L0 8L6.7 6.7Z" />
+                        </svg>
                       </div>
                     )}
                     {status === 'pending' && (
@@ -392,7 +402,7 @@ export default function PieceDetail({ user }) {
         </div>
 
         {/* Tags */}
-        <div className="px-5 py-4 border-t border-stone-100">
+        <div className="px-5 py-4 pb-6 border-t border-stone-100">
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs uppercase tracking-widest text-stone-400">Tags</p>
             <button onClick={() => setShowTagSheet(true)} className="text-[#78350f] text-sm font-medium">
@@ -464,24 +474,45 @@ export default function PieceDetail({ user }) {
         title="Edit Tags"
       >
         <div className="flex flex-col gap-5">
-          {Object.entries(PRESET_TAGS).map(([category, names]) => (
-            <div key={category}>
-              <p className="text-xs uppercase tracking-widest text-stone-400 mb-2">{category}</p>
-              <div className="flex flex-wrap gap-2">
-                {names.map((name) => {
-                  const isSelected = tags.some((t) => t.name === name)
-                  return (
-                    <TagChip
-                      key={name}
-                      tag={{ id: name, name, category }}
-                      selected={isSelected}
-                      onToggle={() => handleTagToggle(name, category)}
-                    />
-                  )
-                })}
+          {Object.entries(PRESET_TAGS).map(([category, presetNames]) => {
+            const customNames = userTags
+              .filter(t => t.category === category && !presetNames.includes(t.name))
+              .map(t => t.name)
+            const allNames = [...presetNames, ...customNames]
+            return (
+              <div key={category}>
+                <p className="text-xs uppercase tracking-widest text-stone-400 mb-2">{category}</p>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {allNames.map((name) => {
+                    const isSelected = tags.some((t) => t.name === name)
+                    return (
+                      <TagChip
+                        key={name}
+                        tag={{ id: name, name, category }}
+                        selected={isSelected}
+                        onToggle={() => handleTagToggle(name, category)}
+                      />
+                    )
+                  })}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    className="flex-1 border border-stone-200 rounded-xl px-3 py-1.5 text-sm bg-stone-50 text-[#1c1917]"
+                    placeholder={`Add ${category}…`}
+                    value={newTagInput[category]}
+                    onChange={(e) => setNewTagInput(prev => ({ ...prev, [category]: e.target.value }))}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddCustomTag(category)}
+                  />
+                  <button
+                    onClick={() => handleAddCustomTag(category)}
+                    className="px-3 py-1.5 bg-[#78350f] text-white text-sm font-medium rounded-xl active:bg-[#5c2709]"
+                  >
+                    Add
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
           {togglingTag && <p className="text-stone-400 text-xs text-center">Saving…</p>}
         </div>
       </BottomSheet>

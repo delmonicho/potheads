@@ -53,3 +53,13 @@ export async function removeTagFromPiece(pieceId, tagId) {
 
   if (error) throw error
 }
+
+export async function getUserTags(userId) {
+  const { data, error } = await supabase
+    .from('tags')
+    .select('id, name, category')
+    .eq('user_id', userId)
+
+  if (error) throw error
+  return data
+}
