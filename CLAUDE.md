@@ -58,21 +58,27 @@ User does NOT manage the kiln. Pieces sit at Bisque Ready until studio fires the
 - Safe area insets: use pb-safe / pt-safe for iPhone notch/home bar.
 
 ## File Structure
+See subdirectory CLAUDE.md files for detailed conventions:
+- `src/lib/CLAUDE.md` — data layer patterns, batch functions, URL cache, useTagColors
+- `src/pages/CLAUDE.md` — page-level data fetching patterns
+- `src/components/CLAUDE.md` — component conventions and prop contracts
+
 src/
   lib/
-    supabase.js        — supabase client (already exists)
-    pieces.js          — all pieces CRUD
-    photos.js          — upload + fetch photos
-    tags.js            — tags CRUD
+    supabase.js        — supabase client
+    pieces.js          — all pieces CRUD; advanceStage uses Promise.all
+    photos.js          — upload, batch fetch (getPhotosForPieces), signed URL cache
+    tags.js            — tags CRUD, batch fetch (getTagsForPieces)
+    useTagColors.js    — useTagColors hook, CATEGORY_DEFAULTS, detectColor
   pages/
     Login.jsx          — Google OAuth sign in
-    Board.jsx          — home, pieces grouped by stage
-    PieceDetail.jsx    — photo timeline, stage advance, tags
+    Board.jsx          — home, pieces grouped by stage; batch-fetches photos+tags in 3 total queries
+    PieceDetail.jsx    — photo carousel, lightbox, stage timeline, tag management
   components/
     AddPiece.jsx           — camera-first new piece flow
-    StageColumn.jsx        — one stage group on the board
-    PhotoTimeline.jsx      — vertical photo log per piece (UNUSED — superseded by PieceDetail inline photo handling)
-    TagChip.jsx            — colored tag pill
+    StageColumn.jsx        — stage group + PieceCard grid; props-only, no internal fetching
+    PhotoTimeline.jsx      — UNUSED — superseded by PieceDetail inline photo handling
+    TagChip.jsx            — colored tag pill (React.memo)
     BottomSheet.jsx        — reusable mobile sheet for modals
     PotteryPlaceholder.jsx — SVG fallback illustration when piece has no photos
   App.jsx              — router + auth gate
@@ -131,16 +137,17 @@ Last updated: 2026-04-20
 | src/pages/Login.jsx | Complete | Google OAuth UI, error + loading states |
 | src/pages/Board.jsx | Complete | Stage columns, multi-select, bulk delete, bulk tag edit |
 | src/pages/PieceDetail.jsx | Complete | Hero photo carousel, lightbox, stage timeline, tag management, advance stage |
-| src/components/StageColumn.jsx | Complete | Piece card grid per stage, lazy photo load, select mode |
+| src/components/StageColumn.jsx | Complete | Piece card grid per stage, thumbUrl/formTag passed as props (no per-card fetches), React.memo |
 | src/components/AddPiece.jsx | Complete | New piece bottom sheet, stage selector, form tag, clay body memory |
 | src/components/BottomSheet.jsx | Complete | Generic reusable bottom modal |
-| src/components/TagChip.jsx | Complete | Colored tag pill, selected/remove states |
+| src/components/TagChip.jsx | Complete | Colored tag pill, selected/remove states, React.memo |
 | src/components/PotteryPlaceholder.jsx | Complete | SVG fallback when no photos |
 | src/components/PhotoTimeline.jsx | Unused | Implemented but superseded by PieceDetail inline photo handling |
 | src/lib/supabase.js | Complete | Client init, OAuth redirectTo hard-coded to production URL |
 | src/lib/pieces.js | Complete | CRUD, stage progression, markLost |
-| src/lib/photos.js | Complete | Compressed upload, signed URLs, stage tagging |
-| src/lib/tags.js | Complete | Preset + custom tags, CRUD |
+| src/lib/photos.js | Complete | Compressed upload, signed URLs (cached), batch fetch, stage tagging |
+| src/lib/tags.js | Complete | Preset + custom tags, CRUD, batch fetch |
+| src/lib/useTagColors.js | Complete | Tag color hook shared by PieceDetail + TagChip |
 | src/App.jsx | Complete | Router + auth guard |
 | src/main.jsx | Complete | React 19 entry point |
 | public/placeholders/*.svg | Complete | 8 form illustrations (bowl, mug, cup, vase, plate, pitcher, teapot, planter) |

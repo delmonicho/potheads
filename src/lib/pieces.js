@@ -47,17 +47,11 @@ export async function updateStage(pieceId, stage) {
 }
 
 export async function advanceStage(pieceId, stage, notes) {
-  const { error: updateError } = await supabase
-    .from('pieces')
-    .update({ current_stage: stage })
-    .eq('id', pieceId)
-
+  const [{ error: updateError }, { error: eventError }] = await Promise.all([
+    supabase.from('pieces').update({ current_stage: stage }).eq('id', pieceId),
+    supabase.from('stage_events').insert({ piece_id: pieceId, stage, notes: notes || null }),
+  ])
   if (updateError) throw updateError
-
-  const { error: eventError } = await supabase
-    .from('stage_events')
-    .insert({ piece_id: pieceId, stage, notes: notes || null })
-
   if (eventError) throw eventError
 }
 

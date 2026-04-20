@@ -31,6 +31,20 @@ export async function getOrCreateTag(name, category, userId, color) {
   return data.id
 }
 
+export async function getTagsForPieces(pieceIds) {
+  if (!pieceIds.length) return new Map()
+  const { data, error } = await supabase
+    .from('piece_tags')
+    .select('piece_id, tags(id, name, category, color)')
+    .in('piece_id', pieceIds)
+  if (error) throw error
+  return data.reduce((map, row) => {
+    if (!map.has(row.piece_id)) map.set(row.piece_id, [])
+    map.get(row.piece_id).push(row.tags)
+    return map
+  }, new Map())
+}
+
 export async function getTagsForPiece(pieceId) {
   const { data, error } = await supabase
     .from('piece_tags')

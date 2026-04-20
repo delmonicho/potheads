@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { getPieces, markLost, STAGES } from '../lib/pieces.js'
-import { getOrCreateTag, addTagToPiece, PRESET_TAGS } from '../lib/tags.js'
+import { getPhotosForPieces, getPhotoUrl } from '../lib/photos.js'
+import { getTagsForPieces, getOrCreateTag, addTagToPiece, PRESET_TAGS } from '../lib/tags.js'
 import StageColumn from '../components/StageColumn.jsx'
 import AddPiece from '../components/AddPiece.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
@@ -21,6 +22,8 @@ function SelectIcon() {
 
 export default function Board({ user }) {
   const [pieces, setPieces] = useState([])
+  const [thumbUrls, setThumbUrls] = useState({})  // pieceId → signed URL
+  const [formTags, setFormTags] = useState({})     // pieceId → form tag name
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showAddPiece, setShowAddPiece] = useState(false)
@@ -33,10 +36,45 @@ export default function Board({ user }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [bulkSaving, setBulkSaving] = useState(false)
 
-  const fetchPieces = useCallback(async () => {
+  const fetchAll = useCallback(async () => {
     try {
       const data = await getPieces(user.id)
       setPieces(data)
+
+      if (data.length === 0) return
+
+      const pieceIds = data.map(p => p.id)
+      const [photosByPiece, tagsByPiece] = await Promise.all([
+        getPhotosForPieces(pieceIds),
+        getTagsForPieces(pieceIds),
+      ])
+
+      // Derive form tag name per piece
+      const newFormTags = {}
+      for (const [pieceId, tags] of tagsByPiece) {
+        const ft = tags.find(t => t.category === 'form')
+        if (ft) newFormTags[pieceId] = ft.name
+      }
+      setFormTags(newFormTags)
+
+      // Determine thumbnail photo per piece (latest-stage photo)
+      const thumbEntries = []
+      for (const piece of data) {
+        const photos = photosByPiece.get(piece.id) || []
+        if (photos.length > 0) {
+          const latestStage = [...STAGES].reverse().find(s => photos.some(p => p.stage === s))
+          const thumb = latestStage ? photos.find(p => p.stage === latestStage) : photos[0]
+          if (thumb) thumbEntries.push({ pieceId: piece.id, path: thumb.storage_path })
+        }
+      }
+
+      // Fetch all thumbnail URLs in parallel (cached after first load)
+      const urlResults = await Promise.all(
+        thumbEntries.map(({ path }) => getPhotoUrl(path).catch(() => null))
+      )
+      const newThumbUrls = {}
+      thumbEntries.forEach(({ pieceId }, i) => { newThumbUrls[pieceId] = urlResults[i] })
+      setThumbUrls(newThumbUrls)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -45,8 +83,8 @@ export default function Board({ user }) {
   }, [user.id])
 
   useEffect(() => {
-    fetchPieces()
-  }, [fetchPieces])
+    fetchAll()
+  }, [fetchAll])
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -54,7 +92,7 @@ export default function Board({ user }) {
 
   function handlePieceAdded() {
     setShowAddPiece(false)
-    fetchPieces()
+    fetchAll()
   }
 
   function toggleSelect(id) {
@@ -73,8 +111,8 @@ export default function Board({ user }) {
   async function handleBulkDelete() {
     setBulkSaving(true)
     try {
-      for (const id of selectedIds) await markLost(id)
-      await fetchPieces()
+      await Promise.all([...selectedIds].map(id => markLost(id)))
+      await fetchAll()
       exitSelectMode()
     } finally {
       setBulkSaving(false)
@@ -83,19 +121,22 @@ export default function Board({ user }) {
 
   async function handleBulkToggleTag(tagName, category) {
     const tagId = await getOrCreateTag(tagName, category, user.id)
-    for (const id of selectedIds) await addTagToPiece(id, tagId)
+    await Promise.all([...selectedIds].map(id => addTagToPiece(id, tagId)))
   }
 
   async function handleTagSheetDone() {
     setShowTagSheet(false)
-    await fetchPieces()
+    await fetchAll()
     exitSelectMode()
   }
 
-  const piecesByStage = STAGES.reduce((acc, stage) => {
-    acc[stage] = pieces.filter((p) => p.current_stage === stage)
-    return acc
-  }, {})
+  const piecesByStage = useMemo(
+    () => STAGES.reduce((acc, stage) => {
+      acc[stage] = pieces.filter(p => p.current_stage === stage)
+      return acc
+    }, {}),
+    [pieces]
+  )
 
   const userInitial = (user.user_metadata?.full_name || user.email || '?')[0].toUpperCase()
 
@@ -151,6 +192,8 @@ export default function Board({ user }) {
             key={stage}
             stage={stage}
             pieces={piecesByStage[stage]}
+            thumbUrls={thumbUrls}
+            formTags={formTags}
             selectMode={selectMode}
             selectedIds={selectedIds}
             onToggleSelect={toggleSelect}

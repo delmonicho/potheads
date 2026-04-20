@@ -7,6 +7,9 @@ const COMPRESSION_OPTIONS = {
   useWebWorker: true,
 }
 
+// Module-level signed URL cache — avoids regenerating URLs within their 1-hour validity
+const urlCache = new Map() // path → { url, expiresAt }
+
 export async function uploadPhoto({ file, userId, pieceId, stage, note }) {
   const compressed = await imageCompression(file, COMPRESSION_OPTIONS)
   const path = `${userId}/${pieceId}/${Date.now()}.jpg`
@@ -38,12 +41,31 @@ export async function getPhotosForPiece(pieceId) {
   return data
 }
 
+export async function getPhotosForPieces(pieceIds) {
+  if (!pieceIds.length) return new Map()
+  const { data, error } = await supabase
+    .from('photos')
+    .select('*')
+    .in('piece_id', pieceIds)
+    .order('taken_at', { ascending: false })
+  if (error) throw error
+  return data.reduce((map, photo) => {
+    if (!map.has(photo.piece_id)) map.set(photo.piece_id, [])
+    map.get(photo.piece_id).push(photo)
+    return map
+  }, new Map())
+}
+
 export async function getPhotoUrl(path) {
+  const cached = urlCache.get(path)
+  if (cached && cached.expiresAt > Date.now()) return cached.url
+
   const { data, error } = await supabase.storage
     .from('photos')
     .createSignedUrl(path, 3600)
 
   if (error) throw error
+  urlCache.set(path, { url: data.signedUrl, expiresAt: Date.now() + 55 * 60 * 1000 })
   return data.signedUrl
 }
 

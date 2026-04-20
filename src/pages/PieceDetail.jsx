@@ -7,44 +7,7 @@ import { getTagsForPiece, getOrCreateTag, addTagToPiece, removeTagFromPiece, get
 import TagChip from '../components/TagChip.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
 import PotteryPlaceholder from '../components/PotteryPlaceholder.jsx'
-
-function getTagColors() {
-  try { return JSON.parse(localStorage.getItem('potheads_tag_colors') || '{}') } catch { return {} }
-}
-function saveTagColor(name, hex) {
-  const c = getTagColors(); c[name] = hex
-  localStorage.setItem('potheads_tag_colors', JSON.stringify(c))
-}
-function getRecentColors() {
-  try { return JSON.parse(localStorage.getItem('potheads_recent_tag_colors') || '[]') } catch { return [] }
-}
-function addRecentColor(hex) {
-  const r = [hex, ...getRecentColors().filter(c => c !== hex)].slice(0, 8)
-  localStorage.setItem('potheads_recent_tag_colors', JSON.stringify(r))
-}
-
-const COLOR_WORDS = {
-  red: '#ef4444', crimson: '#dc143c', scarlet: '#ff4040', ruby: '#9b111e',
-  blue: '#3b82f6', cobalt: '#0047ab', navy: '#1e3a5f', indigo: '#4338ca', azure: '#007fff',
-  green: '#22c55e', sage: '#87ae73', jade: '#00a86b', olive: '#708238', moss: '#8a9a5b',
-  celadon: '#ace1af', tenmoku: '#2c1810', shino: '#f5efe6', ash: '#b2beb5',
-  copper: '#b87333', iron: '#8b4513', rust: '#b7410e',
-  gold: '#fbbf24', amber: '#f59e0b', yellow: '#eab308',
-  purple: '#9333ea', lavender: '#967bb6', violet: '#8b5cf6',
-  black: '#1c1917', charcoal: '#374151',
-  white: '#f5f5f4', cream: '#fffdd0', ivory: '#fffff0',
-  brown: '#78350f', clay: '#78350f',
-  gray: '#6b7280', grey: '#6b7280',
-  pink: '#ec4899', rose: '#f43f5e',
-  orange: '#f97316', teal: '#14b8a6', turquoise: '#40e0d0', silver: '#c0c0c0',
-}
-function detectColor(name) {
-  const lower = name.toLowerCase()
-  for (const [word, hex] of Object.entries(COLOR_WORDS)) {
-    if (lower.includes(word)) return hex
-  }
-  return null
-}
+import { useTagColors, detectColor } from '../lib/useTagColors.js'
 
 export default function PieceDetail({ user }) {
   const { id } = useParams()
@@ -84,8 +47,7 @@ export default function PieceDetail({ user }) {
   const [addTagName, setAddTagName] = useState('')
   const [addTagColor, setAddTagColor] = useState('#78350f')
   const [tagColorManuallySet, setTagColorManuallySet] = useState(false)
-  const [tagColors, setTagColors] = useState(() => getTagColors())
-  const [recentColors, setRecentColors] = useState(() => getRecentColors())
+  const { tagColors, recentColors, saveTagColor, addRecentColor } = useTagColors()
 
   // Lightbox viewer
   const touchStartX = useRef(null)
@@ -136,10 +98,9 @@ export default function PieceDetail({ user }) {
 
   useEffect(() => {
     if (!userTags.length) return
-    const stored = getTagColors()
     for (const tag of userTags) {
-      if (!tag.color && stored[tag.name]) {
-        updateTagColor(tag.id, stored[tag.name]).catch(() => {})
+      if (!tag.color && tagColors[tag.name]) {
+        updateTagColor(tag.id, tagColors[tag.name]).catch(() => {})
       }
     }
   }, [userTags])
@@ -217,8 +178,6 @@ export default function PieceDetail({ user }) {
     if (!name) return
     saveTagColor(name, addTagColor)
     addRecentColor(addTagColor)
-    setTagColors(getTagColors())
-    setRecentColors(getRecentColors())
     await handleTagToggle(name, addTagCategory, addTagColor)
     const allUserTags = await getUserTags(user.id)
     setUserTags(allUserTags)

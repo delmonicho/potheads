@@ -1,5 +1,7 @@
-export default function TagChip({ tag, selected, onToggle, onRemove, color }) {
-  const CATEGORY_DEFAULTS = { form: '#78350f', glaze: '#4a7c59' }
+import { memo } from 'react'
+import { CATEGORY_DEFAULTS } from '../lib/useTagColors.js'
+
+export default memo(function TagChip({ tag, selected, onToggle, onRemove, color }) {
   const chipColor = color || CATEGORY_DEFAULTS[tag.category] || '#78350f'
 
   const style = selected
@@ -24,4 +26,4 @@ export default function TagChip({ tag, selected, onToggle, onRemove, color }) {
       )}
     </span>
   )
-}
+})

@@ -1,33 +1,11 @@
-import { useState, useEffect } from 'react'
+import { memo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { STAGES, STAGE_LABELS } from '../lib/pieces.js'
-import { getPhotosForPiece, getPhotoUrl } from '../lib/photos.js'
-import { getTagsForPiece } from '../lib/tags.js'
+import { STAGE_LABELS } from '../lib/pieces.js'
 import PotteryPlaceholder from './PotteryPlaceholder.jsx'
 
-function PieceCard({ piece, selectMode, selected, onToggleSelect }) {
+const PieceCard = memo(function PieceCard({ piece, thumbUrl, formTag, selectMode, selected, onToggleSelect }) {
   const navigate = useNavigate()
-  const [thumbUrl, setThumbUrl] = useState(null)
-  const [photoLoading, setPhotoLoading] = useState(true)
   const [imgLoaded, setImgLoaded] = useState(false)
-  const [formTag, setFormTag] = useState(null)
-
-  useEffect(() => {
-    getPhotosForPiece(piece.id).then(async (photos) => {
-      if (photos.length > 0) {
-        const latestStage = [...STAGES].reverse().find(s => photos.some(p => p.stage === s))
-        const stagePhoto = photos.find(p => p.stage === latestStage)
-        const url = await getPhotoUrl(stagePhoto.storage_path)
-        setThumbUrl(url)
-      }
-      setPhotoLoading(false)
-    }).catch(() => { setPhotoLoading(false) })
-
-    getTagsForPiece(piece.id).then((tags) => {
-      const ft = tags.find((t) => t.category === 'form')
-      if (ft) setFormTag(ft.name)
-    }).catch(() => {})
-  }, [piece.id])
 
   function handleTap() {
     if (selectMode) {
@@ -51,9 +29,9 @@ function PieceCard({ piece, selectMode, selected, onToggleSelect }) {
             className={`w-full h-full object-cover transition-opacity duration-300 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
             onLoad={() => setImgLoaded(true)}
           />
-        ) : !photoLoading ? (
+        ) : (
           <PotteryPlaceholder formTag={formTag} />
-        ) : null}
+        )}
       </div>
 
       {/* Selection overlay */}
@@ -82,9 +60,9 @@ function PieceCard({ piece, selectMode, selected, onToggleSelect }) {
       </div>
     </div>
   )
-}
+})
 
-export default function StageColumn({ stage, pieces, selectMode, selectedIds, onToggleSelect }) {
+export default memo(function StageColumn({ stage, pieces, thumbUrls, formTags, selectMode, selectedIds, onToggleSelect }) {
   if (!pieces || pieces.length === 0) return null
 
   return (
@@ -102,6 +80,8 @@ export default function StageColumn({ stage, pieces, selectMode, selectedIds, on
           <PieceCard
             key={piece.id}
             piece={piece}
+            thumbUrl={thumbUrls?.[piece.id] ?? null}
+            formTag={formTags?.[piece.id] ?? null}
             selectMode={selectMode}
             selected={selectedIds?.has(piece.id) ?? false}
             onToggleSelect={onToggleSelect}
@@ -110,4 +90,4 @@ export default function StageColumn({ stage, pieces, selectMode, selectedIds, on
       </div>
     </div>
   )
-}
+})
