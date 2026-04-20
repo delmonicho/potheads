@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { STAGE_LABELS } from '../lib/pieces.js'
+import { STAGES, STAGE_LABELS } from '../lib/pieces.js'
 import { getPhotosForPiece, getPhotoUrl } from '../lib/photos.js'
 import { getTagsForPiece } from '../lib/tags.js'
 import PotteryPlaceholder from './PotteryPlaceholder.jsx'
@@ -15,7 +15,9 @@ function PieceCard({ piece, selectMode, selected, onToggleSelect }) {
   useEffect(() => {
     getPhotosForPiece(piece.id).then(async (photos) => {
       if (photos.length > 0) {
-        const url = await getPhotoUrl(photos[0].storage_path)
+        const latestStage = [...STAGES].reverse().find(s => photos.some(p => p.stage === s))
+        const stagePhoto = photos.find(p => p.stage === latestStage)
+        const url = await getPhotoUrl(stagePhoto.storage_path)
         setThumbUrl(url)
       }
       setPhotoLoading(false)

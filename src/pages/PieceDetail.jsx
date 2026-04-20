@@ -326,9 +326,19 @@ export default function PieceDetail({ user }) {
                         </svg>
                       </div>
                     )}
-                    {status === 'current' && (
+                    {status === 'current' && stage !== 'finished' && (
                       <div className="w-6 h-6 rounded-full bg-[#78350f] flex items-center justify-center flex-shrink-0">
                         <div className="w-2.5 h-2.5 rounded-full bg-white" />
+                      </div>
+                    )}
+                    {status === 'current' && stage === 'finished' && (
+                      <div className="relative flex-shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-300 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-300/50">
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="white">
+                            <path d="M8 0L9.3 6.7L16 8L9.3 9.3L8 16L6.7 9.3L0 8L6.7 6.7Z" />
+                          </svg>
+                        </div>
+                        <div className="absolute inset-0 rounded-full bg-amber-400/30 animate-ping" />
                       </div>
                     )}
                     {status === 'pending' && (
