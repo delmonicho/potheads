@@ -15,7 +15,7 @@ function PieceCard({ piece, selectMode, selected, onToggleSelect }) {
   useEffect(() => {
     getPhotosForPiece(piece.id).then(async (photos) => {
       if (photos.length > 0) {
-        const url = await getPhotoUrl(photos[photos.length - 1].storage_path)
+        const url = await getPhotoUrl(photos[0].storage_path)
         setThumbUrl(url)
       }
       setPhotoLoading(false)
