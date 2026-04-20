@@ -26,15 +26,24 @@ export async function getPieces(userId) {
   return data
 }
 
-export async function addPiece({ userId, name, clayBody }) {
+export async function addPiece({ userId, name, clayBody, stage = 'drying' }) {
   const { data, error } = await supabase
     .from('pieces')
-    .insert({ user_id: userId, name, clay_body: clayBody || null, current_stage: 'drying', lost: false })
+    .insert({ user_id: userId, name, clay_body: clayBody || null, current_stage: stage, lost: false })
     .select()
     .single()
 
   if (error) throw error
   return data
+}
+
+export async function updateStage(pieceId, stage) {
+  const { error } = await supabase
+    .from('pieces')
+    .update({ current_stage: stage })
+    .eq('id', pieceId)
+
+  if (error) throw error
 }
 
 export async function advanceStage(pieceId, stage, notes) {

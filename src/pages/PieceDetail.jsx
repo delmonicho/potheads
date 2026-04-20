@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
-import { STAGES, STAGE_LABELS, nextStage, advanceStage, markLost } from '../lib/pieces.js'
+import { STAGES, STAGE_LABELS, nextStage, advanceStage, markLost, updateStage } from '../lib/pieces.js'
 import { getPhotosForPiece, uploadPhoto, getPhotoUrl, updatePhotoStage } from '../lib/photos.js'
 import { getTagsForPiece, getOrCreateTag, addTagToPiece, removeTagFromPiece, PRESET_TAGS } from '../lib/tags.js'
 import TagChip from '../components/TagChip.jsx'
@@ -35,6 +35,9 @@ export default function PieceDetail({ user }) {
   const [addPhotoStage, setAddPhotoStage] = useState(null)
   const [addPhotoNote, setAddPhotoNote] = useState('')
   const [addingPhoto, setAddingPhoto] = useState(false)
+
+  const [showChangePieceStageSheet, setShowChangePieceStageSheet] = useState(false)
+  const [changingPieceStage, setChangingPieceStage] = useState(false)
 
   // Lightbox viewer
   const touchStartX = useRef(null)
@@ -146,6 +149,20 @@ export default function PieceDetail({ user }) {
       setError(err.message)
     } finally {
       setTogglingTag(null)
+    }
+  }
+
+  async function handleChangePieceStage(newStage) {
+    if (!piece || newStage === piece.current_stage) return
+    setChangingPieceStage(true)
+    try {
+      await updateStage(id, newStage)
+      setShowChangePieceStageSheet(false)
+      await fetchAll()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setChangingPieceStage(false)
     }
   }
 
@@ -332,10 +349,20 @@ export default function PieceDetail({ user }) {
                       }`}>
                         {STAGE_LABELS[stage]}
                       </p>
-                      <p className="text-xs text-stone-400 mt-0.5">
-                        {status === 'complete' ? 'complete' : status === 'current' ? 'current' : 'not yet'}
-                        {stagePhotoCount > 0 && (
-                          <span className="ml-2">{stagePhotoCount} photo{stagePhotoCount > 1 ? 's' : ''}</span>
+                      <p className="text-xs text-stone-400 mt-0.5 flex items-center gap-2">
+                        <span>
+                          {status === 'complete' ? 'complete' : status === 'current' ? 'current' : 'not yet'}
+                          {stagePhotoCount > 0 && (
+                            <span className="ml-2">{stagePhotoCount} photo{stagePhotoCount > 1 ? 's' : ''}</span>
+                          )}
+                        </span>
+                        {status === 'current' && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setShowChangePieceStageSheet(true) }}
+                            className="text-[#78350f] font-medium underline underline-offset-2"
+                          >
+                            Edit
+                          </button>
                         )}
                       </p>
                     </div>
@@ -594,6 +621,39 @@ export default function PieceDetail({ user }) {
           </div>
         </div>
       )}
+
+      {/* Change piece stage sheet */}
+      <BottomSheet
+        open={showChangePieceStageSheet}
+        onClose={() => setShowChangePieceStageSheet(false)}
+        title="Change Stage"
+      >
+        <div className="flex flex-col gap-3 pb-2">
+          {STAGES.map((s) => (
+            <button
+              key={s}
+              onClick={() => handleChangePieceStage(s)}
+              disabled={changingPieceStage}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors disabled:opacity-50 ${
+                piece?.current_stage === s
+                  ? 'bg-stone-100 border-stone-300 text-[#1c1917] font-semibold'
+                  : 'border-stone-200 text-stone-600'
+              }`}
+            >
+              <span className={`w-3 h-3 rounded-full flex-shrink-0 ${
+                s === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
+              }`} />
+              <span className="text-sm flex-1 text-left">{STAGE_LABELS[s]}</span>
+              {piece?.current_stage === s && (
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 8l4 4 6-6" stroke="#78350f" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </button>
+          ))}
+          {changingPieceStage && <p className="text-center text-xs text-stone-400">Saving…</p>}
+        </div>
+      </BottomSheet>
 
       {/* Edit stage sheet — z-[70] renders above lightbox */}
       <BottomSheet
