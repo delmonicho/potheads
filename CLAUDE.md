@@ -76,6 +76,8 @@ src/
 | Key | Type | Purpose |
 |-----|------|---------|
 | `potheads_last_clay_body` | string | Pre-populates clay body field in AddPiece with last used value |
+| `potheads_tag_colors` | object | `{ [tagName]: "#hex" }` — custom color per tag name, used by TagChip |
+| `potheads_recent_tag_colors` | array | Last 8 colors used in Add Tag modal (most recent first) |
 
 ## Design Tokens (Tailwind v4 @theme)
 Defined in `src/index.css`. Use these class names:

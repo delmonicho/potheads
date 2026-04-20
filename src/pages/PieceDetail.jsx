@@ -8,6 +8,44 @@ import TagChip from '../components/TagChip.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
 import PotteryPlaceholder from '../components/PotteryPlaceholder.jsx'
 
+function getTagColors() {
+  try { return JSON.parse(localStorage.getItem('potheads_tag_colors') || '{}') } catch { return {} }
+}
+function saveTagColor(name, hex) {
+  const c = getTagColors(); c[name] = hex
+  localStorage.setItem('potheads_tag_colors', JSON.stringify(c))
+}
+function getRecentColors() {
+  try { return JSON.parse(localStorage.getItem('potheads_recent_tag_colors') || '[]') } catch { return [] }
+}
+function addRecentColor(hex) {
+  const r = [hex, ...getRecentColors().filter(c => c !== hex)].slice(0, 8)
+  localStorage.setItem('potheads_recent_tag_colors', JSON.stringify(r))
+}
+
+const COLOR_WORDS = {
+  red: '#ef4444', crimson: '#dc143c', scarlet: '#ff4040', ruby: '#9b111e',
+  blue: '#3b82f6', cobalt: '#0047ab', navy: '#1e3a5f', indigo: '#4338ca', azure: '#007fff',
+  green: '#22c55e', sage: '#87ae73', jade: '#00a86b', olive: '#708238', moss: '#8a9a5b',
+  celadon: '#ace1af', tenmoku: '#2c1810', shino: '#f5efe6', ash: '#b2beb5',
+  copper: '#b87333', iron: '#8b4513', rust: '#b7410e',
+  gold: '#fbbf24', amber: '#f59e0b', yellow: '#eab308',
+  purple: '#9333ea', lavender: '#967bb6', violet: '#8b5cf6',
+  black: '#1c1917', charcoal: '#374151',
+  white: '#f5f5f4', cream: '#fffdd0', ivory: '#fffff0',
+  brown: '#78350f', clay: '#78350f',
+  gray: '#6b7280', grey: '#6b7280',
+  pink: '#ec4899', rose: '#f43f5e',
+  orange: '#f97316', teal: '#14b8a6', turquoise: '#40e0d0', silver: '#c0c0c0',
+}
+function detectColor(name) {
+  const lower = name.toLowerCase()
+  for (const [word, hex] of Object.entries(COLOR_WORDS)) {
+    if (lower.includes(word)) return hex
+  }
+  return null
+}
+
 export default function PieceDetail({ user }) {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -39,7 +77,15 @@ export default function PieceDetail({ user }) {
   const [showChangePieceStageSheet, setShowChangePieceStageSheet] = useState(false)
   const [changingPieceStage, setChangingPieceStage] = useState(false)
   const [userTags, setUserTags] = useState([])
-  const [newTagInput, setNewTagInput] = useState({ form: '', glaze: '' })
+
+  // Add tag modal
+  const [showAddTagSheet, setShowAddTagSheet] = useState(false)
+  const [addTagCategory, setAddTagCategory] = useState('form')
+  const [addTagName, setAddTagName] = useState('')
+  const [addTagColor, setAddTagColor] = useState('#78350f')
+  const [tagColorManuallySet, setTagColorManuallySet] = useState(false)
+  const [tagColors, setTagColors] = useState(() => getTagColors())
+  const [recentColors, setRecentColors] = useState(() => getRecentColors())
 
   // Lightbox viewer
   const touchStartX = useRef(null)
@@ -156,13 +202,20 @@ export default function PieceDetail({ user }) {
     }
   }
 
-  async function handleAddCustomTag(category) {
-    const name = newTagInput[category].trim().toLowerCase()
+  async function handleAddCustomTag() {
+    const name = addTagName.trim().toLowerCase()
     if (!name) return
-    await handleTagToggle(name, category)
+    saveTagColor(name, addTagColor)
+    addRecentColor(addTagColor)
+    setTagColors(getTagColors())
+    setRecentColors(getRecentColors())
+    await handleTagToggle(name, addTagCategory)
     const allUserTags = await getUserTags(user.id)
     setUserTags(allUserTags)
-    setNewTagInput(prev => ({ ...prev, [category]: '' }))
+    setShowAddTagSheet(false)
+    setAddTagName('')
+    setAddTagColor('#78350f')
+    setTagColorManuallySet(false)
   }
 
   async function handleChangePieceStage(newStage) {
@@ -414,7 +467,7 @@ export default function PieceDetail({ user }) {
           ) : (
             <div className="flex flex-wrap gap-2">
               {tags.map((tag) => (
-                <TagChip key={tag.id} tag={tag} selected />
+                <TagChip key={tag.id} tag={tag} selected color={tagColors[tag.name]} />
               ))}
             </div>
           )}
@@ -482,7 +535,19 @@ export default function PieceDetail({ user }) {
             return (
               <div key={category}>
                 <p className="text-xs uppercase tracking-widest text-stone-400 mb-2">{category}</p>
-                <div className="flex flex-wrap gap-2 mb-3">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => {
+                      setAddTagCategory(category)
+                      setAddTagName('')
+                      setAddTagColor(category === 'glaze' ? '#4a7c59' : '#78350f')
+                      setTagColorManuallySet(false)
+                      setShowAddTagSheet(true)
+                    }}
+                    className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-dashed border-stone-300 text-stone-400 text-sm font-medium active:opacity-70"
+                  >
+                    + Add
+                  </button>
                   {allNames.map((name) => {
                     const isSelected = tags.some((t) => t.name === name)
                     return (
@@ -490,30 +555,99 @@ export default function PieceDetail({ user }) {
                         key={name}
                         tag={{ id: name, name, category }}
                         selected={isSelected}
+                        color={tagColors[name]}
                         onToggle={() => handleTagToggle(name, category)}
                       />
                     )
                   })}
                 </div>
-                <div className="flex gap-2">
-                  <input
-                    className="flex-1 border border-stone-200 rounded-xl px-3 py-1.5 text-sm bg-stone-50 text-[#1c1917]"
-                    placeholder={`Add ${category}…`}
-                    value={newTagInput[category]}
-                    onChange={(e) => setNewTagInput(prev => ({ ...prev, [category]: e.target.value }))}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddCustomTag(category)}
-                  />
-                  <button
-                    onClick={() => handleAddCustomTag(category)}
-                    className="px-3 py-1.5 bg-[#78350f] text-white text-sm font-medium rounded-xl active:bg-[#5c2709]"
-                  >
-                    Add
-                  </button>
-                </div>
               </div>
             )
           })}
           {togglingTag && <p className="text-stone-400 text-xs text-center">Saving…</p>}
+        </div>
+      </BottomSheet>
+
+      {/* Add tag sheet */}
+      <BottomSheet
+        open={showAddTagSheet}
+        onClose={() => { setShowAddTagSheet(false); setAddTagName(''); setAddTagColor('#78350f'); setTagColorManuallySet(false) }}
+        title={`New ${addTagCategory} tag`}
+        zClassName="z-60"
+      >
+        <div className="flex flex-col gap-5">
+          {/* Name */}
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-stone-400 mb-1.5">Name</label>
+            <input
+              className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm bg-stone-50 text-[#1c1917]"
+              placeholder={addTagCategory === 'glaze' ? 'e.g. cobalt blue' : 'e.g. yunomi'}
+              value={addTagName}
+              autoFocus
+              onChange={(e) => {
+                const val = e.target.value
+                setAddTagName(val)
+                if (!tagColorManuallySet) {
+                  const detected = detectColor(val)
+                  if (detected) setAddTagColor(detected)
+                }
+              }}
+            />
+          </div>
+
+          {/* Color picker */}
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-stone-400 mb-2">Color</label>
+            <div className="flex items-center gap-3">
+              <label className="relative cursor-pointer flex-shrink-0">
+                <div
+                  className="w-11 h-11 rounded-full border-2 border-stone-200 shadow-inner"
+                  style={{ backgroundColor: addTagColor }}
+                />
+                <input
+                  type="color"
+                  value={addTagColor}
+                  onChange={(e) => { setAddTagColor(e.target.value); setTagColorManuallySet(true) }}
+                  className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                />
+              </label>
+              <span className="text-sm text-stone-400">Tap to open color wheel</span>
+            </div>
+          </div>
+
+          {/* Recent colors */}
+          {recentColors.length > 0 && (
+            <div>
+              <p className="text-xs uppercase tracking-widest text-stone-400 mb-2">Recent</p>
+              <div className="flex gap-2 flex-wrap">
+                {recentColors.map((hex) => (
+                  <button
+                    key={hex}
+                    className={`w-8 h-8 rounded-full border-2 transition-transform active:scale-95 ${addTagColor === hex ? 'border-stone-500 scale-110' : 'border-transparent'}`}
+                    style={{ backgroundColor: hex }}
+                    onClick={() => { setAddTagColor(hex); setTagColorManuallySet(true) }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Preview */}
+          {addTagName.trim() && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-stone-400 uppercase tracking-widest">Preview</span>
+              <TagChip tag={{ id: '__preview', name: addTagName.trim(), category: addTagCategory }} selected color={addTagColor} />
+            </div>
+          )}
+
+          {/* Submit */}
+          <button
+            onClick={handleAddCustomTag}
+            disabled={!addTagName.trim() || !!togglingTag}
+            className="w-full bg-[#78350f] text-white font-semibold py-3 rounded-2xl active:bg-[#5c2709] disabled:opacity-40"
+          >
+            {togglingTag ? 'Saving…' : 'Add tag'}
+          </button>
         </div>
       </BottomSheet>
 
