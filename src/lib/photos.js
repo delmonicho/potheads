@@ -7,7 +7,7 @@ const COMPRESSION_OPTIONS = {
   useWebWorker: true,
 }
 
-export async function uploadPhoto({ file, userId, pieceId, stage }) {
+export async function uploadPhoto({ file, userId, pieceId, stage, note }) {
   const compressed = await imageCompression(file, COMPRESSION_OPTIONS)
   const path = `${userId}/${pieceId}/${Date.now()}.jpg`
 
@@ -19,7 +19,7 @@ export async function uploadPhoto({ file, userId, pieceId, stage }) {
 
   const { data, error: insertError } = await supabase
     .from('photos')
-    .insert({ piece_id: pieceId, storage_path: path, stage: stage || null })
+    .insert({ piece_id: pieceId, storage_path: path, stage: stage || null, note: note || null, taken_at: new Date().toISOString() })
     .select()
     .single()
 
