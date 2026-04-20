@@ -29,6 +29,13 @@ export default function PieceDetail({ user }) {
   const [showTagSheet, setShowTagSheet] = useState(false)
   const [togglingTag, setTogglingTag] = useState(null)
 
+  const [showAddPhotoSheet, setShowAddPhotoSheet] = useState(false)
+  const [addPhotoFile, setAddPhotoFile] = useState(null)
+  const [addPhotoPreview, setAddPhotoPreview] = useState(null)
+  const [addPhotoStage, setAddPhotoStage] = useState(null)
+  const [addPhotoNote, setAddPhotoNote] = useState('')
+  const [addingPhoto, setAddingPhoto] = useState(false)
+
   const fetchAll = useCallback(async () => {
     try {
       const [{ data: pieceData, error: pieceError }, photosData, tagsData] = await Promise.all([
@@ -97,6 +104,24 @@ export default function PieceDetail({ user }) {
     }
   }
 
+  async function handleAddPhoto() {
+    if (!addPhotoFile) return
+    setAddingPhoto(true)
+    try {
+      await uploadPhoto({ file: addPhotoFile, userId: user.id, pieceId: id, stage: addPhotoStage || null, note: addPhotoNote || null })
+      setShowAddPhotoSheet(false)
+      setAddPhotoFile(null)
+      setAddPhotoPreview(null)
+      setAddPhotoStage(null)
+      setAddPhotoNote('')
+      await fetchAll()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setAddingPhoto(false)
+    }
+  }
+
   async function handleTagToggle(name, category) {
     setTogglingTag(name)
     try {
@@ -123,6 +148,11 @@ export default function PieceDetail({ user }) {
     if (stageIdx < currentIdx) return 'complete'
     if (stageIdx === currentIdx) return 'current'
     return 'pending'
+  }
+
+  function handleStageTap(stage) {
+    const idx = photos.findLastIndex(p => p.stage === stage)
+    if (idx !== -1) setHeroIndex(idx)
   }
 
   const next = piece ? nextStage(piece.current_stage) : null
@@ -178,6 +208,18 @@ export default function PieceDetail({ user }) {
             ))}
           </div>
         )}
+
+        {/* Add photo button */}
+        <button
+          onClick={() => { setAddPhotoStage(piece.current_stage); setShowAddPhotoSheet(true) }}
+          className="absolute bottom-3 right-4 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center active:bg-white"
+          aria-label="Add photo"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1c1917" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+            <circle cx="12" cy="13" r="4" />
+          </svg>
+        </button>
       </div>
 
       <main className="flex-1 overflow-y-auto pb-safe">
@@ -199,8 +241,14 @@ export default function PieceDetail({ user }) {
             {STAGES.map((stage, i) => {
               const status = getStageStatus(stage)
               const isLast = i === STAGES.length - 1
+              const stagePhotoCount = photos.filter(p => p.stage === stage).length
               return (
-                <div key={stage} className="flex gap-4">
+                <div
+                  key={stage}
+                  className="flex gap-4"
+                  onClick={stagePhotoCount > 0 ? () => handleStageTap(stage) : undefined}
+                  style={stagePhotoCount > 0 ? { cursor: 'pointer' } : undefined}
+                >
                   {/* Timeline column */}
                   <div className="flex flex-col items-center">
                     {status === 'complete' && (
@@ -235,11 +283,14 @@ export default function PieceDetail({ user }) {
                       </p>
                       <p className="text-xs text-stone-400 mt-0.5">
                         {status === 'complete' ? 'complete' : status === 'current' ? 'current' : 'not yet'}
+                        {stagePhotoCount > 0 && (
+                          <span className="ml-2">{stagePhotoCount} photo{stagePhotoCount > 1 ? 's' : ''}</span>
+                        )}
                       </p>
                     </div>
                     {status === 'current' && next && (
                       <button
-                        onClick={() => setShowAdvanceSheet(true)}
+                        onClick={(e) => { e.stopPropagation(); setShowAdvanceSheet(true) }}
                         className="ml-3 px-4 py-1.5 bg-[#78350f] text-white text-xs font-semibold rounded-full uppercase tracking-wide active:bg-[#5c2709] flex-shrink-0"
                       >
                         Advance
@@ -344,6 +395,79 @@ export default function PieceDetail({ user }) {
             </div>
           ))}
           {togglingTag && <p className="text-stone-400 text-xs text-center">Saving…</p>}
+        </div>
+      </BottomSheet>
+
+      {/* Add photo sheet */}
+      <BottomSheet
+        open={showAddPhotoSheet}
+        onClose={() => { setShowAddPhotoSheet(false); setAddPhotoFile(null); setAddPhotoPreview(null); setAddPhotoNote('') }}
+        title="Add Photo"
+      >
+        <div className="flex flex-col gap-4">
+          <label className="block w-full h-40 rounded-2xl overflow-hidden bg-stone-100 cursor-pointer active:opacity-80 flex-shrink-0">
+            {addPhotoPreview ? (
+              <img src={addPhotoPreview} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-stone-400">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+                <span className="text-sm">Tap to add photo</span>
+              </div>
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files[0]
+                if (!f) return
+                setAddPhotoFile(f)
+                setAddPhotoPreview(URL.createObjectURL(f))
+              }}
+            />
+          </label>
+
+          <div>
+            <p className="text-xs uppercase tracking-widest text-stone-500 mb-1.5">Tag with stage (optional)</p>
+            <div className="flex flex-wrap gap-2">
+              {STAGES.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setAddPhotoStage(addPhotoStage === s ? null : s)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                    addPhotoStage === s
+                      ? 'bg-[#78350f] text-white border-[#78350f]'
+                      : 'bg-white text-stone-600 border-stone-200'
+                  }`}
+                >
+                  {STAGE_LABELS[s]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Note (optional)</label>
+            <textarea
+              className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-[#1c1917] bg-stone-50 resize-none"
+              rows={2}
+              placeholder="Any notes about this photo…"
+              value={addPhotoNote}
+              onChange={(e) => setAddPhotoNote(e.target.value)}
+            />
+          </div>
+
+          <button
+            onClick={handleAddPhoto}
+            disabled={!addPhotoFile || addingPhoto}
+            className="w-full bg-[#78350f] text-white font-semibold py-3 rounded-2xl active:bg-[#5c2709] disabled:opacity-50"
+          >
+            {addingPhoto ? 'Uploading…' : 'Add Photo'}
+          </button>
         </div>
       </BottomSheet>
     </div>
