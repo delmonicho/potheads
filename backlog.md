@@ -17,3 +17,4 @@ id like to add a couple things:
 -work on the header, brand logo, etc.
 - consider any other information valuable for a person's profile
 - consider preferences like a large or small tiles, or dark mode
+- I would like to be able to scan receipt and record details on glaze like weight, date receipt created etx.
