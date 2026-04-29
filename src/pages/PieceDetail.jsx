@@ -384,6 +384,14 @@ export default function PieceDetail({ user }) {
     return ev?.moved_at || ev?.created_at || ev?.inserted_at || null
   }
 
+  function stageTimestamp(stage) {
+    const fromEvent = pickTimestamp(eventByStage[stage])
+    if (fromEvent) return fromEvent
+    // Drying has no stage_events row — pieces enter drying on creation.
+    if (stage === 'drying') return piece?.created_at || null
+    return null
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#fafaf9]">
@@ -538,8 +546,8 @@ export default function PieceDetail({ user }) {
                           <span className="ml-2">{stagePhotoCount} photo{stagePhotoCount > 1 ? 's' : ''}</span>
                         )}
                       </p>
-                      {eventByStage[stage] && pickTimestamp(eventByStage[stage]) && (
-                        <p className="text-xs text-stone-300 mt-0.5">{fmtDate(pickTimestamp(eventByStage[stage]))}</p>
+                      {stageTimestamp(stage) && (
+                        <p className="text-xs text-stone-300 mt-0.5">{fmtDate(stageTimestamp(stage))}</p>
                       )}
                     </div>
                     {status === 'current' && (
