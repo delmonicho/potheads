@@ -60,7 +60,7 @@ export async function getStageEvents(pieceId) {
     .from('stage_events')
     .select('*')
     .eq('piece_id', pieceId)
-    .order('created_at', { ascending: true })
+    .order('inserted_at', { ascending: true })
   if (error) throw error
   return data
 }
