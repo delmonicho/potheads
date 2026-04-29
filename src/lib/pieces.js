@@ -61,6 +61,7 @@ export async function getStageEvents(pieceId) {
       .from('stage_events')
       .select('*')
       .eq('piece_id', pieceId)
+      .order('moved_at', { ascending: true })
     if (error) throw error
     return data ?? []
   } catch (err) {

@@ -241,7 +241,7 @@ export default function PieceDetail({ user }) {
   }
 
   function pickTimestamp(ev) {
-    return ev?.created_at || ev?.inserted_at || ev?.occurred_at || ev?.recorded_at || null
+    return ev?.moved_at || ev?.created_at || ev?.inserted_at || null
   }
 
   if (loading) {
