@@ -384,11 +384,20 @@ export default function PieceDetail({ user }) {
     return ev?.moved_at || ev?.created_at || ev?.inserted_at || null
   }
 
+  const initialStage = (() => {
+    if (!piece) return null
+    if (stageEvents.length === 0) return piece.current_stage
+    const earliestIdx = stageEvents.reduce((min, ev) => {
+      const idx = STAGES.indexOf(ev.stage)
+      return idx >= 0 && idx < min ? idx : min
+    }, STAGES.length)
+    return STAGES[Math.max(0, earliestIdx - 1)]
+  })()
+
   function stageTimestamp(stage) {
     const fromEvent = pickTimestamp(eventByStage[stage])
     if (fromEvent) return fromEvent
-    // Drying has no stage_events row — pieces enter drying on creation.
-    if (stage === 'drying') return piece?.created_at || null
+    if (stage === initialStage) return piece?.created_at || null
     return null
   }
 
