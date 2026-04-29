@@ -56,6 +56,31 @@ export default function PieceDetail({ user }) {
   const [showEditStageSheet, setShowEditStageSheet] = useState(false)
   const [savingStage, setSavingStage] = useState(false)
 
+  // Lightbox gesture state (pinch zoom + pan + swipe)
+  const [zoomScale, setZoomScale] = useState(1)
+  const [zoomTranslate, setZoomTranslate] = useState({ x: 0, y: 0 })
+  const gestureRef = useRef({
+    mode: 'idle',
+    startX: 0,
+    startY: 0,
+    pinchStartDist: 0,
+    pinchStartScale: 1,
+    panStartX: 0,
+    panStartY: 0,
+    panStartTx: 0,
+    panStartTy: 0,
+    multiTouchSeen: false,
+    lastTapAt: 0,
+  })
+
+  // Reset zoom whenever the active photo or the viewer itself changes
+  useEffect(() => {
+    setZoomScale(1)
+    setZoomTranslate({ x: 0, y: 0 })
+    gestureRef.current.mode = 'idle'
+    gestureRef.current.multiTouchSeen = false
+  }, [viewerIndex, viewerOpen])
+
   const fetchAll = useCallback(async () => {
     try {
       const [{ data: pieceData, error: pieceError }, photosData, tagsData, allUserTags, eventsData] = await Promise.all([
@@ -226,6 +251,121 @@ export default function PieceDetail({ user }) {
     if (Math.abs(dx) < 50) return
     if (dx < 0 && heroIndex < photos.length - 1) setHeroIndex(heroIndex + 1)
     else if (dx > 0 && heroIndex > 0) setHeroIndex(heroIndex - 1)
+  }
+
+  // ─── Lightbox gestures ────────────────────────────────────────────────
+  const ZOOM_MIN = 1
+  const ZOOM_MAX = 4
+
+  function pinchDistance(t0, t1) {
+    return Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY)
+  }
+
+  function clampPan(tx, ty, scale) {
+    const w = typeof window !== 'undefined' ? window.innerWidth : 0
+    const h = typeof window !== 'undefined' ? window.innerHeight : 0
+    const maxX = (w * (scale - 1)) / 2 + 40
+    const maxY = (h * (scale - 1)) / 2 + 40
+    return {
+      x: Math.max(-maxX, Math.min(maxX, tx)),
+      y: Math.max(-maxY, Math.min(maxY, ty)),
+    }
+  }
+
+  function handleViewerTouchStart(e) {
+    const g = gestureRef.current
+    if (e.touches.length >= 2) {
+      g.mode = 'pinch'
+      g.multiTouchSeen = true
+      g.pinchStartDist = pinchDistance(e.touches[0], e.touches[1])
+      g.pinchStartScale = zoomScale
+    } else if (e.touches.length === 1) {
+      if (zoomScale > 1) {
+        g.mode = 'pan'
+        g.panStartX = e.touches[0].clientX
+        g.panStartY = e.touches[0].clientY
+        g.panStartTx = zoomTranslate.x
+        g.panStartTy = zoomTranslate.y
+      } else {
+        g.mode = 'swipe'
+        g.startX = e.touches[0].clientX
+        g.startY = e.touches[0].clientY
+      }
+    }
+  }
+
+  function handleViewerTouchMove(e) {
+    const g = gestureRef.current
+    if (e.touches.length >= 2) {
+      g.multiTouchSeen = true
+      if (g.mode !== 'pinch') {
+        g.mode = 'pinch'
+        g.pinchStartDist = pinchDistance(e.touches[0], e.touches[1])
+        g.pinchStartScale = zoomScale
+        return
+      }
+      if (g.pinchStartDist > 0) {
+        const dist = pinchDistance(e.touches[0], e.touches[1])
+        const next = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, g.pinchStartScale * (dist / g.pinchStartDist)))
+        setZoomScale(next)
+        setZoomTranslate(t => clampPan(t.x, t.y, next))
+      }
+    } else if (g.mode === 'pan' && e.touches.length === 1) {
+      const dx = e.touches[0].clientX - g.panStartX
+      const dy = e.touches[0].clientY - g.panStartY
+      setZoomTranslate(clampPan(g.panStartTx + dx, g.panStartTy + dy, zoomScale))
+    }
+  }
+
+  function handleViewerTouchEnd(e) {
+    const g = gestureRef.current
+    if (e.touches.length > 0) return
+
+    const wasMulti = g.multiTouchSeen
+    const wasMode = g.mode
+    g.mode = 'idle'
+    g.multiTouchSeen = false
+
+    if (wasMulti) {
+      if (zoomScale < 1.05) {
+        setZoomScale(1)
+        setZoomTranslate({ x: 0, y: 0 })
+      }
+      return
+    }
+
+    if (wasMode === 'swipe') {
+      const t = e.changedTouches[0]
+      const dx = t.clientX - g.startX
+      const dy = t.clientY - g.startY
+      if (Math.abs(dx) < 50) return
+      if (Math.abs(dy) > Math.abs(dx)) return
+      if (dx < 0 && viewerIndex < photos.length - 1) setViewerIndex(v => v + 1)
+      else if (dx > 0 && viewerIndex > 0) setViewerIndex(v => v - 1)
+    }
+  }
+
+  function handleViewerClick(e) {
+    // Double-tap toggles between 1× and 2.5× centered on the tap.
+    const g = gestureRef.current
+    const now = Date.now()
+    if (now - g.lastTapAt < 300) {
+      g.lastTapAt = 0
+      if (zoomScale > 1) {
+        setZoomScale(1)
+        setZoomTranslate({ x: 0, y: 0 })
+      } else {
+        const newScale = 2.5
+        const cx = window.innerWidth / 2
+        const cy = window.innerHeight / 2
+        const tx = (cx - e.clientX) * (newScale - 1)
+        const ty = (cy - e.clientY) * (newScale - 1)
+        setZoomScale(newScale)
+        setZoomTranslate(clampPan(tx, ty, newScale))
+      }
+    } else {
+      g.lastTapAt = now
+    }
   }
 
   const next = piece ? nextStage(piece.current_stage) : null
@@ -746,24 +886,28 @@ export default function PieceDetail({ user }) {
             </button>
           </div>
 
-          {/* Photo — swipeable */}
+          {/* Photo — swipeable / pinch-zoomable / pannable */}
           <div
             className="flex-1 flex items-center justify-center overflow-hidden"
-            onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX }}
-            onTouchEnd={(e) => {
-              if (touchStartX.current === null) return
-              const dx = e.changedTouches[0].clientX - touchStartX.current
-              touchStartX.current = null
-              if (Math.abs(dx) < 50) return
-              if (dx < 0 && viewerIndex < photos.length - 1) setViewerIndex(v => v + 1)
-              else if (dx > 0 && viewerIndex > 0) setViewerIndex(v => v - 1)
-            }}
+            style={{ touchAction: 'none' }}
+            onTouchStart={handleViewerTouchStart}
+            onTouchMove={handleViewerTouchMove}
+            onTouchEnd={handleViewerTouchEnd}
+            onTouchCancel={handleViewerTouchEnd}
+            onClick={handleViewerClick}
           >
             {photoUrls[viewerIndex] ? (
               <img
                 src={photoUrls[viewerIndex]}
                 alt=""
-                className="max-w-full max-h-full object-contain"
+                draggable={false}
+                className="max-w-full max-h-full object-contain select-none"
+                style={{
+                  transform: `translate3d(${zoomTranslate.x}px, ${zoomTranslate.y}px, 0) scale(${zoomScale})`,
+                  transformOrigin: 'center center',
+                  transition: gestureRef.current.mode === 'idle' ? 'transform 180ms ease-out' : 'none',
+                  willChange: 'transform',
+                }}
               />
             ) : (
               <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin" />
