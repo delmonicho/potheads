@@ -56,13 +56,17 @@ export async function advanceStage(pieceId, stage, notes) {
 }
 
 export async function getStageEvents(pieceId) {
-  const { data, error } = await supabase
-    .from('stage_events')
-    .select('*')
-    .eq('piece_id', pieceId)
-    .order('inserted_at', { ascending: true })
-  if (error) throw error
-  return data
+  try {
+    const { data, error } = await supabase
+      .from('stage_events')
+      .select('*')
+      .eq('piece_id', pieceId)
+    if (error) throw error
+    return data ?? []
+  } catch (err) {
+    console.warn('getStageEvents failed, returning []:', err.message)
+    return []
+  }
 }
 
 export async function markLost(pieceId) {

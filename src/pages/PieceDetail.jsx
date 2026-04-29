@@ -240,6 +240,10 @@ export default function PieceDetail({ user }) {
     return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
+  function pickTimestamp(ev) {
+    return ev?.created_at || ev?.inserted_at || ev?.occurred_at || ev?.recorded_at || null
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#fafaf9]">
@@ -394,8 +398,8 @@ export default function PieceDetail({ user }) {
                           <span className="ml-2">{stagePhotoCount} photo{stagePhotoCount > 1 ? 's' : ''}</span>
                         )}
                       </p>
-                      {eventByStage[stage] && (
-                        <p className="text-xs text-stone-300 mt-0.5">{fmtDate(eventByStage[stage].inserted_at || eventByStage[stage].created_at)}</p>
+                      {eventByStage[stage] && pickTimestamp(eventByStage[stage]) && (
+                        <p className="text-xs text-stone-300 mt-0.5">{fmtDate(pickTimestamp(eventByStage[stage]))}</p>
                       )}
                     </div>
                     {status === 'current' && (
