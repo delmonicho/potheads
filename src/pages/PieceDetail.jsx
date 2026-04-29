@@ -384,6 +384,23 @@ export default function PieceDetail({ user }) {
     return ev?.moved_at || ev?.created_at || ev?.inserted_at || null
   }
 
+  const initialStage = (() => {
+    if (!piece) return null
+    if (stageEvents.length === 0) return piece.current_stage
+    const earliestIdx = stageEvents.reduce((min, ev) => {
+      const idx = STAGES.indexOf(ev.stage)
+      return idx >= 0 && idx < min ? idx : min
+    }, STAGES.length)
+    return STAGES[Math.max(0, earliestIdx - 1)]
+  })()
+
+  function stageTimestamp(stage) {
+    const fromEvent = pickTimestamp(eventByStage[stage])
+    if (fromEvent) return fromEvent
+    if (stage === initialStage) return piece?.created_at || null
+    return null
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#fafaf9]">
@@ -538,8 +555,8 @@ export default function PieceDetail({ user }) {
                           <span className="ml-2">{stagePhotoCount} photo{stagePhotoCount > 1 ? 's' : ''}</span>
                         )}
                       </p>
-                      {eventByStage[stage] && pickTimestamp(eventByStage[stage]) && (
-                        <p className="text-xs text-stone-300 mt-0.5">{fmtDate(pickTimestamp(eventByStage[stage]))}</p>
+                      {stageTimestamp(stage) && (
+                        <p className="text-xs text-stone-300 mt-0.5">{fmtDate(stageTimestamp(stage))}</p>
                       )}
                     </div>
                     {status === 'current' && (
