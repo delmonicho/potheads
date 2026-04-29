@@ -395,7 +395,7 @@ export default function PieceDetail({ user }) {
                         )}
                       </p>
                       {eventByStage[stage] && (
-                        <p className="text-xs text-stone-300 mt-0.5">{fmtDate(eventByStage[stage].created_at)}</p>
+                        <p className="text-xs text-stone-300 mt-0.5">{fmtDate(eventByStage[stage].inserted_at || eventByStage[stage].created_at)}</p>
                       )}
                     </div>
                     {status === 'current' && (
