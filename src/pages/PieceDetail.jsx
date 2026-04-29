@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
-import { STAGES, STAGE_LABELS, nextStage, advanceStage, markLost, updateStage } from '../lib/pieces.js'
+import { STAGES, STAGE_LABELS, nextStage, advanceStage, markLost, getStageEvents } from '../lib/pieces.js'
 import { getPhotosForPiece, uploadPhoto, getPhotoUrl, updatePhotoStage } from '../lib/photos.js'
 import { getTagsForPiece, getOrCreateTag, addTagToPiece, removeTagFromPiece, getUserTags, updateTagColor, PRESET_TAGS } from '../lib/tags.js'
 import TagChip from '../components/TagChip.jsx'
@@ -26,6 +26,8 @@ export default function PieceDetail({ user }) {
   const [advanceNote, setAdvanceNote] = useState('')
   const [advanceFile, setAdvanceFile] = useState(null)
   const [advancing, setAdvancing] = useState(false)
+  const [stageEvents, setStageEvents] = useState([])
+  const [advanceTargetStage, setAdvanceTargetStage] = useState(null)
 
   const [showTagSheet, setShowTagSheet] = useState(false)
   const [togglingTag, setTogglingTag] = useState(null)
@@ -37,8 +39,6 @@ export default function PieceDetail({ user }) {
   const [addPhotoNote, setAddPhotoNote] = useState('')
   const [addingPhoto, setAddingPhoto] = useState(false)
 
-  const [showChangePieceStageSheet, setShowChangePieceStageSheet] = useState(false)
-  const [changingPieceStage, setChangingPieceStage] = useState(false)
   const [userTags, setUserTags] = useState([])
 
   // Add tag modal
@@ -58,17 +58,19 @@ export default function PieceDetail({ user }) {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [{ data: pieceData, error: pieceError }, photosData, tagsData, allUserTags] = await Promise.all([
+      const [{ data: pieceData, error: pieceError }, photosData, tagsData, allUserTags, eventsData] = await Promise.all([
         supabase.from('pieces').select('*').eq('id', id).single(),
         getPhotosForPiece(id),
         getTagsForPiece(id),
         getUserTags(user.id),
+        getStageEvents(id),
       ])
       if (pieceError) throw pieceError
       setPiece(pieceData)
       setPhotos(photosData)
       setTags(tagsData)
       setUserTags(allUserTags)
+      setStageEvents(eventsData)
 
       // Resolve signed URLs for all photos
       const urls = await Promise.all(
@@ -106,18 +108,17 @@ export default function PieceDetail({ user }) {
   }, [userTags])
 
   async function handleAdvance() {
-    if (!piece) return
-    const next = nextStage(piece.current_stage)
-    if (!next) return
+    if (!piece || !advanceTargetStage) return
     setAdvancing(true)
     try {
-      await advanceStage(id, next, advanceNote)
+      await advanceStage(id, advanceTargetStage, advanceNote)
       if (advanceFile) {
-        await uploadPhoto({ file: advanceFile, userId: user.id, pieceId: id, stage: next })
+        await uploadPhoto({ file: advanceFile, userId: user.id, pieceId: id, stage: advanceTargetStage })
       }
       setShowAdvanceSheet(false)
       setAdvanceNote('')
       setAdvanceFile(null)
+      setAdvanceTargetStage(null)
       await fetchAll()
     } catch (err) {
       setError(err.message)
@@ -187,20 +188,6 @@ export default function PieceDetail({ user }) {
     setTagColorManuallySet(false)
   }
 
-  async function handleChangePieceStage(newStage) {
-    if (!piece || newStage === piece.current_stage) return
-    setChangingPieceStage(true)
-    try {
-      await updateStage(id, newStage)
-      setShowChangePieceStageSheet(false)
-      await fetchAll()
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setChangingPieceStage(false)
-    }
-  }
-
   async function handleEditStage(photoId, stage) {
     setSavingStage(true)
     try {
@@ -242,6 +229,16 @@ export default function PieceDetail({ user }) {
   }
 
   const next = piece ? nextStage(piece.current_stage) : null
+
+  const eventByStage = stageEvents.reduce((acc, ev) => {
+    acc[ev.stage] = ev
+    return acc
+  }, {})
+
+  function fmtDate(iso) {
+    if (!iso) return null
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
 
   if (loading) {
     return (
@@ -391,26 +388,23 @@ export default function PieceDetail({ user }) {
                       }`}>
                         {STAGE_LABELS[stage]}
                       </p>
-                      <p className="text-xs text-stone-400 mt-0.5 flex items-center gap-2">
-                        <span>
-                          {status === 'complete' ? 'complete' : status === 'current' ? 'current' : 'not yet'}
-                          {stagePhotoCount > 0 && (
-                            <span className="ml-2">{stagePhotoCount} photo{stagePhotoCount > 1 ? 's' : ''}</span>
-                          )}
-                        </span>
-                        {status === 'current' && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setShowChangePieceStageSheet(true) }}
-                            className="text-[#78350f] font-medium underline underline-offset-2"
-                          >
-                            Edit
-                          </button>
+                      <p className="text-xs text-stone-400 mt-0.5">
+                        {status === 'complete' ? 'complete' : status === 'current' ? 'current' : 'not yet'}
+                        {stagePhotoCount > 0 && (
+                          <span className="ml-2">{stagePhotoCount} photo{stagePhotoCount > 1 ? 's' : ''}</span>
                         )}
                       </p>
+                      {eventByStage[stage] && (
+                        <p className="text-xs text-stone-300 mt-0.5">{fmtDate(eventByStage[stage].created_at)}</p>
+                      )}
                     </div>
-                    {status === 'current' && next && (
+                    {status === 'current' && (
                       <button
-                        onClick={(e) => { e.stopPropagation(); setShowAdvanceSheet(true) }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setAdvanceTargetStage(next || piece.current_stage)
+                          setShowAdvanceSheet(true)
+                        }}
                         className="ml-3 px-4 py-1.5 bg-[#78350f] text-white text-xs font-semibold rounded-full uppercase tracking-wide active:bg-[#5c2709] flex-shrink-0"
                       >
                         Advance
@@ -456,10 +450,36 @@ export default function PieceDetail({ user }) {
       {/* Advance stage sheet */}
       <BottomSheet
         open={showAdvanceSheet}
-        onClose={() => setShowAdvanceSheet(false)}
-        title={next ? `Move to ${STAGE_LABELS[next]}` : ''}
+        onClose={() => { setShowAdvanceSheet(false); setAdvanceTargetStage(null) }}
+        title="Move to Stage"
       >
         <div className="flex flex-col gap-4">
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Select stage</label>
+            <div className="flex flex-col gap-2">
+              {STAGES.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setAdvanceTargetStage(s)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors ${
+                    advanceTargetStage === s
+                      ? 'bg-stone-100 border-stone-300 text-[#1c1917] font-semibold'
+                      : 'border-stone-200 text-stone-600'
+                  }`}
+                >
+                  <span className={`w-3 h-3 rounded-full flex-shrink-0 ${
+                    s === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
+                  }`} />
+                  <span className="text-sm flex-1 text-left">{STAGE_LABELS[s]}</span>
+                  {advanceTargetStage === s && (
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M3 8l4 4 6-6" stroke="#78350f" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
           <div>
             <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Note (optional)</label>
             <textarea
@@ -481,10 +501,10 @@ export default function PieceDetail({ user }) {
           </div>
           <button
             onClick={handleAdvance}
-            disabled={advancing}
+            disabled={advancing || !advanceTargetStage}
             className="w-full bg-[#78350f] text-white font-semibold py-3 rounded-2xl active:bg-[#5c2709] disabled:opacity-50"
           >
-            {advancing ? 'Saving…' : `Confirm move to ${next ? STAGE_LABELS[next] : ''}`}
+            {advancing ? 'Saving…' : `Confirm${advanceTargetStage ? ` move to ${STAGE_LABELS[advanceTargetStage]}` : ''}`}
           </button>
         </div>
       </BottomSheet>
@@ -766,39 +786,6 @@ export default function PieceDetail({ user }) {
           </div>
         </div>
       )}
-
-      {/* Change piece stage sheet */}
-      <BottomSheet
-        open={showChangePieceStageSheet}
-        onClose={() => setShowChangePieceStageSheet(false)}
-        title="Change Stage"
-      >
-        <div className="flex flex-col gap-3 pb-2">
-          {STAGES.map((s) => (
-            <button
-              key={s}
-              onClick={() => handleChangePieceStage(s)}
-              disabled={changingPieceStage}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors disabled:opacity-50 ${
-                piece?.current_stage === s
-                  ? 'bg-stone-100 border-stone-300 text-[#1c1917] font-semibold'
-                  : 'border-stone-200 text-stone-600'
-              }`}
-            >
-              <span className={`w-3 h-3 rounded-full flex-shrink-0 ${
-                s === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
-              }`} />
-              <span className="text-sm flex-1 text-left">{STAGE_LABELS[s]}</span>
-              {piece?.current_stage === s && (
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M3 8l4 4 6-6" stroke="#78350f" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              )}
-            </button>
-          ))}
-          {changingPieceStage && <p className="text-center text-xs text-stone-400">Saving…</p>}
-        </div>
-      </BottomSheet>
 
       {/* Edit stage sheet — z-[70] renders above lightbox */}
       <BottomSheet
