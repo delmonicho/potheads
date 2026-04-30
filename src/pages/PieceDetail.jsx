@@ -175,7 +175,7 @@ export default function PieceDetail({ user }) {
     if (!window.confirm('Mark this piece as lost? It will be hidden from your board.')) return
     try {
       await markLost(id)
-      navigate(-1)
+      navigate('/board')
     } catch (err) {
       setError(err.message)
     }
@@ -500,7 +500,7 @@ export default function PieceDetail({ user }) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#fafaf9] px-4">
         <p className="text-red-600 text-sm">{error || 'Piece not found'}</p>
-        <button onClick={() => navigate(-1)} className="mt-4 text-[#78350f] underline text-sm">Go back</button>
+        <button onClick={() => navigate('/board')} className="mt-4 text-[#78350f] underline text-sm">Go back</button>
       </div>
     )
   }
@@ -524,7 +524,7 @@ export default function PieceDetail({ user }) {
 
         {/* Back button */}
         <button
-          onClick={(e) => { e.stopPropagation(); navigate(-1) }}
+          onClick={(e) => { e.stopPropagation(); navigate('/board') }}
           style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}
           className="absolute left-4 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center text-[#1c1917] text-2xl leading-none"
           aria-label="Back"
