@@ -46,6 +46,63 @@ export async function updateStage(pieceId, stage) {
   if (error) throw error
 }
 
+export async function updatePiece(pieceId, { name, clayBody, currentStage } = {}) {
+  const updates = {}
+  if (name !== undefined) updates.name = name
+  if (clayBody !== undefined) updates.clay_body = clayBody || null
+  if (currentStage !== undefined) updates.current_stage = currentStage
+  if (Object.keys(updates).length === 0) return
+
+  const { error } = await supabase
+    .from('pieces')
+    .update(updates)
+    .eq('id', pieceId)
+
+  if (error) throw error
+}
+
+export async function getPieceIds(userId) {
+  const { data, error } = await supabase
+    .from('pieces')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('lost', false)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data.map((row) => row.id)
+}
+
+export async function upsertStageNote(pieceId, stage, notes, fallbackMovedAt = null) {
+  const trimmed = notes ? notes.trim() : ''
+  const value = trimmed.length ? trimmed : null
+
+  const { data: existing, error: selectError } = await supabase
+    .from('stage_events')
+    .select('id')
+    .eq('piece_id', pieceId)
+    .eq('stage', stage)
+    .order('moved_at', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  if (selectError) throw selectError
+
+  if (existing) {
+    const { error } = await supabase
+      .from('stage_events')
+      .update({ notes: value })
+      .eq('id', existing.id)
+    if (error) throw error
+    return
+  }
+
+  const insert = { piece_id: pieceId, stage, notes: value }
+  if (fallbackMovedAt) insert.moved_at = fallbackMovedAt
+  const { error: insertError } = await supabase.from('stage_events').insert(insert)
+  if (insertError) throw insertError
+}
+
 export async function advanceStage(pieceId, stage, notes) {
   const [{ error: updateError }, { error: eventError }] = await Promise.all([
     supabase.from('pieces').update({ current_stage: stage }).eq('id', pieceId),
