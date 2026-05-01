@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
-import { STAGES, STAGE_LABELS, nextStage, advanceStage, markLost, getStageEvents, updatePiece, getPieceIds, upsertStageNote } from '../lib/pieces.js'
-import { getPhotosForPiece, uploadPhoto, getPhotoUrl, updatePhotoStage } from '../lib/photos.js'
+import { STAGES, STAGE_LABELS, nextStage, advanceStage, markLost, getStageEvents, updatePiece, getPieceIds, getPiecesByIds, upsertStageNote } from '../lib/pieces.js'
+import { getPhotosForPiece, getPhotosForPieces, uploadPhoto, getPhotoUrl, updatePhotoStage } from '../lib/photos.js'
 import { getTagsForPiece, getOrCreateTag, addTagToPiece, removeTagFromPiece, getUserTags, updateTagColor, PRESET_TAGS } from '../lib/tags.js'
 import TagChip from '../components/TagChip.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
@@ -11,9 +11,13 @@ import { useTagColors, detectColor } from '../lib/useTagColors.js'
 
 const STAGE_RANK = { finished: 4, glazed: 3, bisque_ready: 2, drying: 1 }
 
+const SWIPE_EASE = 'cubic-bezier(0.2, 0.8, 0.2, 1)'
+const SWIPE_DURATION_MS = 220
+
 export default function PieceDetail({ user }) {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const [piece, setPiece] = useState(null)
   const [photos, setPhotos] = useState([])
@@ -60,7 +64,17 @@ export default function PieceDetail({ user }) {
 
   // Page-level swipe navigation between pieces
   const [pieceIds, setPieceIds] = useState([])
-  const pageTouchRef = useRef(null)
+  const [adjacentPreviews, setAdjacentPreviews] = useState({ prev: null, next: null })
+  const [dragOffset, setDragOffset] = useState(0)
+  const [dragging, setDragging] = useState(false)
+  const [enterOffset, setEnterOffset] = useState(0)
+  const [noTransition, setNoTransition] = useState(false)
+  const [vw, setVw] = useState(() => (typeof window !== 'undefined' ? window.innerWidth : 390))
+  const swipeWrapperRef = useRef(null)
+  const heroRef = useRef(null)
+  const gestureRef2 = useRef({ mode: 'idle', startX: 0, startY: 0, lastOffset: 0, samples: [] })
+  const exitingRef = useRef(false)
+  const exitTimeoutRef = useRef(null)
 
   // Edit piece sheet
   const [showEditPieceSheet, setShowEditPieceSheet] = useState(false)
@@ -138,6 +152,38 @@ export default function PieceDetail({ user }) {
         .eq('user_id', pieceData.user_id)
         .lte('created_at', pieceData.created_at)
       setPieceNumber(count)
+
+      // Pre-fetch adjacent pieces for swipe-peek preview (fire-and-forget)
+      const idx = ids.indexOf(id)
+      const prevId = idx > 0 ? ids[idx - 1] : null
+      const nextId = idx >= 0 && idx < ids.length - 1 ? ids[idx + 1] : null
+      const adjacentIds = [prevId, nextId].filter(Boolean)
+      if (adjacentIds.length) {
+        Promise.all([
+          getPiecesByIds(adjacentIds),
+          getPhotosForPieces(adjacentIds),
+        ]).then(async ([piecesMap, photosMap]) => {
+          const buildPreview = async (pid) => {
+            if (!pid) return null
+            const p = piecesMap.get(pid)
+            if (!p) return null
+            const photoList = photosMap.get(pid) || []
+            const firstPhoto = photoList[0]
+            let thumbUrl = null
+            if (firstPhoto) {
+              try { thumbUrl = await getPhotoUrl(firstPhoto.storage_path) } catch {}
+            }
+            return { id: pid, name: p.name, clayBody: p.clay_body, thumbUrl }
+          }
+          const [prevPreview, nextPreview] = await Promise.all([
+            buildPreview(prevId),
+            buildPreview(nextId),
+          ])
+          setAdjacentPreviews({ prev: prevPreview, next: nextPreview })
+        }).catch(() => { /* preview is non-critical */ })
+      } else {
+        setAdjacentPreviews({ prev: null, next: null })
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -279,24 +325,180 @@ export default function PieceDetail({ user }) {
     else if (dx > 0 && heroIndex > 0) setHeroIndex(heroIndex - 1)
   }
 
-  function handleMainTouchStart(e) {
-    if (e.touches.length !== 1) { pageTouchRef.current = null; return }
-    pageTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
-  }
+  // Track viewport width so swipe math survives orientation change.
+  useEffect(() => {
+    const onResize = () => setVw(window.innerWidth)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
-  function handleMainTouchEnd(e) {
-    const start = pageTouchRef.current
-    pageTouchRef.current = null
-    if (!start || e.changedTouches.length === 0) return
-    const dx = e.changedTouches[0].clientX - start.x
-    const dy = e.changedTouches[0].clientY - start.y
-    if (Math.abs(dx) < 60) return
-    if (Math.abs(dy) > Math.abs(dx)) return
-    const idx = pieceIds.indexOf(id)
-    if (idx === -1) return
-    if (dx < 0 && idx < pieceIds.length - 1) navigate('/piece/' + pieceIds[idx + 1])
-    else if (dx > 0 && idx > 0) navigate('/piece/' + pieceIds[idx - 1])
-  }
+  // Direction-aware entry animation: if we arrived via a swipe, snap the page
+  // to the off-screen side opposite the user's gesture, then animate to 0.
+  // Adjacent previews are cleared on id-change to avoid showing stale neighbors
+  // until fetchAll repopulates them.
+  useLayoutEffect(() => {
+    exitingRef.current = false
+    setDragOffset(0)
+    setAdjacentPreviews({ prev: null, next: null })
+    const dir = location.state?.swipeDir
+    if (!dir) {
+      setNoTransition(false)
+      setEnterOffset(0)
+      return
+    }
+    const w = window.innerWidth
+    // First commit: jump to the start position with no transition.
+    setNoTransition(true)
+    setEnterOffset(dir === 'forward' ? w : -w)
+    // Clear state so back/forward navigation doesn't re-trigger the entry.
+    window.history.replaceState({}, '')
+    // Two RAFs: first lets the snap paint, second re-enables transition and
+    // animates to 0.
+    let raf2 = 0
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        setNoTransition(false)
+        setEnterOffset(0)
+      })
+    })
+    return () => {
+      cancelAnimationFrame(raf1)
+      if (raf2) cancelAnimationFrame(raf2)
+    }
+  }, [id])
+
+  useEffect(() => () => {
+    if (exitTimeoutRef.current) clearTimeout(exitTimeoutRef.current)
+  }, [])
+
+  // Native touch listeners on the swipe wrapper — needs passive:false so we can
+  // preventDefault during a horizontal drag and stop the page from scrolling.
+  useEffect(() => {
+    const el = swipeWrapperRef.current
+    if (!el) return
+
+    function onTouchStart(e) {
+      if (exitingRef.current) return
+      if (e.touches.length !== 1) {
+        gestureRef2.current.mode = 'idle'
+        return
+      }
+      const t = e.touches[0]
+      // Defer to iOS edge-swipe-back gesture.
+      if (t.clientX < 20) {
+        gestureRef2.current.mode = 'idle'
+        return
+      }
+      // Defer to the hero's photo-carousel swipe handlers.
+      if (heroRef.current && heroRef.current.contains(e.target)) {
+        gestureRef2.current.mode = 'idle'
+        return
+      }
+      gestureRef2.current = {
+        mode: 'pending',
+        startX: t.clientX,
+        startY: t.clientY,
+        lastOffset: 0,
+        samples: [{ x: 0, t: performance.now() }],
+      }
+    }
+
+    function onTouchMove(e) {
+      const g = gestureRef2.current
+      if (g.mode === 'idle' || g.mode === 'scrolling') return
+      if (e.touches.length !== 1) {
+        if (g.mode === 'dragging') {
+          setDragging(false)
+          setDragOffset(0)
+        }
+        g.mode = 'idle'
+        return
+      }
+      const t = e.touches[0]
+      const dx = t.clientX - g.startX
+      const dy = t.clientY - g.startY
+
+      if (g.mode === 'pending') {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return
+        if (Math.abs(dy) > Math.abs(dx)) {
+          g.mode = 'scrolling'
+          return
+        }
+        g.mode = 'dragging'
+        setDragging(true)
+      }
+
+      if (g.mode === 'dragging') {
+        e.preventDefault()
+        const idx = pieceIds.indexOf(id)
+        const atStart = idx <= 0
+        const atEnd = idx === -1 || idx >= pieceIds.length - 1
+        let offset = dx
+        if ((dx > 0 && atStart) || (dx < 0 && atEnd)) offset = dx * 0.3
+        g.lastOffset = offset
+        setDragOffset(offset)
+        const now = performance.now()
+        g.samples.push({ x: dx, t: now })
+        while (g.samples.length > 2 && now - g.samples[0].t > 100) g.samples.shift()
+      }
+    }
+
+    function onTouchEnd() {
+      const g = gestureRef2.current
+      if (g.mode !== 'dragging') {
+        g.mode = 'idle'
+        return
+      }
+      g.mode = 'idle'
+      setDragging(false)
+
+      const offset = g.lastOffset
+      const w = window.innerWidth
+      const threshold = w * 0.25
+
+      let velocity = 0
+      if (g.samples.length >= 2) {
+        const first = g.samples[0]
+        const last = g.samples[g.samples.length - 1]
+        const dt = last.t - first.t
+        if (dt > 0) velocity = (last.x - first.x) / dt
+      }
+
+      const idx = pieceIds.indexOf(id)
+      const atStart = idx <= 0
+      const atEnd = idx === -1 || idx >= pieceIds.length - 1
+
+      const wantsNext = (offset < -threshold || velocity < -0.5) && !atEnd
+      const wantsPrev = (offset > threshold || velocity > 0.5) && !atStart
+
+      if (wantsNext) {
+        exitingRef.current = true
+        setDragOffset(-w)
+        exitTimeoutRef.current = setTimeout(() => {
+          navigate('/piece/' + pieceIds[idx + 1], { state: { swipeDir: 'forward' } })
+        }, SWIPE_DURATION_MS)
+      } else if (wantsPrev) {
+        exitingRef.current = true
+        setDragOffset(w)
+        exitTimeoutRef.current = setTimeout(() => {
+          navigate('/piece/' + pieceIds[idx - 1], { state: { swipeDir: 'backward' } })
+        }, SWIPE_DURATION_MS)
+      } else {
+        setDragOffset(0)
+      }
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd, { passive: true })
+    el.addEventListener('touchcancel', onTouchEnd, { passive: true })
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+      el.removeEventListener('touchcancel', onTouchEnd)
+    }
+  }, [id, pieceIds, navigate])
 
   function openEditPiece() {
     if (!piece) return
@@ -514,10 +716,60 @@ export default function PieceDetail({ user }) {
 
   const heroUrl = photoUrls[heroIndex] ?? null
 
+  const wrapperOffset = dragOffset + enterOffset
+  const wrapperTransition = (dragging || noTransition)
+    ? 'none'
+    : `transform ${SWIPE_DURATION_MS}ms ${SWIPE_EASE}`
+  const wrapperShadow =
+    dragOffset < -2 ? '8px 0 16px -6px rgba(0,0,0,0.18)'
+    : dragOffset > 2 ? '-8px 0 16px -6px rgba(0,0,0,0.18)'
+    : 'none'
+
   return (
-    <div className="flex flex-col min-h-screen bg-[#fafaf9]">
+    <>
+    <div className="relative min-h-screen overflow-hidden bg-[#fafaf9]">
+      {/* Previous-piece peek panel */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          transform: `translate3d(${wrapperOffset - vw}px, 0, 0)`,
+          transition: wrapperTransition,
+          willChange: 'transform',
+        }}
+        aria-hidden="true"
+      >
+        {adjacentPreviews.prev && <PiecePreview preview={adjacentPreviews.prev} />}
+      </div>
+
+      {/* Next-piece peek panel */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          transform: `translate3d(${wrapperOffset + vw}px, 0, 0)`,
+          transition: wrapperTransition,
+          willChange: 'transform',
+        }}
+        aria-hidden="true"
+      >
+        {adjacentPreviews.next && <PiecePreview preview={adjacentPreviews.next} />}
+      </div>
+
+      {/* Active page — swipeable wrapper */}
+      <div
+        ref={swipeWrapperRef}
+        className="relative flex flex-col min-h-screen bg-[#fafaf9]"
+        style={{
+          transform: `translate3d(${wrapperOffset}px, 0, 0)`,
+          transition: wrapperTransition,
+          boxShadow: wrapperShadow,
+          touchAction: 'pan-y',
+          userSelect: dragging ? 'none' : 'auto',
+          willChange: 'transform',
+        }}
+      >
       {/* Full-bleed hero photo */}
       <div
+        ref={heroRef}
         className="relative h-[40vh] flex-shrink-0 bg-[#c4a882] overflow-hidden"
         onTouchStart={handleHeroTouchStart}
         onTouchEnd={handleHeroTouchEnd}
@@ -577,11 +829,7 @@ export default function PieceDetail({ user }) {
         </button>
       </div>
 
-      <main
-        className="flex-1 overflow-y-auto pb-safe"
-        onTouchStart={handleMainTouchStart}
-        onTouchEnd={handleMainTouchEnd}
-      >
+      <main className="flex-1 overflow-y-auto pb-safe">
         {/* Piece identity */}
         <div className="px-5 pt-5 pb-4">
           <p className="text-xs uppercase tracking-widest text-stone-400 mb-1">
@@ -730,6 +978,8 @@ export default function PieceDetail({ user }) {
           {error && <p className="text-red-600 text-xs mt-2">{error}</p>}
         </div>
       </main>
+      </div>
+    </div>
 
       {/* Advance stage sheet */}
       <BottomSheet
@@ -1206,6 +1456,27 @@ export default function PieceDetail({ user }) {
           </button>
         </div>
       </BottomSheet>
+    </>
+  )
+}
+
+function PiecePreview({ preview }) {
+  return (
+    <div className="flex flex-col min-h-screen bg-[#fafaf9]">
+      <div className="relative h-[40vh] flex-shrink-0 bg-[#c4a882] overflow-hidden">
+        {preview.thumbUrl ? (
+          <img src={preview.thumbUrl} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <PotteryPlaceholder className="rounded-none" />
+        )}
+      </div>
+      <div className="px-5 pt-5">
+        <p className="text-xs uppercase tracking-widest text-stone-400 mb-1">Piece</p>
+        <h1 className="text-3xl font-semibold text-[#1c1917] leading-tight">{preview.name}</h1>
+        {preview.clayBody && (
+          <p className="text-sm text-stone-400 mt-1">{preview.clayBody}</p>
+        )}
+      </div>
     </div>
   )
 }
