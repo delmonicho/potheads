@@ -9,6 +9,8 @@ import BottomSheet from '../components/BottomSheet.jsx'
 import PotteryPlaceholder from '../components/PotteryPlaceholder.jsx'
 import { useTagColors, detectColor } from '../lib/useTagColors.js'
 
+const STAGE_RANK = { finished: 4, glazed: 3, bisque_ready: 2, drying: 1 }
+
 export default function PieceDetail({ user }) {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -109,8 +111,14 @@ export default function PieceDetail({ user }) {
         getPieceIds(user.id),
       ])
       if (pieceError) throw pieceError
+      // Carousel order: latest stage first (finished → glazed → bisque_ready → drying → untagged); newer first within a stage
+      const sortedPhotos = [...photosData].sort((a, b) => {
+        const rankDiff = (STAGE_RANK[b.stage] || 0) - (STAGE_RANK[a.stage] || 0)
+        if (rankDiff !== 0) return rankDiff
+        return new Date(b.taken_at) - new Date(a.taken_at)
+      })
       setPiece(pieceData)
-      setPhotos(photosData)
+      setPhotos(sortedPhotos)
       setTags(tagsData)
       setUserTags(allUserTags)
       setStageEvents(eventsData)
@@ -118,10 +126,9 @@ export default function PieceDetail({ user }) {
 
       // Resolve signed URLs for all photos
       const urls = await Promise.all(
-        photosData.map((p) => getPhotoUrl(p.storage_path).catch(() => null))
+        sortedPhotos.map((p) => getPhotoUrl(p.storage_path).catch(() => null))
       )
       setPhotoUrls(urls)
-      // photos[0] is newest (taken_at DESC)
       setHeroIndex(0)
 
       // Derive piece number: count pieces created at or before this one
@@ -1000,14 +1007,24 @@ export default function PieceDetail({ user }) {
           >
             <div className="flex items-center gap-2">
               {photos[viewerIndex]?.stage ? (
-                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowEditStageSheet(true) }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm active:bg-white/25"
+                >
                   <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
                     photos[viewerIndex].stage === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
                   }`} />
                   <span className="text-white text-xs font-medium">{STAGE_LABELS[photos[viewerIndex].stage]}</span>
-                </span>
+                  <span className="text-white/70 text-xs leading-none">›</span>
+                </button>
               ) : (
-                <span className="text-white/40 text-xs">No stage tagged</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowEditStageSheet(true) }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 backdrop-blur-sm active:bg-white/20"
+                >
+                  <span className="text-white/60 text-xs">No stage tagged</span>
+                  <span className="text-white/50 text-xs leading-none">›</span>
+                </button>
               )}
             </div>
             <button
@@ -1047,7 +1064,7 @@ export default function PieceDetail({ user }) {
             )}
           </div>
 
-          {/* Bottom bar: note + counter + edit stage */}
+          {/* Bottom bar: note + counter */}
           <div
             className="flex-shrink-0 px-4 flex flex-col gap-2"
             style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
@@ -1058,12 +1075,6 @@ export default function PieceDetail({ user }) {
             <p className="text-white/40 text-xs text-center tabular-nums">
               {viewerIndex + 1} / {photos.length}
             </p>
-            <button
-              onClick={() => setShowEditStageSheet(true)}
-              className="w-full py-3 rounded-2xl bg-white/15 text-white text-sm font-semibold active:bg-white/25"
-            >
-              Edit stage
-            </button>
           </div>
         </div>
       )}
