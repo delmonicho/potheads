@@ -73,6 +73,20 @@ export async function getPieceIds(userId) {
   return data.map((row) => row.id)
 }
 
+export async function getPiecesByIds(ids) {
+  const filtered = ids.filter(Boolean)
+  if (!filtered.length) return new Map()
+  const { data, error } = await supabase
+    .from('pieces')
+    .select('id, name, clay_body')
+    .in('id', filtered)
+  if (error) throw error
+  return data.reduce((map, row) => {
+    map.set(row.id, row)
+    return map
+  }, new Map())
+}
+
 export async function upsertStageNote(pieceId, stage, notes, fallbackMovedAt = null) {
   const trimmed = notes ? notes.trim() : ''
   const value = trimmed.length ? trimmed : null
