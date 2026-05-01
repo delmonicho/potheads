@@ -75,6 +75,10 @@ export default function PieceDetail({ user }) {
   const gestureRef2 = useRef({ mode: 'idle', startX: 0, startY: 0, lastOffset: 0, samples: [] })
   const exitingRef = useRef(false)
   const exitTimeoutRef = useRef(null)
+  // Ref mirror so the touch listeners can read the latest pieceIds without
+  // tearing down on every fetchAll-induced array replacement.
+  const pieceIdsRef = useRef(pieceIds)
+  pieceIdsRef.current = pieceIds
 
   // Edit piece sheet
   const [showEditPieceSheet, setShowEditPieceSheet] = useState(false)
@@ -351,7 +355,9 @@ export default function PieceDetail({ user }) {
     setNoTransition(true)
     setEnterOffset(dir === 'forward' ? w : -w)
     // Clear state so back/forward navigation doesn't re-trigger the entry.
-    window.history.replaceState({}, '')
+    // Going through navigate (not history.replaceState) preserves React Router's
+    // internal { idx, key, usr } shape on the history entry.
+    navigate(location.pathname, { replace: true, state: null })
     // Two RAFs: first lets the snap paint, second re-enables transition and
     // animates to 0.
     let raf2 = 0
@@ -430,9 +436,10 @@ export default function PieceDetail({ user }) {
 
       if (g.mode === 'dragging') {
         e.preventDefault()
-        const idx = pieceIds.indexOf(id)
+        const ids = pieceIdsRef.current
+        const idx = ids.indexOf(id)
         const atStart = idx <= 0
-        const atEnd = idx === -1 || idx >= pieceIds.length - 1
+        const atEnd = idx === -1 || idx >= ids.length - 1
         let offset = dx
         if ((dx > 0 && atStart) || (dx < 0 && atEnd)) offset = dx * 0.3
         g.lastOffset = offset
@@ -464,9 +471,10 @@ export default function PieceDetail({ user }) {
         if (dt > 0) velocity = (last.x - first.x) / dt
       }
 
-      const idx = pieceIds.indexOf(id)
+      const ids = pieceIdsRef.current
+      const idx = ids.indexOf(id)
       const atStart = idx <= 0
-      const atEnd = idx === -1 || idx >= pieceIds.length - 1
+      const atEnd = idx === -1 || idx >= ids.length - 1
 
       const wantsNext = (offset < -threshold || velocity < -0.5) && !atEnd
       const wantsPrev = (offset > threshold || velocity > 0.5) && !atStart
@@ -475,13 +483,13 @@ export default function PieceDetail({ user }) {
         exitingRef.current = true
         setDragOffset(-w)
         exitTimeoutRef.current = setTimeout(() => {
-          navigate('/piece/' + pieceIds[idx + 1], { state: { swipeDir: 'forward' } })
+          navigate('/piece/' + ids[idx + 1], { state: { swipeDir: 'forward' } })
         }, SWIPE_DURATION_MS)
       } else if (wantsPrev) {
         exitingRef.current = true
         setDragOffset(w)
         exitTimeoutRef.current = setTimeout(() => {
-          navigate('/piece/' + pieceIds[idx - 1], { state: { swipeDir: 'backward' } })
+          navigate('/piece/' + ids[idx - 1], { state: { swipeDir: 'backward' } })
         }, SWIPE_DURATION_MS)
       } else {
         setDragOffset(0)
@@ -498,7 +506,7 @@ export default function PieceDetail({ user }) {
       el.removeEventListener('touchend', onTouchEnd)
       el.removeEventListener('touchcancel', onTouchEnd)
     }
-  }, [id, pieceIds, navigate])
+  }, [id, navigate])
 
   function openEditPiece() {
     if (!piece) return
@@ -728,11 +736,13 @@ export default function PieceDetail({ user }) {
   return (
     <>
     <div className="relative min-h-screen overflow-hidden bg-[#fafaf9]">
-      {/* Previous-piece peek panel */}
+      {/* Previous-piece peek panel — 8px sliver visible at rest as a
+          page-turn affordance. The right edge gets a soft shadow that reads
+          as a catalog-page gutter against the active page. */}
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 pointer-events-none overflow-hidden before:absolute before:inset-y-0 before:right-0 before:w-3 before:bg-gradient-to-l before:from-black/10 before:to-transparent before:z-10"
         style={{
-          transform: `translate3d(${wrapperOffset - vw}px, 0, 0)`,
+          transform: `translate3d(${wrapperOffset - vw + 8}px, 0, 0)`,
           transition: wrapperTransition,
           willChange: 'transform',
         }}
@@ -741,11 +751,11 @@ export default function PieceDetail({ user }) {
         {adjacentPreviews.prev && <PiecePreview preview={adjacentPreviews.prev} />}
       </div>
 
-      {/* Next-piece peek panel */}
+      {/* Next-piece peek panel — mirror sliver. */}
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 pointer-events-none overflow-hidden before:absolute before:inset-y-0 before:left-0 before:w-3 before:bg-gradient-to-r before:from-black/10 before:to-transparent before:z-10"
         style={{
-          transform: `translate3d(${wrapperOffset + vw}px, 0, 0)`,
+          transform: `translate3d(${wrapperOffset + vw - 8}px, 0, 0)`,
           transition: wrapperTransition,
           willChange: 'transform',
         }}
@@ -754,10 +764,13 @@ export default function PieceDetail({ user }) {
         {adjacentPreviews.next && <PiecePreview preview={adjacentPreviews.next} />}
       </div>
 
-      {/* Active page — swipeable wrapper */}
+      {/* Active page — swipeable wrapper. Owns the vertical scroll itself so
+          touch-action: pan-y applies on the same element where horizontal
+          gestures originate; otherwise iOS commits diagonal touches to an
+          inner overflow:auto descendant before our threshold trips. */}
       <div
         ref={swipeWrapperRef}
-        className="relative flex flex-col min-h-screen bg-[#fafaf9]"
+        className="relative flex flex-col h-[100dvh] overflow-y-auto overscroll-y-contain bg-[#fafaf9]"
         style={{
           transform: `translate3d(${wrapperOffset}px, 0, 0)`,
           transition: wrapperTransition,
@@ -829,11 +842,14 @@ export default function PieceDetail({ user }) {
         </button>
       </div>
 
-      <main className="flex-1 overflow-y-auto pb-safe">
+      <main className="flex-1 pb-safe">
         {/* Piece identity */}
         <div className="px-5 pt-5 pb-4">
           <p className="text-xs uppercase tracking-widest text-stone-400 mb-1">
             Piece No. {pieceNumber != null ? String(pieceNumber).padStart(3, '0') : '—'}
+            {pieceIds.length > 1 && pieceIds.indexOf(id) >= 0 && (
+              <span> · {pieceIds.indexOf(id) + 1} of {pieceIds.length}</span>
+            )}
           </p>
           <div className="flex items-start justify-between gap-3">
             <h1 className="text-3xl font-semibold text-[#1c1917] leading-tight">{piece.name}</h1>
