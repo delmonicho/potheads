@@ -46,11 +46,13 @@ export async function updateStage(pieceId, stage) {
   if (error) throw error
 }
 
-export async function updatePiece(pieceId, { name, clayBody, currentStage } = {}) {
+export async function updatePiece(pieceId, { name, clayBody, currentStage, notes, createdAt } = {}) {
   const updates = {}
   if (name !== undefined) updates.name = name
   if (clayBody !== undefined) updates.clay_body = clayBody || null
   if (currentStage !== undefined) updates.current_stage = currentStage
+  if (notes !== undefined) updates.notes = notes || null
+  if (createdAt !== undefined) updates.created_at = createdAt
   if (Object.keys(updates).length === 0) return
 
   const { error } = await supabase
@@ -87,7 +89,7 @@ export async function getPiecesByIds(ids) {
   }, new Map())
 }
 
-export async function upsertStageNote(pieceId, stage, notes, fallbackMovedAt = null) {
+export async function upsertStageNote(pieceId, stage, notes, fallbackMovedAt = null, movedAt = null) {
   const trimmed = notes ? notes.trim() : ''
   const value = trimmed.length ? trimmed : null
 
@@ -103,16 +105,19 @@ export async function upsertStageNote(pieceId, stage, notes, fallbackMovedAt = n
   if (selectError) throw selectError
 
   if (existing) {
+    const updates = { notes: value }
+    if (movedAt) updates.moved_at = movedAt
     const { error } = await supabase
       .from('stage_events')
-      .update({ notes: value })
+      .update(updates)
       .eq('id', existing.id)
     if (error) throw error
     return
   }
 
   const insert = { piece_id: pieceId, stage, notes: value }
-  if (fallbackMovedAt) insert.moved_at = fallbackMovedAt
+  if (movedAt) insert.moved_at = movedAt
+  else if (fallbackMovedAt) insert.moved_at = fallbackMovedAt
   const { error: insertError } = await supabase.from('stage_events').insert(insert)
   if (insertError) throw insertError
 }

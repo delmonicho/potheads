@@ -39,8 +39,8 @@ export default function PieceDetail({ user }) {
   const [togglingTag, setTogglingTag] = useState(null)
 
   const [showAddPhotoSheet, setShowAddPhotoSheet] = useState(false)
-  const [addPhotoFile, setAddPhotoFile] = useState(null)
-  const [addPhotoPreview, setAddPhotoPreview] = useState(null)
+  const [addPhotoFiles, setAddPhotoFiles] = useState([])
+  const [addPhotoPreviews, setAddPhotoPreviews] = useState([])
   const [addPhotoStage, setAddPhotoStage] = useState(null)
   const [addPhotoNote, setAddPhotoNote] = useState('')
   const [addingPhoto, setAddingPhoto] = useState(false)
@@ -85,12 +85,15 @@ export default function PieceDetail({ user }) {
   const [editName, setEditName] = useState('')
   const [editClayBody, setEditClayBody] = useState('')
   const [editStage, setEditStage] = useState('drying')
+  const [editNotes, setEditNotes] = useState('')
+  const [editCreatedAt, setEditCreatedAt] = useState('')
   const [savingPiece, setSavingPiece] = useState(false)
 
   // Edit note sheet
   const [showNoteSheet, setShowNoteSheet] = useState(false)
   const [noteStage, setNoteStage] = useState(null)
   const [noteText, setNoteText] = useState('')
+  const [noteDate, setNoteDate] = useState('')
   const [savingNote, setSavingNote] = useState(false)
 
   // Lightbox gesture state (pinch zoom + pan + swipe)
@@ -117,6 +120,18 @@ export default function PieceDetail({ user }) {
     gestureRef.current.mode = 'idle'
     gestureRef.current.multiTouchSeen = false
   }, [viewerIndex, viewerOpen])
+
+  // Keyboard arrow navigation in lightbox
+  useEffect(() => {
+    if (!viewerOpen) return
+    function onKeyDown(e) {
+      if (e.key === 'ArrowLeft') setViewerIndex(v => Math.max(0, v - 1))
+      else if (e.key === 'ArrowRight') setViewerIndex(v => Math.min(photos.length - 1, v + 1))
+      else if (e.key === 'Escape') setViewerOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [viewerOpen, photos.length])
 
   const fetchAll = useCallback(async () => {
     try {
@@ -239,13 +254,15 @@ export default function PieceDetail({ user }) {
   }
 
   async function handleAddPhoto() {
-    if (!addPhotoFile) return
+    if (!addPhotoFiles.length) return
     setAddingPhoto(true)
     try {
-      await uploadPhoto({ file: addPhotoFile, userId: user.id, pieceId: id, stage: addPhotoStage || null, note: addPhotoNote || null })
+      await Promise.all(addPhotoFiles.map(f =>
+        uploadPhoto({ file: f, userId: user.id, pieceId: id, stage: addPhotoStage || null, note: addPhotoNote || null })
+      ))
       setShowAddPhotoSheet(false)
-      setAddPhotoFile(null)
-      setAddPhotoPreview(null)
+      setAddPhotoFiles([])
+      setAddPhotoPreviews([])
       setAddPhotoStage(null)
       setAddPhotoNote('')
       await fetchAll()
@@ -508,11 +525,23 @@ export default function PieceDetail({ user }) {
     }
   }, [id, navigate])
 
+  function toDateInput(iso) {
+    if (!iso) return ''
+    return new Date(iso).toISOString().slice(0, 10)
+  }
+
+  function fromDateInput(val) {
+    if (!val) return null
+    return new Date(val + 'T12:00:00').toISOString()
+  }
+
   function openEditPiece() {
     if (!piece) return
     setEditName(piece.name || '')
     setEditClayBody(piece.clay_body || '')
     setEditStage(piece.current_stage)
+    setEditNotes(piece.notes || '')
+    setEditCreatedAt(toDateInput(piece.created_at))
     setShowEditPieceSheet(true)
   }
 
@@ -522,7 +551,13 @@ export default function PieceDetail({ user }) {
     if (!name) return
     setSavingPiece(true)
     try {
-      await updatePiece(id, { name, clayBody: editClayBody.trim(), currentStage: editStage })
+      await updatePiece(id, {
+        name,
+        clayBody: editClayBody.trim(),
+        currentStage: editStage,
+        notes: editNotes.trim(),
+        createdAt: fromDateInput(editCreatedAt),
+      })
       setShowEditPieceSheet(false)
       await fetchAll()
     } catch (err) {
@@ -537,6 +572,7 @@ export default function PieceDetail({ user }) {
     const existing = stageEvents.find((ev) => ev.stage === stage)
     setNoteStage(stage)
     setNoteText(existing?.notes || '')
+    setNoteDate(toDateInput(existing?.moved_at || (stage === initialStage ? piece.created_at : null)))
     setShowNoteSheet(true)
   }
 
@@ -545,10 +581,12 @@ export default function PieceDetail({ user }) {
     setSavingNote(true)
     try {
       const fallback = noteStage === initialStage ? piece.created_at : null
-      await upsertStageNote(id, noteStage, noteText, fallback)
+      const movedAt = fromDateInput(noteDate)
+      await upsertStageNote(id, noteStage, noteText, fallback, movedAt)
       setShowNoteSheet(false)
       setNoteStage(null)
       setNoteText('')
+      setNoteDate('')
       await fetchAll()
     } catch (err) {
       setError(err.message)
@@ -862,6 +900,9 @@ export default function PieceDetail({ user }) {
           </div>
           {piece.clay_body && (
             <p className="text-sm text-muted mt-1">{piece.clay_body}</p>
+          )}
+          {piece.notes && (
+            <p className="text-sm text-[#1c1917] mt-2 leading-relaxed">{piece.notes}</p>
           )}
         </div>
 
@@ -1197,34 +1238,54 @@ export default function PieceDetail({ user }) {
       {/* Add photo sheet */}
       <BottomSheet
         open={showAddPhotoSheet}
-        onClose={() => { setShowAddPhotoSheet(false); setAddPhotoFile(null); setAddPhotoPreview(null); setAddPhotoNote('') }}
+        onClose={() => { setShowAddPhotoSheet(false); setAddPhotoFiles([]); setAddPhotoPreviews([]); setAddPhotoNote('') }}
         title="Add Photo"
       >
         <div className="flex flex-col gap-4">
-          <label className="block w-full h-40 rounded-2xl overflow-hidden bg-stone-100 cursor-pointer active:opacity-80 flex-shrink-0">
-            {addPhotoPreview ? (
-              <img src={addPhotoPreview} alt="" className="w-full h-full object-cover" />
-            ) : (
+          {addPhotoPreviews.length === 0 ? (
+            <label className="block w-full h-40 rounded-2xl overflow-hidden bg-stone-100 cursor-pointer hover:bg-stone-200 transition-colors active:opacity-80 flex-shrink-0">
               <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-muted">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
                   <circle cx="12" cy="13" r="4" />
                 </svg>
-                <span className="text-sm">Tap to add photo</span>
+                <span className="text-sm">Tap to add photos</span>
               </div>
-            )}
-            <input
-              type="file"
-              accept="image/*,image/heic,image/heif"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files[0]
-                if (!f) return
-                setAddPhotoFile(f)
-                setAddPhotoPreview(URL.createObjectURL(f))
-              }}
-            />
-          </label>
+              <input type="file" accept="image/*,image/heic,image/heif" multiple className="hidden" onChange={(e) => {
+                const incoming = Array.from(e.target.files)
+                if (!incoming.length) return
+                setAddPhotoFiles(prev => [...prev, ...incoming])
+                setAddPhotoPreviews(prev => [...prev, ...incoming.map(f => URL.createObjectURL(f))])
+                e.target.value = ''
+              }} />
+            </label>
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              {addPhotoPreviews.map((src, i) => (
+                <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-stone-100">
+                  <img src={src} alt="" className="w-full h-full object-cover" />
+                  <button
+                    onClick={() => {
+                      setAddPhotoFiles(prev => prev.filter((_, j) => j !== i))
+                      setAddPhotoPreviews(prev => prev.filter((_, j) => j !== i))
+                    }}
+                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/50 flex items-center justify-center text-white text-sm leading-none cursor-pointer hover:bg-black/70"
+                    aria-label="Remove photo"
+                  >×</button>
+                </div>
+              ))}
+              <label className="aspect-square rounded-xl border-2 border-dashed border-stone-300 flex items-center justify-center cursor-pointer hover:border-stone-400 hover:bg-stone-50 transition-colors">
+                <span className="text-muted text-2xl leading-none">+</span>
+                <input type="file" accept="image/*,image/heic,image/heif" multiple className="hidden" onChange={(e) => {
+                  const incoming = Array.from(e.target.files)
+                  if (!incoming.length) return
+                  setAddPhotoFiles(prev => [...prev, ...incoming])
+                  setAddPhotoPreviews(prev => [...prev, ...incoming.map(f => URL.createObjectURL(f))])
+                  e.target.value = ''
+                }} />
+              </label>
+            </div>
+          )}
 
           <div>
             <p className="text-xs uppercase tracking-widest text-stone-500 mb-1.5">Tag with stage (optional)</p>
@@ -1258,7 +1319,7 @@ export default function PieceDetail({ user }) {
 
           <button
             onClick={handleAddPhoto}
-            disabled={!addPhotoFile || addingPhoto}
+            disabled={!addPhotoFiles.length || addingPhoto}
             className="w-full bg-[#78350f] text-white font-semibold py-3 rounded-2xl active:bg-[#5c2709] disabled:opacity-50 cursor-pointer hover:bg-[#5c2709]"
           >
             {addingPhoto ? 'Uploading…' : 'Add Photo'}
@@ -1441,6 +1502,25 @@ export default function PieceDetail({ user }) {
             </div>
             <p className="text-xs text-muted mt-1.5">Quietly correct the stage — no timeline event is added.</p>
           </div>
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Date started</label>
+            <input
+              type="date"
+              className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm text-[#1c1917] bg-stone-50"
+              value={editCreatedAt}
+              onChange={(e) => setEditCreatedAt(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Notes</label>
+            <textarea
+              className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm text-[#1c1917] bg-stone-50 resize-none"
+              rows={3}
+              placeholder="Any details about this piece…"
+              value={editNotes}
+              onChange={(e) => setEditNotes(e.target.value)}
+            />
+          </div>
           <button
             onClick={handleSavePiece}
             disabled={savingPiece || !editName.trim()}
@@ -1454,13 +1534,22 @@ export default function PieceDetail({ user }) {
       {/* Edit note sheet */}
       <BottomSheet
         open={showNoteSheet}
-        onClose={() => { setShowNoteSheet(false); setNoteStage(null); setNoteText('') }}
+        onClose={() => { setShowNoteSheet(false); setNoteStage(null); setNoteText(''); setNoteDate('') }}
         title={noteStage ? `Note · ${STAGE_LABELS[noteStage]}` : 'Note'}
       >
         <div className="flex flex-col gap-4">
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Date</label>
+            <input
+              type="date"
+              className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-[#1c1917] bg-stone-50"
+              value={noteDate}
+              onChange={(e) => setNoteDate(e.target.value)}
+            />
+          </div>
           <textarea
             className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-[#1c1917] bg-stone-50 resize-none"
-            rows={5}
+            rows={4}
             placeholder="Anything worth remembering about this stage…"
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}

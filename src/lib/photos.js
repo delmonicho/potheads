@@ -10,13 +10,53 @@ const COMPRESSION_OPTIONS = {
 // Module-level signed URL cache — avoids regenerating URLs within their 1-hour validity
 const urlCache = new Map() // path → { url, expiresAt }
 
+function isHeicFile(file) {
+  const name = file.name.toLowerCase()
+  return file.type === 'image/heic' || file.type === 'image/heif'
+    || name.endsWith('.heic') || name.endsWith('.heif')
+}
+
+// Decode HEIC to JPEG via canvas — works on iOS Safari which natively decodes HEIC.
+// Returns a Blob on success, null if the browser can't decode it.
+function heicToJpeg(file) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      canvas.getContext('2d').drawImage(img, 0, 0)
+      canvas.toBlob(blob => { URL.revokeObjectURL(url); resolve(blob) }, 'image/jpeg', 0.9)
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null) }
+    img.src = url
+  })
+}
+
 export async function uploadPhoto({ file, userId, pieceId, stage, note }) {
-  const compressed = await imageCompression(file, COMPRESSION_OPTIONS)
-  const path = `${userId}/${pieceId}/${Date.now()}.jpg`
+  let uploadFile = file
+  let contentType = 'image/jpeg'
+
+  if (isHeicFile(file)) {
+    const jpeg = await heicToJpeg(file)
+    if (jpeg) {
+      uploadFile = await imageCompression(jpeg, COMPRESSION_OPTIONS)
+    } else {
+      // Browser can't decode HEIC (e.g. desktop Chrome) — upload raw
+      uploadFile = file
+      contentType = file.type || 'image/heic'
+    }
+  } else {
+    uploadFile = await imageCompression(file, COMPRESSION_OPTIONS)
+  }
+
+  const ext = contentType === 'image/jpeg' ? 'jpg' : file.name.split('.').pop() || 'heic'
+  const path = `${userId}/${pieceId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
 
   const { error: uploadError } = await supabase.storage
     .from('photos')
-    .upload(path, compressed, { contentType: 'image/jpeg' })
+    .upload(path, uploadFile, { contentType })
 
   if (uploadError) throw uploadError
 
