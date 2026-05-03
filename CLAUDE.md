@@ -53,6 +53,7 @@ User does NOT manage the kiln. Pieces sit at Bisque Ready until studio fires the
 - No form tags — use onClick/onChange handlers.
 - All Supabase calls go in src/lib/ helper files, not inline in components.
 - Compress images before upload using browser-image-compression (max 1600px, ~80% quality).
+- Every clickable element must have `cursor-pointer` and a visible hover state (e.g. `hover:bg-*`, `hover:opacity-80`, `hover:text-*`). Never leave interactive elements without feedback on desktop.
 - Upload photos to Supabase Storage at path: {user_id}/{piece_id}/{Date.now()}.jpg
 - Always handle loading and error states in UI.
 - Safe area insets: use pb-safe / pt-safe for iPhone notch/home bar.
@@ -106,6 +107,7 @@ Defined in `src/index.css`. Use these class names:
 - `bg-tan` → #c4a882 (card placeholder, photo bg)
 - `bg-stage-complete` / `text-stage-complete` → #4a7c59 (sage green)
 - `bg-stage-pending` / `border-stage-pending` → #d4c5b0
+- `text-muted` → #7c5545 (accessible warm brown for secondary/label text; replaces light gray)
 - `font-display` → Playfair Display, italic serif (wordmark, stage headers)
 
 ## PWA / iOS Notes

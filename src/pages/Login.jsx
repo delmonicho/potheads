@@ -24,7 +24,7 @@ export default function Login() {
         {/* Logo / branding */}
         <div className="flex flex-col items-center gap-2">
           <h1 className="font-display italic text-5xl text-[#1c1917]">Potheads.</h1>
-          <p className="text-stone-400 text-sm text-center tracking-wide">Track your pottery from wheel to kiln</p>
+          <p className="text-muted text-sm text-center tracking-wide">Track your pottery from wheel to kiln</p>
         </div>
 
         {error && (
@@ -34,7 +34,7 @@ export default function Login() {
         <button
           onClick={handleGoogleSignIn}
           disabled={loading}
-          className="w-full flex items-center justify-center gap-3 bg-white border border-stone-300 rounded-xl px-4 py-3 text-stone-700 font-medium shadow-sm active:bg-stone-50 disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-3 bg-white border border-stone-300 rounded-xl px-4 py-3 text-stone-700 font-medium shadow-sm active:bg-stone-50 disabled:opacity-50 cursor-pointer hover:bg-stone-50"
         >
           {/* Google icon */}
           <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">

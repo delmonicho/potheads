@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase.js'
 import { getPieces, markLost, STAGES } from '../lib/pieces.js'
 import { getPhotosForPieces, getPhotoUrl } from '../lib/photos.js'
 import { getTagsForPieces, getOrCreateTag, addTagToPiece, PRESET_TAGS } from '../lib/tags.js'
-import StageColumn from '../components/StageColumn.jsx'
+import StageColumn, { PieceCard } from '../components/StageColumn.jsx'
 import AddPiece from '../components/AddPiece.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
 
@@ -24,10 +24,12 @@ export default function Board({ user }) {
   const [pieces, setPieces] = useState([])
   const [thumbUrls, setThumbUrls] = useState({})  // pieceId → signed URL
   const [formTags, setFormTags] = useState({})     // pieceId → form tag name
+  const [allTagsByPiece, setAllTagsByPiece] = useState(new Map()) // pieceId → tags[]
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showAddPiece, setShowAddPiece] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
+  const [viewMode, setViewMode] = useState('stage') // 'stage' | 'tag'
 
   // Multi-select
   const [selectMode, setSelectMode] = useState(false)
@@ -56,6 +58,7 @@ export default function Board({ user }) {
         if (ft) newFormTags[pieceId] = ft.name
       }
       setFormTags(newFormTags)
+      setAllTagsByPiece(tagsByPiece)
 
       // Determine thumbnail photo per piece (latest-stage photo)
       const thumbEntries = []
@@ -138,6 +141,30 @@ export default function Board({ user }) {
     [pieces]
   )
 
+  const tagGroups = useMemo(() => {
+    const groups = new Map() // tagName → { label, pieces[] }
+    for (const piece of pieces) {
+      const tags = allTagsByPiece.get(piece.id) || []
+      if (tags.length === 0) {
+        if (!groups.has('__untagged')) groups.set('__untagged', { label: 'Untagged', pieces: [] })
+        groups.get('__untagged').pieces.push(piece)
+      } else {
+        for (const tag of tags) {
+          if (!groups.has(tag.name)) groups.set(tag.name, { label: tag.name, pieces: [] })
+          groups.get(tag.name).pieces.push(piece)
+        }
+      }
+    }
+    // Sort alphabetically, untagged last
+    return [...groups.entries()]
+      .sort(([a], [b]) => {
+        if (a === '__untagged') return 1
+        if (b === '__untagged') return -1
+        return a.localeCompare(b)
+      })
+      .map(([key, val]) => ({ key, ...val }))
+  }, [pieces, allTagsByPiece])
+
   const userInitial = (user.user_metadata?.full_name || user.email || '?')[0].toUpperCase()
 
   return (
@@ -145,21 +172,21 @@ export default function Board({ user }) {
       {/* Header */}
       <header className="px-5 pt-safe bg-[#fafaf9]">
         <div className="flex items-center justify-between pt-3 pb-1">
-          <p className="text-xs uppercase tracking-widest text-stone-400">
+          <p className="text-xs uppercase tracking-widest text-muted">
             Studio · {pieces.length} {pieces.length === 1 ? 'piece' : 'pieces'}
           </p>
           <div className="flex items-center gap-3">
             {selectMode ? (
               <button
                 onClick={exitSelectMode}
-                className="text-xs uppercase tracking-widest text-[#78350f] font-semibold"
+                className="text-xs uppercase tracking-widest text-[#78350f] font-semibold cursor-pointer hover:text-[#5c2709]"
               >
                 Cancel
               </button>
             ) : (
               <button
                 onClick={() => setSelectMode(true)}
-                className="text-stone-400 active:text-stone-600"
+                className="text-muted active:text-stone-600 cursor-pointer hover:text-stone-600"
                 aria-label="Select pieces"
               >
                 <SelectIcon />
@@ -167,14 +194,30 @@ export default function Board({ user }) {
             )}
             <button
               onClick={() => setShowProfile(true)}
-              className="w-9 h-9 rounded-full bg-[#78350f] flex items-center justify-center active:bg-[#5c2709]"
+              className="w-9 h-9 rounded-full bg-[#78350f] flex items-center justify-center active:bg-[#5c2709] cursor-pointer hover:bg-[#5c2709]"
               aria-label="Profile"
             >
               <span className="text-white text-sm font-semibold">{userInitial}</span>
             </button>
           </div>
         </div>
-        <h1 className="font-display italic text-4xl text-[#1c1917] pb-3">Potheads.</h1>
+        <div className="flex items-baseline justify-between pb-3">
+          <h1 className="font-display italic text-4xl text-[#1c1917]">Potheads.</h1>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setViewMode('stage')}
+              className={`text-xs uppercase tracking-widest font-semibold cursor-pointer transition-colors ${viewMode === 'stage' ? 'text-[#78350f]' : 'text-muted hover:text-stone-600'}`}
+            >
+              Stage
+            </button>
+            <button
+              onClick={() => setViewMode('tag')}
+              className={`text-xs uppercase tracking-widest font-semibold cursor-pointer transition-colors ${viewMode === 'tag' ? 'text-[#78350f]' : 'text-muted hover:text-stone-600'}`}
+            >
+              Tags
+            </button>
+          </div>
+        </div>
       </header>
 
       {/* Main */}
@@ -187,7 +230,7 @@ export default function Board({ user }) {
         {error && (
           <p className="text-red-600 text-sm text-center py-4">{error}</p>
         )}
-        {!loading && !error && STAGES.map((stage) => (
+        {!loading && !error && viewMode === 'stage' && STAGES.map((stage) => (
           <StageColumn
             key={stage}
             stage={stage}
@@ -199,13 +242,34 @@ export default function Board({ user }) {
             onToggleSelect={toggleSelect}
           />
         ))}
+        {!loading && !error && viewMode === 'tag' && tagGroups.map(({ key, label, pieces: groupPieces }) => (
+          <div key={key} className="mb-8">
+            <div className="flex items-baseline justify-between mb-3 border-b border-stone-200 pb-2">
+              <h2 className="font-display italic text-2xl text-[#1c1917] capitalize">{label}</h2>
+              <span className="text-sm text-muted tabular-nums">{String(groupPieces.length).padStart(2, '0')}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {groupPieces.map((piece) => (
+                <PieceCard
+                  key={piece.id}
+                  piece={piece}
+                  thumbUrl={thumbUrls?.[piece.id] ?? null}
+                  formTag={formTags?.[piece.id] ?? null}
+                  selectMode={selectMode}
+                  selected={selectedIds?.has(piece.id) ?? false}
+                  onToggleSelect={toggleSelect}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
       </main>
 
       {/* FAB */}
       {!selectMode && (
         <button
           onClick={() => setShowAddPiece(true)}
-          className="fixed bottom-8 right-5 w-14 h-14 bg-[#78350f] text-white text-3xl rounded-full shadow-lg flex items-center justify-center active:bg-[#5c2709]"
+          className="fixed bottom-8 right-5 w-14 h-14 bg-[#78350f] text-white text-3xl rounded-full shadow-lg flex items-center justify-center active:bg-[#5c2709] cursor-pointer hover:bg-[#5c2709]"
           aria-label="Add piece"
         >
           +
@@ -222,14 +286,14 @@ export default function Board({ user }) {
             <button
               onClick={() => setShowTagSheet(true)}
               disabled={bulkSaving}
-              className="px-4 py-2 rounded-xl border border-stone-300 text-sm text-[#1c1917] font-medium active:bg-stone-100 disabled:opacity-50"
+              className="px-4 py-2 rounded-xl border border-stone-300 text-sm text-[#1c1917] font-medium active:bg-stone-100 disabled:opacity-50 cursor-pointer hover:bg-stone-100"
             >
               Edit Tags
             </button>
             <button
               onClick={() => setShowDeleteConfirm(true)}
               disabled={bulkSaving}
-              className="px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-medium active:bg-red-600 disabled:opacity-50"
+              className="px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-medium active:bg-red-600 disabled:opacity-50 cursor-pointer hover:bg-red-600"
             >
               Delete
             </button>
@@ -252,10 +316,10 @@ export default function Board({ user }) {
       >
         <div className="flex flex-col gap-2 pb-4">
           <p className="text-sm text-[#1c1917] font-medium">{user.user_metadata?.full_name || user.email}</p>
-          <p className="text-xs text-stone-400">{user.email}</p>
+          <p className="text-xs text-muted">{user.email}</p>
           <button
             onClick={handleLogout}
-            className="mt-6 text-left text-sm text-red-500"
+            className="mt-6 text-left text-sm text-red-500 cursor-pointer hover:text-red-700"
           >
             Sign out
           </button>
@@ -276,7 +340,7 @@ export default function Board({ user }) {
                 <button
                   key={tag}
                   onClick={() => handleBulkToggleTag(tag, 'form')}
-                  className="px-4 py-1.5 rounded-full text-sm border border-stone-300 text-stone-700 bg-white active:bg-stone-100"
+                  className="px-4 py-1.5 rounded-full text-sm border border-stone-300 text-stone-700 bg-white active:bg-stone-100 cursor-pointer hover:bg-stone-100"
                 >
                   {tag}
                 </button>
@@ -290,7 +354,7 @@ export default function Board({ user }) {
                 <button
                   key={tag}
                   onClick={() => handleBulkToggleTag(tag, 'glaze')}
-                  className="px-4 py-1.5 rounded-full text-sm border border-stone-300 text-stone-700 bg-white active:bg-stone-100"
+                  className="px-4 py-1.5 rounded-full text-sm border border-stone-300 text-stone-700 bg-white active:bg-stone-100 cursor-pointer hover:bg-stone-100"
                 >
                   {tag}
                 </button>
@@ -299,7 +363,7 @@ export default function Board({ user }) {
           </div>
           <button
             onClick={handleTagSheetDone}
-            className="w-full bg-[#78350f] text-white font-semibold py-3.5 rounded-2xl active:bg-[#5c2709] mb-2"
+            className="w-full bg-[#78350f] text-white font-semibold py-3.5 rounded-2xl active:bg-[#5c2709] mb-2 cursor-pointer hover:bg-[#5c2709]"
           >
             Done
           </button>
@@ -322,13 +386,13 @@ export default function Board({ user }) {
               await handleBulkDelete()
             }}
             disabled={bulkSaving}
-            className="w-full bg-red-500 text-white font-semibold py-3.5 rounded-2xl active:bg-red-600 disabled:opacity-50"
+            className="w-full bg-red-500 text-white font-semibold py-3.5 rounded-2xl active:bg-red-600 disabled:opacity-50 cursor-pointer hover:bg-red-600"
           >
             {bulkSaving ? 'Marking as lost…' : 'Yes, mark as lost'}
           </button>
           <button
             onClick={() => setShowDeleteConfirm(false)}
-            className="w-full bg-stone-100 text-stone-700 font-semibold py-3.5 rounded-2xl active:bg-stone-200"
+            className="w-full bg-stone-100 text-stone-700 font-semibold py-3.5 rounded-2xl active:bg-stone-200 cursor-pointer hover:bg-stone-200"
           >
             Cancel
           </button>

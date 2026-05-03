@@ -10,14 +10,14 @@ export default memo(function TagChip({ tag, selected, onToggle, onRemove, color 
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full border text-sm font-medium ${onToggle ? 'cursor-pointer' : ''}`}
+      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full border text-sm font-medium transition-opacity ${onToggle ? 'cursor-pointer hover:opacity-80' : ''}`}
       style={style}
       onClick={onToggle ? () => onToggle(tag) : undefined}
     >
       {tag.name}
       {onRemove && (
         <button
-          className="ml-1 opacity-70 hover:opacity-100"
+          className="ml-1 opacity-70 hover:opacity-100 cursor-pointer"
           onClick={(e) => { e.stopPropagation(); onRemove(tag) }}
           aria-label={`Remove ${tag.name}`}
         >

@@ -23,7 +23,7 @@ export default function BottomSheet({ open, onClose, title, children, zClassName
             <h2 className="text-base font-semibold text-[#1c1917]">{title}</h2>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-500 text-xl leading-none"
+              className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-500 text-xl leading-none cursor-pointer hover:bg-stone-200"
               aria-label="Close"
             >
               ×

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { STAGE_LABELS } from '../lib/pieces.js'
 import PotteryPlaceholder from './PotteryPlaceholder.jsx'
 
-const PieceCard = memo(function PieceCard({ piece, thumbUrl, formTag, selectMode, selected, onToggleSelect }) {
+export const PieceCard = memo(function PieceCard({ piece, thumbUrl, formTag, selectMode, selected, onToggleSelect }) {
   const navigate = useNavigate()
   const [imgLoaded, setImgLoaded] = useState(false)
 
@@ -17,7 +17,7 @@ const PieceCard = memo(function PieceCard({ piece, thumbUrl, formTag, selectMode
 
   return (
     <div
-      className="flex flex-col rounded-2xl overflow-hidden active:opacity-75 cursor-pointer relative"
+      className="flex flex-col rounded-2xl overflow-hidden active:opacity-75 cursor-pointer hover:opacity-90 relative"
       onClick={handleTap}
     >
       {/* Square photo thumbnail */}
@@ -55,7 +55,7 @@ const PieceCard = memo(function PieceCard({ piece, thumbUrl, formTag, selectMode
       <div className="px-1.5 py-1.5 bg-[#fafaf9]">
         <p className="text-xs font-semibold text-[#1c1917] truncate leading-snug">{piece.name}</p>
         {formTag && (
-          <p className="text-[9px] uppercase tracking-widest text-stone-400 mt-0.5 truncate">{formTag}</p>
+          <p className="text-[9px] uppercase tracking-widest text-muted mt-0.5 truncate">{formTag}</p>
         )}
       </div>
     </div>
@@ -71,7 +71,7 @@ export default memo(function StageColumn({ stage, pieces, thumbUrls, formTags, s
         <h2 className="font-display italic text-2xl text-[#1c1917]">
           {STAGE_LABELS[stage]}
         </h2>
-        <span className="text-sm text-stone-400 tabular-nums">
+        <span className="text-sm text-muted tabular-nums">
           {String(pieces.length).padStart(2, '0')}
         </span>
       </div>

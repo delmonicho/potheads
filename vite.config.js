@@ -4,6 +4,15 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  server: {
+    proxy: {
+      '/auth/callback': {
+        target: 'https://kkagpnsekzsupwswnryo.supabase.co',
+        changeOrigin: true,
+        rewrite: path => path.replace('/auth/callback', '/auth/v1/callback')
+      }
+    }
+  },
   plugins: [
     react(),
     tailwindcss(),

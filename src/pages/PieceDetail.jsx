@@ -717,7 +717,7 @@ export default function PieceDetail({ user }) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#fafaf9] px-4">
         <p className="text-red-600 text-sm">{error || 'Piece not found'}</p>
-        <button onClick={() => navigate('/board')} className="mt-4 text-[#78350f] underline text-sm">Go back</button>
+        <button onClick={() => navigate('/board')} className="mt-4 text-[#78350f] underline text-sm cursor-pointer hover:text-[#5c2709]">Go back</button>
       </div>
     )
   }
@@ -783,13 +783,13 @@ export default function PieceDetail({ user }) {
       {/* Full-bleed hero photo */}
       <div
         ref={heroRef}
-        className="relative h-[40vh] flex-shrink-0 bg-[#c4a882] overflow-hidden"
+        className={`relative h-[40vh] md:max-h-120 shrink-0 bg-tan overflow-hidden ${heroUrl ? 'cursor-pointer' : ''}`}
         onTouchStart={handleHeroTouchStart}
         onTouchEnd={handleHeroTouchEnd}
         onClick={() => { if (heroUrl) { setViewerIndex(heroIndex); setViewerOpen(true) } }}
       >
         {heroUrl ? (
-          <img src={heroUrl} alt="" className="w-full h-full object-cover" />
+          <img src={heroUrl} alt="" className="w-full h-full object-contain" />
         ) : (
           <PotteryPlaceholder formTag={tags.find((t) => t.category === 'form')?.name} className="rounded-none" />
         )}
@@ -798,7 +798,7 @@ export default function PieceDetail({ user }) {
         <button
           onClick={(e) => { e.stopPropagation(); navigate('/board') }}
           style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}
-          className="absolute left-4 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center text-[#1c1917] text-2xl leading-none"
+          className="absolute left-4 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center text-[#1c1917] text-2xl leading-none cursor-pointer hover:bg-white"
           aria-label="Back"
         >
           ‹
@@ -823,7 +823,7 @@ export default function PieceDetail({ user }) {
               <button
                 key={i}
                 onClick={(e) => { e.stopPropagation(); setHeroIndex(i) }}
-                className={`w-2 h-2 rounded-full transition-colors ${i === heroIndex ? 'bg-white' : 'bg-white/50'}`}
+                className={`w-2 h-2 rounded-full transition-colors cursor-pointer hover:bg-white ${i === heroIndex ? 'bg-white' : 'bg-white/50'}`}
               />
             ))}
           </div>
@@ -832,7 +832,7 @@ export default function PieceDetail({ user }) {
         {/* Add photo button */}
         <button
           onClick={(e) => { e.stopPropagation(); setAddPhotoStage(piece.current_stage); setShowAddPhotoSheet(true) }}
-          className="absolute bottom-3 right-4 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center active:bg-white"
+          className="absolute bottom-3 right-4 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center active:bg-white cursor-pointer hover:bg-white"
           aria-label="Add photo"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1c1917" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -845,7 +845,7 @@ export default function PieceDetail({ user }) {
       <main className="flex-1 pb-safe">
         {/* Piece identity */}
         <div className="px-5 pt-5 pb-4">
-          <p className="text-xs uppercase tracking-widest text-stone-400 mb-1">
+          <p className="text-xs uppercase tracking-widest text-muted mb-1">
             Piece No. {pieceNumber != null ? String(pieceNumber).padStart(3, '0') : '—'}
             {pieceIds.length > 1 && pieceIds.indexOf(id) >= 0 && (
               <span> · {pieceIds.indexOf(id) + 1} of {pieceIds.length}</span>
@@ -855,19 +855,19 @@ export default function PieceDetail({ user }) {
             <h1 className="text-3xl font-semibold text-[#1c1917] leading-tight">{piece.name}</h1>
             <button
               onClick={openEditPiece}
-              className="text-[#78350f] text-sm font-medium flex-shrink-0 mt-1.5"
+              className="text-[#78350f] text-sm font-medium flex-shrink-0 mt-1.5 cursor-pointer hover:text-[#5c2709]"
             >
               Edit
             </button>
           </div>
           {piece.clay_body && (
-            <p className="text-sm text-stone-400 mt-1">{piece.clay_body}</p>
+            <p className="text-sm text-muted mt-1">{piece.clay_body}</p>
           )}
         </div>
 
         {/* Stage timeline */}
         <div className="px-5 pb-5">
-          <p className="text-xs uppercase tracking-widest text-stone-400 mb-4">Stages</p>
+          <p className="text-xs uppercase tracking-widest text-muted mb-4">Stages</p>
           <div className="flex flex-col">
             {STAGES.map((stage, i) => {
               const status = getStageStatus(stage)
@@ -876,9 +876,8 @@ export default function PieceDetail({ user }) {
               return (
                 <div
                   key={stage}
-                  className="flex gap-4"
+                  className={`flex gap-4 ${stagePhotoCount > 0 ? 'cursor-pointer hover:opacity-80' : ''}`}
                   onClick={stagePhotoCount > 0 ? () => handleStageTap(stage) : undefined}
-                  style={stagePhotoCount > 0 ? { cursor: 'pointer' } : undefined}
                 >
                   {/* Timeline column */}
                   <div className="flex flex-col items-center">
@@ -912,14 +911,27 @@ export default function PieceDetail({ user }) {
                   {/* Stage info */}
                   <div className={`flex-1 flex items-start justify-between ${isLast ? 'pb-0' : 'pb-5'}`}>
                     <div className="min-w-0 flex-1">
-                      <p className={`font-medium leading-tight ${
-                        status === 'current' ? 'text-[#78350f]' :
-                        status === 'complete' ? 'text-[#4a7c59]' :
-                        'text-stone-400'
-                      }`}>
-                        {STAGE_LABELS[stage]}
-                      </p>
-                      <p className="text-xs text-stone-400 mt-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <p className={`font-medium leading-tight ${
+                          status === 'current' ? 'text-[#78350f]' :
+                          status === 'complete' ? 'text-[#4a7c59]' :
+                          'text-muted'
+                        }`}>
+                          {STAGE_LABELS[stage]}
+                        </p>
+                        {status !== 'pending' && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openNoteSheet(stage) }}
+                            className="text-stone-300 hover:text-stone-500 cursor-pointer transition-colors"
+                            aria-label="Edit note"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M11.5 2.5a1.414 1.414 0 0 1 2 2L5 13H2v-3L11.5 2.5z" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted mt-0.5">
                         {status === 'complete' ? 'complete' : status === 'current' ? 'current' : 'not yet'}
                         {stagePhotoCount > 0 && (
                           <span className="ml-2">{stagePhotoCount} photo{stagePhotoCount > 1 ? 's' : ''}</span>
@@ -928,22 +940,13 @@ export default function PieceDetail({ user }) {
                       {stageTimestamp(stage) && (
                         <p className="text-xs text-stone-300 mt-0.5">{fmtDate(stageTimestamp(stage))}</p>
                       )}
-                      {status !== 'pending' && (
-                        eventByStage[stage]?.notes ? (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); openNoteSheet(stage) }}
-                            className="mt-1.5 block text-left text-xs text-stone-600 bg-stone-100 rounded-lg px-2.5 py-1.5 max-w-full"
-                          >
-                            <span className="line-clamp-2">{eventByStage[stage].notes}</span>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); openNoteSheet(stage) }}
-                            className="mt-1.5 text-xs text-[#78350f] font-medium"
-                          >
-                            + Add note
-                          </button>
-                        )
+                      {status !== 'pending' && eventByStage[stage]?.notes && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openNoteSheet(stage) }}
+                          className="mt-1.5 block text-left text-xs text-stone-600 bg-stone-100 rounded-lg px-2.5 py-1.5 max-w-full cursor-pointer hover:bg-stone-200"
+                        >
+                          <span className="line-clamp-2">{eventByStage[stage].notes}</span>
+                        </button>
                       )}
                     </div>
                     {status === 'current' && (
@@ -953,7 +956,7 @@ export default function PieceDetail({ user }) {
                           setAdvanceTargetStage(next || piece.current_stage)
                           setShowAdvanceSheet(true)
                         }}
-                        className="ml-3 px-4 py-1.5 bg-[#78350f] text-white text-xs font-semibold rounded-full uppercase tracking-wide active:bg-[#5c2709] flex-shrink-0"
+                        className="ml-3 px-4 py-1.5 bg-[#78350f] text-white text-xs font-semibold rounded-full uppercase tracking-wide active:bg-[#5c2709] flex-shrink-0 cursor-pointer hover:bg-[#5c2709]"
                       >
                         Advance
                       </button>
@@ -968,13 +971,13 @@ export default function PieceDetail({ user }) {
         {/* Tags */}
         <div className="px-5 py-4 pb-6 border-t border-stone-100">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs uppercase tracking-widest text-stone-400">Tags</p>
-            <button onClick={() => setShowTagSheet(true)} className="text-[#78350f] text-sm font-medium">
+            <p className="text-xs uppercase tracking-widest text-muted">Tags</p>
+            <button onClick={() => setShowTagSheet(true)} className="text-[#78350f] text-sm font-medium cursor-pointer hover:text-[#5c2709]">
               Edit
             </button>
           </div>
           {tags.length === 0 ? (
-            <p className="text-stone-400 text-sm">No tags yet</p>
+            <p className="text-muted text-sm">No tags yet</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {tags.map((tag) => (
@@ -987,7 +990,7 @@ export default function PieceDetail({ user }) {
         {/* Actions */}
         <div className="px-5 py-4 border-t border-stone-100">
           {!piece.lost && (
-            <button onClick={handleMarkLost} className="text-red-500 text-sm">
+            <button onClick={handleMarkLost} className="text-red-500 text-sm cursor-pointer hover:text-red-700">
               Mark as lost
             </button>
           )}
@@ -1011,7 +1014,7 @@ export default function PieceDetail({ user }) {
                 <button
                   key={s}
                   onClick={() => setAdvanceTargetStage(s)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors cursor-pointer hover:bg-stone-100 ${
                     advanceTargetStage === s
                       ? 'bg-stone-100 border-stone-300 text-[#1c1917] font-semibold'
                       : 'border-stone-200 text-stone-600'
@@ -1044,7 +1047,7 @@ export default function PieceDetail({ user }) {
             <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Photo (optional)</label>
             <input
               type="file"
-              accept="image/*"
+              accept="image/*,image/heic,image/heif"
               className="text-sm text-stone-700"
               onChange={(e) => setAdvanceFile(e.target.files[0] || null)}
             />
@@ -1052,7 +1055,7 @@ export default function PieceDetail({ user }) {
           <button
             onClick={handleAdvance}
             disabled={advancing || !advanceTargetStage}
-            className="w-full bg-[#78350f] text-white font-semibold py-3 rounded-2xl active:bg-[#5c2709] disabled:opacity-50"
+            className="w-full bg-[#78350f] text-white font-semibold py-3 rounded-2xl active:bg-[#5c2709] disabled:opacity-50 cursor-pointer hover:bg-[#5c2709]"
           >
             {advancing ? 'Saving…' : `Confirm${advanceTargetStage ? ` move to ${STAGE_LABELS[advanceTargetStage]}` : ''}`}
           </button>
@@ -1073,7 +1076,7 @@ export default function PieceDetail({ user }) {
             const allNames = [...presetNames, ...customNames]
             return (
               <div key={category}>
-                <p className="text-xs uppercase tracking-widest text-stone-400 mb-2">{category}</p>
+                <p className="text-xs uppercase tracking-widest text-muted mb-2">{category}</p>
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => {
@@ -1083,7 +1086,7 @@ export default function PieceDetail({ user }) {
                       setTagColorManuallySet(false)
                       setShowAddTagSheet(true)
                     }}
-                    className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-dashed border-stone-300 text-stone-400 text-sm font-medium active:opacity-70"
+                    className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-dashed border-stone-300 text-muted text-sm font-medium active:opacity-70 cursor-pointer hover:border-stone-400 hover:text-stone-600"
                   >
                     + Add
                   </button>
@@ -1104,7 +1107,7 @@ export default function PieceDetail({ user }) {
               </div>
             )
           })}
-          {togglingTag && <p className="text-stone-400 text-xs text-center">Saving…</p>}
+          {togglingTag && <p className="text-muted text-xs text-center">Saving…</p>}
         </div>
       </BottomSheet>
 
@@ -1118,7 +1121,7 @@ export default function PieceDetail({ user }) {
         <div className="flex flex-col gap-5">
           {/* Name */}
           <div>
-            <label className="block text-xs uppercase tracking-widest text-stone-400 mb-1.5">Name</label>
+            <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Name</label>
             <input
               className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm bg-stone-50 text-[#1c1917]"
               placeholder={addTagCategory === 'glaze' ? 'e.g. cobalt blue' : 'e.g. yunomi'}
@@ -1137,7 +1140,7 @@ export default function PieceDetail({ user }) {
 
           {/* Color picker */}
           <div>
-            <label className="block text-xs uppercase tracking-widest text-stone-400 mb-2">Color</label>
+            <label className="block text-xs uppercase tracking-widest text-muted mb-2">Color</label>
             <div className="flex items-center gap-3">
               <label className="relative cursor-pointer flex-shrink-0">
                 <div
@@ -1151,19 +1154,19 @@ export default function PieceDetail({ user }) {
                   className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
                 />
               </label>
-              <span className="text-sm text-stone-400">Tap to open color wheel</span>
+              <span className="text-sm text-muted">Tap to open color wheel</span>
             </div>
           </div>
 
           {/* Recent colors */}
           {recentColors.length > 0 && (
             <div>
-              <p className="text-xs uppercase tracking-widest text-stone-400 mb-2">Recent</p>
+              <p className="text-xs uppercase tracking-widest text-muted mb-2">Recent</p>
               <div className="flex gap-2 flex-wrap">
                 {recentColors.map((hex) => (
                   <button
                     key={hex}
-                    className={`w-8 h-8 rounded-full border-2 transition-transform active:scale-95 ${addTagColor === hex ? 'border-stone-500 scale-110' : 'border-transparent'}`}
+                    className={`w-8 h-8 rounded-full border-2 transition-transform active:scale-95 cursor-pointer hover:scale-110 ${addTagColor === hex ? 'border-stone-500 scale-110' : 'border-transparent'}`}
                     style={{ backgroundColor: hex }}
                     onClick={() => { setAddTagColor(hex); setTagColorManuallySet(true) }}
                   />
@@ -1175,7 +1178,7 @@ export default function PieceDetail({ user }) {
           {/* Preview */}
           {addTagName.trim() && (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-stone-400 uppercase tracking-widest">Preview</span>
+              <span className="text-xs text-muted uppercase tracking-widest">Preview</span>
               <TagChip tag={{ id: '__preview', name: addTagName.trim(), category: addTagCategory }} selected color={addTagColor} />
             </div>
           )}
@@ -1184,7 +1187,7 @@ export default function PieceDetail({ user }) {
           <button
             onClick={handleAddCustomTag}
             disabled={!addTagName.trim() || !!togglingTag}
-            className="w-full bg-[#78350f] text-white font-semibold py-3 rounded-2xl active:bg-[#5c2709] disabled:opacity-40"
+            className="w-full bg-[#78350f] text-white font-semibold py-3 rounded-2xl active:bg-[#5c2709] disabled:opacity-40 cursor-pointer hover:bg-[#5c2709]"
           >
             {togglingTag ? 'Saving…' : 'Add tag'}
           </button>
@@ -1202,7 +1205,7 @@ export default function PieceDetail({ user }) {
             {addPhotoPreview ? (
               <img src={addPhotoPreview} alt="" className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-stone-400">
+              <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-muted">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
                   <circle cx="12" cy="13" r="4" />
@@ -1212,7 +1215,7 @@ export default function PieceDetail({ user }) {
             )}
             <input
               type="file"
-              accept="image/*"
+              accept="image/*,image/heic,image/heif"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files[0]
@@ -1230,10 +1233,10 @@ export default function PieceDetail({ user }) {
                 <button
                   key={s}
                   onClick={() => setAddPhotoStage(addPhotoStage === s ? null : s)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${
                     addPhotoStage === s
-                      ? 'bg-[#78350f] text-white border-[#78350f]'
-                      : 'bg-white text-stone-600 border-stone-200'
+                      ? 'bg-[#78350f] text-white border-[#78350f] hover:bg-[#5c2709]'
+                      : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
                   }`}
                 >
                   {STAGE_LABELS[s]}
@@ -1256,7 +1259,7 @@ export default function PieceDetail({ user }) {
           <button
             onClick={handleAddPhoto}
             disabled={!addPhotoFile || addingPhoto}
-            className="w-full bg-[#78350f] text-white font-semibold py-3 rounded-2xl active:bg-[#5c2709] disabled:opacity-50"
+            className="w-full bg-[#78350f] text-white font-semibold py-3 rounded-2xl active:bg-[#5c2709] disabled:opacity-50 cursor-pointer hover:bg-[#5c2709]"
           >
             {addingPhoto ? 'Uploading…' : 'Add Photo'}
           </button>
@@ -1275,7 +1278,7 @@ export default function PieceDetail({ user }) {
               {photos[viewerIndex]?.stage ? (
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowEditStageSheet(true) }}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm active:bg-white/25"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm active:bg-white/25 cursor-pointer hover:bg-white/25"
                 >
                   <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
                     photos[viewerIndex].stage === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
@@ -1286,7 +1289,7 @@ export default function PieceDetail({ user }) {
               ) : (
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowEditStageSheet(true) }}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 backdrop-blur-sm active:bg-white/20"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 backdrop-blur-sm active:bg-white/20 cursor-pointer hover:bg-white/20"
                 >
                   <span className="text-white/60 text-xs">No stage tagged</span>
                   <span className="text-white/50 text-xs leading-none">›</span>
@@ -1295,7 +1298,7 @@ export default function PieceDetail({ user }) {
             </div>
             <button
               onClick={() => setViewerOpen(false)}
-              className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center text-white text-xl leading-none active:bg-white/30"
+              className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center text-white text-xl leading-none active:bg-white/30 cursor-pointer hover:bg-white/30"
               aria-label="Close"
             >
               ×
@@ -1304,7 +1307,7 @@ export default function PieceDetail({ user }) {
 
           {/* Photo — swipeable / pinch-zoomable / pannable */}
           <div
-            className="flex-1 flex items-center justify-center overflow-hidden"
+            className="flex-1 flex items-center justify-center overflow-hidden cursor-zoom-in"
             style={{ touchAction: 'none' }}
             onTouchStart={handleViewerTouchStart}
             onTouchMove={handleViewerTouchMove}
@@ -1356,7 +1359,7 @@ export default function PieceDetail({ user }) {
           <button
             onClick={() => handleEditStage(photos[viewerIndex]?.id, null)}
             disabled={savingStage}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors disabled:opacity-50 ${
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors disabled:opacity-50 cursor-pointer hover:bg-stone-100 ${
               !photos[viewerIndex]?.stage
                 ? 'bg-stone-100 border-stone-300 text-[#1c1917] font-semibold'
                 : 'border-stone-200 text-stone-500'
@@ -1370,7 +1373,7 @@ export default function PieceDetail({ user }) {
               key={s}
               onClick={() => handleEditStage(photos[viewerIndex]?.id, s)}
               disabled={savingStage}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors disabled:opacity-50 ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors disabled:opacity-50 cursor-pointer hover:bg-stone-100 ${
                 photos[viewerIndex]?.stage === s
                   ? 'bg-stone-100 border-stone-300 text-[#1c1917] font-semibold'
                   : 'border-stone-200 text-stone-600'
@@ -1382,7 +1385,7 @@ export default function PieceDetail({ user }) {
               <span className="text-sm">{STAGE_LABELS[s]}</span>
             </button>
           ))}
-          {savingStage && <p className="text-center text-xs text-stone-400">Saving…</p>}
+          {savingStage && <p className="text-center text-xs text-muted">Saving…</p>}
         </div>
       </BottomSheet>
 
@@ -1418,7 +1421,7 @@ export default function PieceDetail({ user }) {
                 <button
                   key={s}
                   onClick={() => setEditStage(s)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors cursor-pointer hover:bg-stone-100 ${
                     editStage === s
                       ? 'bg-stone-100 border-stone-300 text-[#1c1917] font-semibold'
                       : 'border-stone-200 text-stone-600'
@@ -1436,12 +1439,12 @@ export default function PieceDetail({ user }) {
                 </button>
               ))}
             </div>
-            <p className="text-xs text-stone-400 mt-1.5">Quietly correct the stage — no timeline event is added.</p>
+            <p className="text-xs text-muted mt-1.5">Quietly correct the stage — no timeline event is added.</p>
           </div>
           <button
             onClick={handleSavePiece}
             disabled={savingPiece || !editName.trim()}
-            className="w-full bg-[#78350f] text-white font-semibold py-3 rounded-2xl active:bg-[#5c2709] disabled:opacity-50"
+            className="w-full bg-[#78350f] text-white font-semibold py-3 rounded-2xl active:bg-[#5c2709] disabled:opacity-50 cursor-pointer hover:bg-[#5c2709]"
           >
             {savingPiece ? 'Saving…' : 'Save'}
           </button>
@@ -1466,7 +1469,7 @@ export default function PieceDetail({ user }) {
           <button
             onClick={handleSaveNote}
             disabled={savingNote}
-            className="w-full bg-[#78350f] text-white font-semibold py-3 rounded-2xl active:bg-[#5c2709] disabled:opacity-50"
+            className="w-full bg-[#78350f] text-white font-semibold py-3 rounded-2xl active:bg-[#5c2709] disabled:opacity-50 cursor-pointer hover:bg-[#5c2709]"
           >
             {savingNote ? 'Saving…' : 'Save note'}
           </button>
@@ -1487,10 +1490,10 @@ function PiecePreview({ preview }) {
         )}
       </div>
       <div className="px-5 pt-5">
-        <p className="text-xs uppercase tracking-widest text-stone-400 mb-1">Piece</p>
+        <p className="text-xs uppercase tracking-widest text-muted mb-1">Piece</p>
         <h1 className="text-3xl font-semibold text-[#1c1917] leading-tight">{preview.name}</h1>
         {preview.clayBody && (
-          <p className="text-sm text-stone-400 mt-1">{preview.clayBody}</p>
+          <p className="text-sm text-muted mt-1">{preview.clayBody}</p>
         )}
       </div>
     </div>
