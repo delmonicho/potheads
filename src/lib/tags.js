@@ -2,7 +2,7 @@ import { supabase } from './supabase.js'
 
 export const PRESET_TAGS = {
   form: ['bowl', 'mug', 'cup', 'plate', 'vase', 'planter', 'pitcher', 'teapot', 'tile'],
-  glaze: ['celadon', 'shino', 'tenmoku', 'ash', 'copper', 'cobalt', 'iron oxide'],
+  glaze: [],
 }
 
 export async function getOrCreateTag(name, category, userId, color) {

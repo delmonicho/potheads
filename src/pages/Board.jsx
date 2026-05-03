@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { getPieces, markLost, STAGES } from '../lib/pieces.js'
 import { getPhotosForPieces, getPhotoUrl } from '../lib/photos.js'
-import { getTagsForPieces, getOrCreateTag, addTagToPiece, PRESET_TAGS } from '../lib/tags.js'
+import { getTagsForPieces, getOrCreateTag, addTagToPiece, getUserTags, PRESET_TAGS } from '../lib/tags.js'
 import StageColumn, { PieceCard } from '../components/StageColumn.jsx'
 import AddPiece from '../components/AddPiece.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
@@ -25,6 +25,7 @@ export default function Board({ user }) {
   const [thumbUrls, setThumbUrls] = useState({})  // pieceId → signed URL
   const [formTags, setFormTags] = useState({})     // pieceId → form tag name
   const [allTagsByPiece, setAllTagsByPiece] = useState(new Map()) // pieceId → tags[]
+  const [userTags, setUserTags] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showAddPiece, setShowAddPiece] = useState(false)
@@ -46,10 +47,12 @@ export default function Board({ user }) {
       if (data.length === 0) return
 
       const pieceIds = data.map(p => p.id)
-      const [photosByPiece, tagsByPiece] = await Promise.all([
+      const [photosByPiece, tagsByPiece, allUserTags] = await Promise.all([
         getPhotosForPieces(pieceIds),
         getTagsForPieces(pieceIds),
+        getUserTags(user.id),
       ])
+      setUserTags(allUserTags)
 
       // Derive form tag name per piece
       const newFormTags = {}
@@ -133,17 +136,22 @@ export default function Board({ user }) {
     exitSelectMode()
   }
 
+  const activepieces = useMemo(() => pieces.filter(p => !p.lost && !p.imperfect), [pieces])
+
   const piecesByStage = useMemo(
     () => STAGES.reduce((acc, stage) => {
-      acc[stage] = pieces.filter(p => p.current_stage === stage)
+      acc[stage] = activepieces.filter(p => p.current_stage === stage)
       return acc
     }, {}),
-    [pieces]
+    [activepieces]
   )
+
+  const imperfectPieces = useMemo(() => pieces.filter(p => p.imperfect && !p.lost), [pieces])
+  const lostPieces = useMemo(() => pieces.filter(p => p.lost), [pieces])
 
   const tagGroups = useMemo(() => {
     const groups = new Map() // tagName → { label, pieces[] }
-    for (const piece of pieces) {
+    for (const piece of activepieces) {
       const tags = allTagsByPiece.get(piece.id) || []
       if (tags.length === 0) {
         if (!groups.has('__untagged')) groups.set('__untagged', { label: 'Untagged', pieces: [] })
@@ -173,7 +181,7 @@ export default function Board({ user }) {
       <header className="px-5 pt-safe bg-[#fafaf9]">
         <div className="flex items-center justify-between pt-3 pb-1">
           <p className="text-xs uppercase tracking-widest text-muted">
-            Studio · {pieces.length} {pieces.length === 1 ? 'piece' : 'pieces'}
+            Studio · {activepieces.length} {activepieces.length === 1 ? 'piece' : 'pieces'}
           </p>
           <div className="flex items-center gap-3">
             {selectMode ? (
@@ -242,6 +250,32 @@ export default function Board({ user }) {
             onToggleSelect={toggleSelect}
           />
         ))}
+        {!loading && !error && viewMode === 'stage' && imperfectPieces.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-baseline justify-between mb-3 border-b border-stone-200 pb-2">
+              <h2 className="font-display italic text-2xl text-[#1c1917]">Imperfect</h2>
+              <span className="text-sm text-muted tabular-nums">{String(imperfectPieces.length).padStart(2, '0')}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {imperfectPieces.map(piece => (
+                <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
+              ))}
+            </div>
+          </div>
+        )}
+        {!loading && !error && viewMode === 'stage' && lostPieces.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-baseline justify-between mb-3 border-b border-stone-200 pb-2">
+              <h2 className="font-display italic text-2xl text-[#1c1917]">Lost</h2>
+              <span className="text-sm text-muted tabular-nums">{String(lostPieces.length).padStart(2, '0')}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {lostPieces.map(piece => (
+                <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
+              ))}
+            </div>
+          </div>
+        )}
         {!loading && !error && viewMode === 'tag' && tagGroups.map(({ key, label, pieces: groupPieces }) => (
           <div key={key} className="mb-8">
             <div className="flex items-baseline justify-between mb-3 border-b border-stone-200 pb-2">
@@ -347,20 +381,22 @@ export default function Board({ user }) {
               ))}
             </div>
           </div>
-          <div>
-            <p className="text-xs uppercase tracking-widest text-stone-500 mb-2">Glaze</p>
-            <div className="flex flex-wrap gap-2">
-              {PRESET_TAGS.glaze.map((tag) => (
-                <button
-                  key={tag}
-                  onClick={() => handleBulkToggleTag(tag, 'glaze')}
-                  className="px-4 py-1.5 rounded-full text-sm border border-stone-300 text-stone-700 bg-white active:bg-stone-100 cursor-pointer hover:bg-stone-100"
-                >
-                  {tag}
-                </button>
-              ))}
+          {userTags.filter(t => t.category === 'glaze').length > 0 && (
+            <div>
+              <p className="text-xs uppercase tracking-widest text-stone-500 mb-2">Glaze</p>
+              <div className="flex flex-wrap gap-2">
+                {userTags.filter(t => t.category === 'glaze').map((tag) => (
+                  <button
+                    key={tag.name}
+                    onClick={() => handleBulkToggleTag(tag.name, 'glaze')}
+                    className="px-4 py-1.5 rounded-full text-sm border border-stone-300 text-stone-700 bg-white active:bg-stone-100 cursor-pointer hover:bg-stone-100"
+                  >
+                    {tag.name}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
           <button
             onClick={handleTagSheetDone}
             className="w-full bg-[#78350f] text-white font-semibold py-3.5 rounded-2xl active:bg-[#5c2709] mb-2 cursor-pointer hover:bg-[#5c2709]"

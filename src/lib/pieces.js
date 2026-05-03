@@ -19,7 +19,6 @@ export async function getPieces(userId) {
     .from('pieces')
     .select('*')
     .eq('user_id', userId)
-    .eq('lost', false)
     .order('created_at', { ascending: false })
 
   if (error) throw error
@@ -146,10 +145,30 @@ export async function getStageEvents(pieceId) {
   }
 }
 
+export async function getClayBodies(userId) {
+  const { data, error } = await supabase
+    .from('pieces')
+    .select('clay_body')
+    .eq('user_id', userId)
+    .not('clay_body', 'is', null)
+
+  if (error) throw error
+  return [...new Set(data.map(r => r.clay_body))].sort()
+}
+
 export async function markLost(pieceId) {
   const { error } = await supabase
     .from('pieces')
     .update({ lost: true })
+    .eq('id', pieceId)
+
+  if (error) throw error
+}
+
+export async function markImperfect(pieceId, value = true) {
+  const { error } = await supabase
+    .from('pieces')
+    .update({ imperfect: value })
     .eq('id', pieceId)
 
   if (error) throw error

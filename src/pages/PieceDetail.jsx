@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
-import { STAGES, STAGE_LABELS, nextStage, advanceStage, markLost, getStageEvents, updatePiece, getPieceIds, getPiecesByIds, upsertStageNote } from '../lib/pieces.js'
+import { STAGES, STAGE_LABELS, nextStage, advanceStage, markLost, markImperfect, getStageEvents, updatePiece, getPieceIds, getPiecesByIds, upsertStageNote } from '../lib/pieces.js'
 import { getPhotosForPiece, getPhotosForPieces, uploadPhoto, getPhotoUrl, updatePhotoStage } from '../lib/photos.js'
 import { getTagsForPiece, getOrCreateTag, addTagToPiece, removeTagFromPiece, getUserTags, updateTagColor, PRESET_TAGS } from '../lib/tags.js'
 import TagChip from '../components/TagChip.jsx'
@@ -99,6 +99,7 @@ export default function PieceDetail({ user }) {
   // Lightbox gesture state (pinch zoom + pan + swipe)
   const [zoomScale, setZoomScale] = useState(1)
   const [zoomTranslate, setZoomTranslate] = useState({ x: 0, y: 0 })
+  const [lightboxGesturing, setLightboxGesturing] = useState(false)
   const gestureRef = useRef({
     mode: 'idle',
     startX: 0,
@@ -117,6 +118,7 @@ export default function PieceDetail({ user }) {
   useEffect(() => {
     setZoomScale(1)
     setZoomTranslate({ x: 0, y: 0 })
+    setLightboxGesturing(false)
     gestureRef.current.mode = 'idle'
     gestureRef.current.multiTouchSeen = false
   }, [viewerIndex, viewerOpen])
@@ -248,6 +250,15 @@ export default function PieceDetail({ user }) {
     try {
       await markLost(id)
       navigate('/board')
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  async function handleMarkImperfect() {
+    try {
+      await markImperfect(id, !piece.imperfect)
+      await fetchAll()
     } catch (err) {
       setError(err.message)
     }
@@ -615,6 +626,7 @@ export default function PieceDetail({ user }) {
   }
 
   function handleViewerTouchStart(e) {
+    setLightboxGesturing(true)
     const g = gestureRef.current
     if (e.touches.length >= 2) {
       g.mode = 'pinch'
@@ -667,6 +679,7 @@ export default function PieceDetail({ user }) {
     const wasMode = g.mode
     g.mode = 'idle'
     g.multiTouchSeen = false
+    setLightboxGesturing(false)
 
     if (wasMulti) {
       if (zoomScale < 1.05) {
@@ -1029,9 +1042,15 @@ export default function PieceDetail({ user }) {
         </div>
 
         {/* Actions */}
-        <div className="px-5 py-4 border-t border-stone-100">
+        <div className="px-5 py-4 border-t border-stone-100 flex flex-col gap-2">
+          <button
+            onClick={handleMarkImperfect}
+            className="text-left text-sm cursor-pointer hover:text-[#5c2709] text-[#78350f]"
+          >
+            {piece.imperfect ? 'Remove imperfect mark' : 'Mark as imperfect'}
+          </button>
           {!piece.lost && (
-            <button onClick={handleMarkLost} className="text-red-500 text-sm cursor-pointer hover:text-red-700">
+            <button onClick={handleMarkLost} className="text-left text-red-500 text-sm cursor-pointer hover:text-red-700">
               Mark as lost
             </button>
           )}
@@ -1385,7 +1404,7 @@ export default function PieceDetail({ user }) {
                 style={{
                   transform: `translate3d(${zoomTranslate.x}px, ${zoomTranslate.y}px, 0) scale(${zoomScale})`,
                   transformOrigin: 'center center',
-                  transition: gestureRef.current.mode === 'idle' ? 'transform 180ms ease-out' : 'none',
+                  transition: lightboxGesturing ? 'none' : 'transform 180ms ease-out',
                   willChange: 'transform',
                 }}
               />

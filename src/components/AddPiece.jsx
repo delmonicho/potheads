@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { addPiece, STAGES, STAGE_LABELS } from '../lib/pieces.js'
+import { useState, useEffect } from 'react'
+import { addPiece, getClayBodies, STAGES, STAGE_LABELS } from '../lib/pieces.js'
 import { uploadPhoto } from '../lib/photos.js'
 import { getOrCreateTag, addTagToPiece, PRESET_TAGS } from '../lib/tags.js'
 import BottomSheet from './BottomSheet.jsx'
@@ -15,6 +15,11 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
   const [previews, setPreviews] = useState([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const [clayBodyOptions, setClayBodyOptions] = useState([])
+
+  useEffect(() => {
+    if (open) getClayBodies(user.id).then(setClayBodyOptions).catch(() => { })
+  }, [open, user.id])
 
   function reset() {
     setName('')
@@ -81,8 +86,8 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
           <label className="flex flex-col items-center justify-center w-full h-40 rounded-2xl bg-[#f0e8dc] cursor-pointer overflow-hidden hover:bg-[#e8ddd0] transition-colors">
             <div className="flex flex-col items-center gap-2">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#78350f" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                <circle cx="12" cy="13" r="4"/>
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                <circle cx="12" cy="13" r="4" />
               </svg>
               <span className="font-display italic text-[#78350f] text-sm">Add photos</span>
               <span className="text-muted text-[10px] uppercase tracking-widest">Greenware · Wet</span>
@@ -129,11 +134,17 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
           <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Clay Body</label>
           <input
             type="text"
+            list="clay-body-options"
             className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm text-[#1c1917] bg-white placeholder:text-muted"
             placeholder="e.g. Speckled buff"
             value={clayBody}
             onChange={(e) => setClayBody(e.target.value)}
           />
+          {clayBodyOptions.length > 0 && (
+            <datalist id="clay-body-options">
+              {clayBodyOptions.map(opt => <option key={opt} value={opt} />)}
+            </datalist>
+          )}
         </div>
 
         {/* Stage selector */}
@@ -144,11 +155,10 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
               <button
                 key={s}
                 onClick={() => setStage(s)}
-                className={`px-4 py-1.5 rounded-full text-sm border transition-colors cursor-pointer ${
-                  stage === s
+                className={`px-4 py-1.5 rounded-full text-sm border transition-colors cursor-pointer ${stage === s
                     ? 'bg-[#78350f] text-white border-[#78350f] hover:bg-[#5c2709]'
                     : 'border-stone-300 text-stone-700 bg-white hover:bg-stone-50'
-                }`}
+                  }`}
               >
                 {STAGE_LABELS[s]}
               </button>
@@ -164,11 +174,10 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
               <button
                 key={tag}
                 onClick={() => setSelectedForm(selectedForm === tag ? null : tag)}
-                className={`px-4 py-1.5 rounded-full text-sm border transition-colors cursor-pointer ${
-                  selectedForm === tag
+                className={`px-4 py-1.5 rounded-full text-sm border transition-colors cursor-pointer ${selectedForm === tag
                     ? 'bg-stone-900 text-white border-stone-900 hover:bg-stone-800'
                     : 'border-stone-300 text-stone-700 bg-white hover:bg-stone-50'
-                }`}
+                  }`}
               >
                 {tag}
               </button>
@@ -183,7 +192,7 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
           disabled={saving}
           className="w-full bg-[#78350f] text-white font-semibold py-3.5 rounded-2xl active:bg-[#5c2709] disabled:opacity-50 text-base mb-2 cursor-pointer hover:bg-[#5c2709]"
         >
-          {saving ? 'Saving…' : 'Start tracking'}
+          {saving ? 'Saving…' : 'Add piece'}
         </button>
       </div>
     </BottomSheet>
