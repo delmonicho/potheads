@@ -42,7 +42,7 @@ export default function Board({ user }) {
   const [error, setError] = useState(null)
   const [showAddPiece, setShowAddPiece] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
-  const [viewMode, setViewMode] = useState('stage') // 'stage' | 'tag'
+  const [viewMode, setViewMode] = useState('stage') // 'stage' | 'clay_body' | 'glaze'
 
   // Multi-select
   const [selectMode, setSelectMode] = useState(false)
@@ -166,29 +166,46 @@ export default function Board({ user }) {
 
   const imperfectPieces = useMemo(() => pieces.filter(p => p.imperfect && !p.lost), [pieces])
 
-  const tagGroups = useMemo(() => {
-    const groups = new Map() // tagName → { label, pieces[] }
+  const clayBodyGroups = useMemo(() => {
+    const groups = new Map()
+    for (const piece of activepieces) {
+      const key = piece.clay_body || '__none'
+      const label = piece.clay_body || 'No clay body'
+      if (!groups.has(key)) groups.set(key, { label, pieces: [] })
+      groups.get(key).pieces.push(piece)
+    }
+    return [...groups.entries()]
+      .sort(([a], [b]) => {
+        if (a === '__none') return 1
+        if (b === '__none') return -1
+        return a.localeCompare(b)
+      })
+      .map(([key, val]) => ({ key, ...val }))
+  }, [activepieces])
+
+  const glazeGroups = useMemo(() => {
+    const groups = new Map()
     for (const piece of activepieces) {
       const tags = allTagsByPiece.get(piece.id) || []
-      if (tags.length === 0) {
-        if (!groups.has('__untagged')) groups.set('__untagged', { label: 'Untagged', pieces: [] })
-        groups.get('__untagged').pieces.push(piece)
+      const glazeTags = tags.filter(t => t.category === 'glaze')
+      if (glazeTags.length === 0) {
+        if (!groups.has('__none')) groups.set('__none', { label: 'No glaze', pieces: [] })
+        groups.get('__none').pieces.push(piece)
       } else {
-        for (const tag of tags) {
+        for (const tag of glazeTags) {
           if (!groups.has(tag.name)) groups.set(tag.name, { label: tag.name, pieces: [] })
           groups.get(tag.name).pieces.push(piece)
         }
       }
     }
-    // Sort alphabetically, untagged last
     return [...groups.entries()]
       .sort(([a], [b]) => {
-        if (a === '__untagged') return 1
-        if (b === '__untagged') return -1
+        if (a === '__none') return 1
+        if (b === '__none') return -1
         return a.localeCompare(b)
       })
       .map(([key, val]) => ({ key, ...val }))
-  }, [pieces, allTagsByPiece])
+  }, [activepieces, allTagsByPiece])
 
   const userInitial = (user.user_metadata?.full_name || user.email || '?')[0].toUpperCase()
 
@@ -235,19 +252,19 @@ export default function Board({ user }) {
         </div>
         <div className="flex items-baseline justify-between pb-3">
           <h1 className="font-display italic text-4xl text-[#1c1917]">Potheads.</h1>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setViewMode('stage')}
-              className={`text-xs uppercase tracking-widest font-semibold cursor-pointer transition-colors ${viewMode === 'stage' ? 'text-[#78350f]' : 'text-muted hover:text-stone-600'}`}
+          <div className="relative flex items-center">
+            <select
+              value={viewMode}
+              onChange={e => setViewMode(e.target.value)}
+              className="appearance-none text-xs uppercase tracking-widest font-semibold text-[#78350f] bg-transparent border-none cursor-pointer pr-4 focus:outline-none"
             >
-              Stage
-            </button>
-            <button
-              onClick={() => setViewMode('tag')}
-              className={`text-xs uppercase tracking-widest font-semibold cursor-pointer transition-colors ${viewMode === 'tag' ? 'text-[#78350f]' : 'text-muted hover:text-stone-600'}`}
-            >
-              Tags
-            </button>
+              <option value="stage">Stage</option>
+              <option value="clay_body">Clay Body</option>
+              <option value="glaze">Glaze</option>
+            </select>
+            <svg className="pointer-events-none absolute right-0 text-[#78350f]" width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+              <path d="M0 3l5 5 5-5H0z" />
+            </svg>
           </div>
         </div>
       </header>
@@ -287,7 +304,7 @@ export default function Board({ user }) {
             </div>
           </div>
         )}
-        {!loading && !error && viewMode === 'tag' && tagGroups.map(({ key, label, pieces: groupPieces }) => (
+        {!loading && !error && viewMode === 'clay_body' && clayBodyGroups.map(({ key, label, pieces: groupPieces }) => (
           <div key={key} className="mb-8">
             <div className="flex items-baseline justify-between mb-3 border-b border-stone-200 pb-2">
               <h2 className="font-display italic text-2xl text-[#1c1917] capitalize">{label}</h2>
@@ -295,15 +312,20 @@ export default function Board({ user }) {
             </div>
             <div className="grid grid-cols-3 gap-2">
               {groupPieces.map((piece) => (
-                <PieceCard
-                  key={piece.id}
-                  piece={piece}
-                  thumbUrl={thumbUrls?.[piece.id] ?? null}
-                  formTag={formTags?.[piece.id] ?? null}
-                  selectMode={selectMode}
-                  selected={selectedIds?.has(piece.id) ?? false}
-                  onToggleSelect={toggleSelect}
-                />
+                <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
+              ))}
+            </div>
+          </div>
+        ))}
+        {!loading && !error && viewMode === 'glaze' && glazeGroups.map(({ key, label, pieces: groupPieces }) => (
+          <div key={key} className="mb-8">
+            <div className="flex items-baseline justify-between mb-3 border-b border-stone-200 pb-2">
+              <h2 className="font-display italic text-2xl text-[#1c1917] capitalize">{label}</h2>
+              <span className="text-sm text-muted tabular-nums">{String(groupPieces.length).padStart(2, '0')}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {groupPieces.map((piece) => (
+                <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
               ))}
             </div>
           </div>
