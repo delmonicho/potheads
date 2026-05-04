@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
-import { STAGES, STAGE_LABELS, nextStage, advanceStage, markLost, markImperfect, getStageEvents, updatePiece, getPieceIds, getPiecesByIds, upsertStageNote } from '../lib/pieces.js'
+import { STAGES, STAGE_LABELS, nextStage, advanceStage, getStageEvents, updatePiece, getPieceIds, getPiecesByIds, upsertStageNote } from '../lib/pieces.js'
 import { getPhotosForPiece, getPhotosForPieces, uploadPhoto, getPhotoUrl, updatePhotoStage } from '../lib/photos.js'
 import { getTagsForPiece, getOrCreateTag, addTagToPiece, removeTagFromPiece, getUserTags, updateTagColor, PRESET_TAGS } from '../lib/tags.js'
 import TagChip from '../components/TagChip.jsx'
@@ -242,25 +242,6 @@ export default function PieceDetail({ user }) {
       setError(err.message)
     } finally {
       setAdvancing(false)
-    }
-  }
-
-  async function handleMarkLost() {
-    if (!window.confirm('Mark this piece as lost? It will be hidden from your board.')) return
-    try {
-      await markLost(id)
-      navigate('/board')
-    } catch (err) {
-      setError(err.message)
-    }
-  }
-
-  async function handleMarkImperfect() {
-    try {
-      await markImperfect(id, !piece.imperfect)
-      await fetchAll()
-    } catch (err) {
-      setError(err.message)
     }
   }
 
@@ -1041,21 +1022,7 @@ export default function PieceDetail({ user }) {
           )}
         </div>
 
-        {/* Actions */}
-        <div className="px-5 py-4 border-t border-stone-100 flex flex-col gap-2">
-          <button
-            onClick={handleMarkImperfect}
-            className="text-left text-sm cursor-pointer hover:text-[#5c2709] text-[#78350f]"
-          >
-            {piece.imperfect ? 'Remove imperfect mark' : 'Mark as imperfect'}
-          </button>
-          {!piece.lost && (
-            <button onClick={handleMarkLost} className="text-left text-red-500 text-sm cursor-pointer hover:text-red-700">
-              Mark as lost
-            </button>
-          )}
-          {error && <p className="text-red-600 text-xs mt-2">{error}</p>}
-        </div>
+        {error && <p className="px-5 py-2 text-red-600 text-xs">{error}</p>}
       </main>
       </div>
     </div>
