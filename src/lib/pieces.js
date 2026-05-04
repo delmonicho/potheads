@@ -173,3 +173,12 @@ export async function markImperfect(pieceId, value = true) {
 
   if (error) throw error
 }
+
+export async function deletePiece(pieceId) {
+  const { error } = await supabase
+    .from('pieces')
+    .delete()
+    .eq('id', pieceId)
+
+  if (error) throw error
+}

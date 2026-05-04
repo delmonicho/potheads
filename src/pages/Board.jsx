@@ -1,11 +1,22 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
-import { getPieces, markLost, STAGES } from '../lib/pieces.js'
+import { getPieces, STAGES } from '../lib/pieces.js'
 import { getPhotosForPieces, getPhotoUrl } from '../lib/photos.js'
 import { getTagsForPieces, getOrCreateTag, addTagToPiece, getUserTags, PRESET_TAGS } from '../lib/tags.js'
 import StageColumn, { PieceCard } from '../components/StageColumn.jsx'
 import AddPiece from '../components/AddPiece.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
+
+function BrokenVaseIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 3h6" />
+      <path d="M10 3C8 5 7 7 7 10c0 4 2 7 5 8.5C15 17 17 14 17 10c0-3-1-5-3-7" />
+      <path d="M12 6l-1.5 3.5 2 1.5-1.5 4" />
+    </svg>
+  )
+}
 
 function SelectIcon() {
   return (
@@ -21,6 +32,7 @@ function SelectIcon() {
 }
 
 export default function Board({ user }) {
+  const navigate = useNavigate()
   const [pieces, setPieces] = useState([])
   const [thumbUrls, setThumbUrls] = useState({})  // pieceId → signed URL
   const [formTags, setFormTags] = useState({})     // pieceId → form tag name
@@ -117,7 +129,8 @@ export default function Board({ user }) {
   async function handleBulkDelete() {
     setBulkSaving(true)
     try {
-      await Promise.all([...selectedIds].map(id => markLost(id)))
+      const tagId = await getOrCreateTag('lost', 'form', user.id)
+      await Promise.all([...selectedIds].map(id => addTagToPiece(id, tagId)))
       await fetchAll()
       exitSelectMode()
     } finally {
@@ -136,7 +149,12 @@ export default function Board({ user }) {
     exitSelectMode()
   }
 
-  const activepieces = useMemo(() => pieces.filter(p => !p.lost && !p.imperfect), [pieces])
+  const activepieces = useMemo(() => pieces.filter(p => {
+    if (p.lost) return false
+    const tags = allTagsByPiece.get(p.id) || []
+    if (tags.some(t => t.name === 'lost')) return false
+    return !p.imperfect
+  }), [pieces, allTagsByPiece])
 
   const piecesByStage = useMemo(
     () => STAGES.reduce((acc, stage) => {
@@ -147,7 +165,6 @@ export default function Board({ user }) {
   )
 
   const imperfectPieces = useMemo(() => pieces.filter(p => p.imperfect && !p.lost), [pieces])
-  const lostPieces = useMemo(() => pieces.filter(p => p.lost), [pieces])
 
   const tagGroups = useMemo(() => {
     const groups = new Map() // tagName → { label, pieces[] }
@@ -200,6 +217,13 @@ export default function Board({ user }) {
                 <SelectIcon />
               </button>
             )}
+            <button
+              onClick={() => navigate('/graveyard')}
+              className="text-muted active:text-stone-600 cursor-pointer hover:text-stone-600"
+              aria-label="Graveyard"
+            >
+              <BrokenVaseIcon />
+            </button>
             <button
               onClick={() => setShowProfile(true)}
               className="w-9 h-9 rounded-full bg-[#78350f] flex items-center justify-center active:bg-[#5c2709] cursor-pointer hover:bg-[#5c2709]"
@@ -258,19 +282,6 @@ export default function Board({ user }) {
             </div>
             <div className="grid grid-cols-3 gap-2">
               {imperfectPieces.map(piece => (
-                <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
-              ))}
-            </div>
-          </div>
-        )}
-        {!loading && !error && viewMode === 'stage' && lostPieces.length > 0 && (
-          <div className="mb-8">
-            <div className="flex items-baseline justify-between mb-3 border-b border-stone-200 pb-2">
-              <h2 className="font-display italic text-2xl text-[#1c1917]">Lost</h2>
-              <span className="text-sm text-muted tabular-nums">{String(lostPieces.length).padStart(2, '0')}</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {lostPieces.map(piece => (
                 <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
               ))}
             </div>
@@ -410,11 +421,11 @@ export default function Board({ user }) {
       <BottomSheet
         open={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
-        title={`Mark ${selectedIds.size} ${selectedIds.size === 1 ? 'piece' : 'pieces'} as lost?`}
+        title={`Send ${selectedIds.size} ${selectedIds.size === 1 ? 'piece' : 'pieces'} to graveyard?`}
       >
         <div className="flex flex-col gap-3 pb-2">
           <p className="text-sm text-stone-500">
-            Marking as lost hides {selectedIds.size === 1 ? 'it' : 'them'} from your board. This can't be undone.
+            {selectedIds.size === 1 ? 'It' : 'They'} will be tagged "lost" and hidden from your board.
           </p>
           <button
             onClick={async () => {
@@ -424,7 +435,7 @@ export default function Board({ user }) {
             disabled={bulkSaving}
             className="w-full bg-red-500 text-white font-semibold py-3.5 rounded-2xl active:bg-red-600 disabled:opacity-50 cursor-pointer hover:bg-red-600"
           >
-            {bulkSaving ? 'Marking as lost…' : 'Yes, mark as lost'}
+            {bulkSaving ? 'Sending to graveyard…' : 'Yes, send to graveyard'}
           </button>
           <button
             onClick={() => setShowDeleteConfirm(false)}

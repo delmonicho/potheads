@@ -4,6 +4,7 @@ import { supabase } from './lib/supabase.js'
 import Login from './pages/Login.jsx'
 import Board from './pages/Board.jsx'
 import PieceDetail from './pages/PieceDetail.jsx'
+import Graveyard from './pages/Graveyard.jsx'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -39,6 +40,7 @@ export default function App() {
       <Route path="/" element={<Navigate to="/board" replace />} />
       <Route path="/board" element={<Board user={user} />} />
       <Route path="/piece/:id" element={<PieceDetail user={user} />} />
+      <Route path="/graveyard" element={<Graveyard user={user} />} />
     </Routes>
   )
 }
