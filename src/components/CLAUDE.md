@@ -30,3 +30,19 @@ New piece flow. Uses a bottom sheet with camera-first input. Remembers last clay
 
 ## PotteryPlaceholder.jsx
 SVG fallback when a piece has no photos. Selects the illustration matching the `formTag` prop (bowl, mug, etc.), falling back to `vase.svg`.
+
+## catalog/
+
+Catalog-specific components — only rendered on `/catalog/:tab`.
+
+### ClayCard.jsx / GlazeCard.jsx
+Grid cards (square swatch + name + meta + heart). Both wrapped in `React.memo` since the grid can render 28 clay or 27 glaze cards. `onToggleFavorite(id, on)` and `onOpen(row)` come from the page; the card never fetches.
+
+### ClayDetail.jsx / GlazeDetail.jsx
+Renders inside a `BottomSheet` body. Use the local `<Field>` helper which silently hides null/empty fields — keeps detail dense without empty rows.
+
+### HeartButton.jsx
+Outlined when `favorite=false`, filled brown (`#78350f`) when true. `onClick` calls `e.stopPropagation()` so it works inside clickable card containers. `React.memo` because cards re-render only when their favorite flag flips.
+
+### SwatchInfo.jsx
+Tiny info `(i)` icon next to "Approx. fired color" labels. Tooltip warns the swatch is not a spec — fired color depends on glaze, atmosphere, kiln load, thickness. Required by the catalog spec — do not render hex_swatch as a color authority anywhere without this.

@@ -8,6 +8,15 @@ import StageColumn, { PieceCard } from '../components/StageColumn.jsx'
 import AddPiece from '../components/AddPiece.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
 
+function BookIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v16H6.5A2.5 2.5 0 0 0 4 20.5V4.5z" />
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+    </svg>
+  )
+}
+
 function BrokenVaseIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -234,6 +243,13 @@ export default function Board({ user }) {
                 <SelectIcon />
               </button>
             )}
+            <button
+              onClick={() => navigate('/catalog')}
+              className="text-muted active:text-stone-600 cursor-pointer hover:text-stone-600"
+              aria-label="Catalog"
+            >
+              <BookIcon />
+            </button>
             <button
               onClick={() => navigate('/graveyard')}
               className="text-muted active:text-stone-600 cursor-pointer hover:text-stone-600"

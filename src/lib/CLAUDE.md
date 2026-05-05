@@ -15,7 +15,9 @@ CRUD for the `pieces` table.
 - `advanceStage(pieceId, stage, notes)` — runs the piece update and stage_event insert in **parallel** via `Promise.all`. Both writes are independent so there's no reason to sequence them.
 
 ### photos.js
-Upload, fetch, and signed URL generation for the `photos` bucket.
+Upload, fetch, signed URL generation, and deletion for the `photos` bucket.
+
+**`deletePhoto(photoId, storagePath)`** — hard delete. DB row first (source of truth), then storage object. If storage removal fails the row is already gone — orphan is logged via `console.warn` and the user is unblocked. Also clears the `urlCache` entry for that path.
 
 **Signed URL cache** — `getPhotoUrl(path)` maintains a module-level `Map` keyed by storage path. URLs are cached for 55 minutes (5 min buffer before the 1-hour Supabase expiry). This eliminates redundant signed URL API calls when the same photo is rendered multiple times (e.g., Board → PieceDetail navigation).
 
@@ -25,6 +27,15 @@ Upload, fetch, and signed URL generation for the `photos` bucket.
 Tag CRUD and piece↔tag association.
 
 **Batch fetch** — `getTagsForPieces(pieceIds)` fetches all piece_tags for a list of piece IDs in a single query and returns a `Map<pieceId, Tag[]>`. Use this instead of calling `getTagsForPiece` in a loop.
+
+### catalog.js
+Reference catalogs (clay bodies + glazes) and per-user favorites.
+
+- `listClayBodies()` / `listGlazes()` — public-readable, returns full rows ordered by name.
+- `listClayFavorites(userId)` / `listGlazeFavorites(userId)` — returns a `Set<id>` for O(1) membership checks in render.
+- `toggleClayFavorite(userId, id, on)` / `toggleGlazeFavorite(userId, id, on)` — insert ignores 23505 duplicate-key, delete by composite match.
+
+The `clay_bodies` and `glazes` tables are public-readable; mutations are service-role only (no UI for editing). Seed via `npm run seed:catalog`.
 
 ### useTagColors.js
 Custom React hook and shared constants for tag color management.

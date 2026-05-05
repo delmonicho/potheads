@@ -19,7 +19,8 @@ Built for iPhone (add to home screen). Private by default — each user sees onl
 
 ## Supabase
 - Project URL in VITE_SUPABASE_URL
-- Anon key in VITE_SUPABASE_ANON_KEY
+- Anon key in VITE_SUPABASE_ANON_KEY (client)
+- Service role key in SUPABASE_SERVICE_ROLE_KEY (server-only, used by `npm run seed:catalog` — never imported by client code)
 - Client initialized in src/lib/supabase.js
 - Auth: Google OAuth only
 - RLS enabled on all tables — users see only their own data
@@ -29,12 +30,20 @@ Built for iPhone (add to home screen). Private by default — each user sees onl
 - `redirectTo` is hard-coded to `https://potheads-two.vercel.app/auth/callback` in `src/lib/supabase.js`
 - Vercel proxies `/auth/callback` → `https://kkagpnsekzsupwswnryo.supabase.co/auth/v1/callback` via rewrite in `vercel.json`
 - Post-login redirect lands on `/board` — handled by `onAuthStateChange` in `App.jsx`
-- Routes: `/` redirects to `/board`, `/board`, `/piece/:id`
+- Routes: `/` redirects to `/board`, `/board`, `/piece/:id`, `/graveyard`, `/catalog` (redirects to `/catalog/clay`), `/catalog/:tab` where `tab` ∈ {`clay`, `glazes`}
+- All routes are auth-gated. The catalog uses Supabase RLS open SELECT, but the app's `App.jsx` redirects unauthenticated users to `Login`, so anonymous catalog browsing is not exposed (matches the private-by-default app design).
 
 ## Database Schema
-Five tables: pieces, stage_events, photos, tags, piece_tags
+Nine tables total.
+
+User-scoped (RLS to auth.uid()): pieces, stage_events, photos, tags, piece_tags, user_clay_favorites, user_glaze_favorites
+Public-readable reference (RLS open SELECT, mutations service-role only): clay_bodies, glazes
+
 Stage enum: drying | bisque_ready | glazed | finished | lost
 Storage bucket: "photos" (private), path pattern: {user_id}/{piece_id}/{filename}
+
+Migration files live in `supabase/migrations/`. Catalog migration: `002_catalog_tables.sql`.
+Seed JSON in `supabase/seed/`. Seeded via `npm run seed:catalog` (requires `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`).
 
 ## Pottery Workflow
 Stages in order:
@@ -71,10 +80,13 @@ src/
     photos.js          — upload, batch fetch (getPhotosForPieces), signed URL cache
     tags.js            — tags CRUD, batch fetch (getTagsForPieces)
     useTagColors.js    — useTagColors hook, CATEGORY_DEFAULTS, detectColor
+    catalog.js         — clay_bodies + glazes list, favorites toggle (user_clay_favorites, user_glaze_favorites)
   pages/
     Login.jsx          — Google OAuth sign in
     Board.jsx          — home, pieces grouped by stage; batch-fetches photos+tags in 3 total queries
     PieceDetail.jsx    — photo carousel, lightbox, stage timeline, tag management
+    Graveyard.jsx      — lost pieces, hard delete
+    Catalog.jsx        — clay/glaze browsable catalog with filters + favorites
   components/
     AddPiece.jsx           — camera-first new piece flow
     StageColumn.jsx        — stage group + PieceCard grid; props-only, no internal fetching
@@ -82,8 +94,19 @@ src/
     TagChip.jsx            — colored tag pill (React.memo)
     BottomSheet.jsx        — reusable mobile sheet for modals
     PotteryPlaceholder.jsx — SVG fallback illustration when piece has no photos
+    catalog/
+      ClayCard.jsx, GlazeCard.jsx     — grid cards (React.memo)
+      ClayDetail.jsx, GlazeDetail.jsx — detail body for BottomSheet
+      HeartButton.jsx                  — outlined/filled favorite toggle
+      SwatchInfo.jsx                   — info icon explaining hex_swatch is approximate
   App.jsx              — router + auth gate
   main.jsx             — entry point
+
+supabase/
+  migrations/          — SQL migrations applied via Supabase SQL editor (002_catalog_tables.sql)
+  seed/                — JSON seed data for reference catalogs (clay_bodies.json, glazes.json)
+scripts/
+  seed-catalog.mjs     — Node ESM seed runner; loads .env.local via `node --env-file`
 
 ## Key UX Decisions
 - Home screen: pieces grouped by stage (Drying / Bisque Ready / Glazed / Finished)
@@ -132,7 +155,7 @@ Defined in `src/index.css`. Use these class names:
 - **Search** — stub the search icon only, do not implement search logic
 
 ## Current App State
-Last updated: 2026-04-20
+Last updated: 2026-05-05
 
 | File | Status | Notes |
 |------|--------|-------|
@@ -156,3 +179,9 @@ Last updated: 2026-04-20
 | public/icon-192.png, icon-512.png | Complete | PWA icons |
 | vercel.json | Complete | Auth callback rewrite rule |
 | .npmrc | Complete | legacy-peer-deps=true |
+| src/pages/Catalog.jsx | Complete | Clay/glaze tabs, search, filter chips, optimistic favorite toggle, BottomSheet detail |
+| src/lib/catalog.js | Complete | listClayBodies, listGlazes, listClay/GlazeFavorites, toggleClay/GlazeFavorite |
+| src/components/catalog/* | Complete | ClayCard, GlazeCard, ClayDetail, GlazeDetail, HeartButton, SwatchInfo |
+| supabase/migrations/002_catalog_tables.sql | Complete | clay_bodies, glazes, user_*_favorites tables + RLS |
+| supabase/seed/*.json | Complete | 28 clay bodies, 27 glazes from TPS 9th St |
+| scripts/seed-catalog.mjs | Complete | Idempotent upsert on slug; needs SUPABASE_SERVICE_ROLE_KEY |

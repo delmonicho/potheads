@@ -116,3 +116,21 @@ export async function updatePhotoStage(photoId, stage) {
     .eq('id', photoId)
   if (error) throw error
 }
+
+// Hard-delete a photo: DB row first (source of truth), then storage object.
+// If storage removal fails the row is already gone — orphan is harmless and the user is unblocked.
+export async function deletePhoto(photoId, storagePath) {
+  const { error: dbErr } = await supabase
+    .from('photos')
+    .delete()
+    .eq('id', photoId)
+  if (dbErr) throw dbErr
+
+  if (storagePath) {
+    const { error: stErr } = await supabase.storage
+      .from('photos')
+      .remove([storagePath])
+    if (stErr) console.warn('Storage delete failed (orphan left):', stErr.message)
+    urlCache.delete(storagePath)
+  }
+}

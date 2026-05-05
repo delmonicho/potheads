@@ -2,7 +2,7 @@ import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import { STAGES, STAGE_LABELS, nextStage, advanceStage, getStageEvents, updatePiece, getPieceIds, getPiecesByIds, upsertStageNote } from '../lib/pieces.js'
-import { getPhotosForPiece, getPhotosForPieces, uploadPhoto, getPhotoUrl, updatePhotoStage } from '../lib/photos.js'
+import { getPhotosForPiece, getPhotosForPieces, uploadPhoto, getPhotoUrl, updatePhotoStage, deletePhoto } from '../lib/photos.js'
 import { getTagsForPiece, getOrCreateTag, addTagToPiece, removeTagFromPiece, getUserTags, updateTagColor, PRESET_TAGS } from '../lib/tags.js'
 import TagChip from '../components/TagChip.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
@@ -44,6 +44,9 @@ export default function PieceDetail({ user }) {
   const [addPhotoStage, setAddPhotoStage] = useState(null)
   const [addPhotoNote, setAddPhotoNote] = useState('')
   const [addingPhoto, setAddingPhoto] = useState(false)
+  const [selectedPhotoIds, setSelectedPhotoIds] = useState(new Set())
+  const [showDeletePhotosConfirm, setShowDeletePhotosConfirm] = useState(false)
+  const [deletingPhotos, setDeletingPhotos] = useState(false)
 
   const [userTags, setUserTags] = useState([])
 
@@ -257,11 +260,38 @@ export default function PieceDetail({ user }) {
       setAddPhotoPreviews([])
       setAddPhotoStage(null)
       setAddPhotoNote('')
+      setSelectedPhotoIds(new Set())
       await fetchAll()
     } catch (err) {
       setError(err.message)
     } finally {
       setAddingPhoto(false)
+    }
+  }
+
+  function togglePhotoSelected(photoId) {
+    setSelectedPhotoIds(prev => {
+      const next = new Set(prev)
+      next.has(photoId) ? next.delete(photoId) : next.add(photoId)
+      return next
+    })
+  }
+
+  async function handleBulkDeletePhotos() {
+    if (selectedPhotoIds.size === 0) return
+    setDeletingPhotos(true)
+    try {
+      const targets = photos.filter(p => selectedPhotoIds.has(p.id))
+      await Promise.all(targets.map(p => deletePhoto(p.id, p.storage_path)))
+      setSelectedPhotoIds(new Set())
+      setShowDeletePhotosConfirm(false)
+      // Pull hero back if it was past the new end
+      setHeroIndex(h => Math.max(0, Math.min(h, photos.length - targets.length - 1)))
+      await fetchAll()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setDeletingPhotos(false)
     }
   }
 
@@ -861,15 +891,15 @@ export default function PieceDetail({ user }) {
           </div>
         )}
 
-        {/* Add photo button */}
+        {/* Edit photos button */}
         <button
           onClick={(e) => { e.stopPropagation(); setAddPhotoStage(piece.current_stage); setShowAddPhotoSheet(true) }}
           className="absolute bottom-3 right-4 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center active:bg-white cursor-pointer hover:bg-white"
-          aria-label="Add photo"
+          aria-label="Edit photos"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1c1917" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-            <circle cx="12" cy="13" r="4" />
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
           </svg>
         </button>
       </div>
@@ -1221,13 +1251,74 @@ export default function PieceDetail({ user }) {
         </div>
       </BottomSheet>
 
-      {/* Add photo sheet */}
+      {/* Edit photos sheet */}
       <BottomSheet
         open={showAddPhotoSheet}
-        onClose={() => { setShowAddPhotoSheet(false); setAddPhotoFiles([]); setAddPhotoPreviews([]); setAddPhotoNote('') }}
-        title="Add Photo"
+        onClose={() => { setShowAddPhotoSheet(false); setAddPhotoFiles([]); setAddPhotoPreviews([]); setAddPhotoNote(''); setSelectedPhotoIds(new Set()) }}
+        title="Edit Photos"
       >
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
+          {/* Existing photos — multi-select to delete */}
+          {photos.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-widest text-stone-500">
+                  Current photos ({photos.length})
+                </p>
+                {selectedPhotoIds.size > 0 && (
+                  <button
+                    onClick={() => setSelectedPhotoIds(new Set())}
+                    className="text-xs text-muted cursor-pointer hover:text-stone-600"
+                  >
+                    Clear selection
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {photos.map((p, i) => {
+                  const selected = selectedPhotoIds.has(p.id)
+                  const url = photoUrls[i]
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => togglePhotoSelected(p.id)}
+                      className={`relative aspect-square rounded-xl overflow-hidden bg-stone-100 cursor-pointer hover:opacity-90 active:opacity-80 ${selected ? 'ring-2 ring-[#78350f]' : ''}`}
+                      aria-pressed={selected}
+                    >
+                      {url ? (
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-stone-200" />
+                      )}
+                      <div className={`absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center transition-colors ${selected ? 'bg-[#78350f] text-white' : 'bg-white/80 text-transparent border border-stone-300'}`}>
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M2 6l3 3 5-5" />
+                        </svg>
+                      </div>
+                      {selected && <div className="absolute inset-0 bg-[#78350f]/15 pointer-events-none" />}
+                    </button>
+                  )
+                })}
+              </div>
+              {selectedPhotoIds.size > 0 && (
+                <button
+                  onClick={() => setShowDeletePhotosConfirm(true)}
+                  disabled={deletingPhotos}
+                  className="w-full bg-red-500 text-white font-semibold py-2.5 rounded-xl active:bg-red-600 disabled:opacity-50 cursor-pointer hover:bg-red-600 text-sm"
+                >
+                  Delete {selectedPhotoIds.size} {selectedPhotoIds.size === 1 ? 'photo' : 'photos'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {photos.length > 0 && (
+            <div className="border-t border-stone-100 -mx-4" />
+          )}
+
+          {/* Add new photos */}
+          <p className="text-xs uppercase tracking-widest text-stone-500">Add new photos</p>
           {addPhotoPreviews.length === 0 ? (
             <label className="block w-full h-40 rounded-2xl overflow-hidden bg-stone-100 cursor-pointer hover:bg-stone-200 transition-colors active:opacity-80 flex-shrink-0">
               <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-muted">
@@ -1303,12 +1394,42 @@ export default function PieceDetail({ user }) {
             />
           </div>
 
+          {addPhotoFiles.length > 0 && (
+            <button
+              onClick={handleAddPhoto}
+              disabled={addingPhoto}
+              className="w-full bg-[#78350f] text-white font-semibold py-3 rounded-2xl active:bg-[#5c2709] disabled:opacity-50 cursor-pointer hover:bg-[#5c2709]"
+            >
+              {addingPhoto ? 'Uploading…' : `Upload ${addPhotoFiles.length} ${addPhotoFiles.length === 1 ? 'photo' : 'photos'}`}
+            </button>
+          )}
+        </div>
+      </BottomSheet>
+
+      {/* Delete photos confirmation sheet (stacked above edit-photos sheet) */}
+      <BottomSheet
+        open={showDeletePhotosConfirm}
+        onClose={() => setShowDeletePhotosConfirm(false)}
+        title={`Delete ${selectedPhotoIds.size} ${selectedPhotoIds.size === 1 ? 'photo' : 'photos'}?`}
+        zClassName="z-[60]"
+      >
+        <div className="flex flex-col gap-3 pb-2">
+          <p className="text-sm text-stone-500">
+            This permanently removes {selectedPhotoIds.size === 1 ? 'it' : 'them'} from this piece. This cannot be undone.
+          </p>
           <button
-            onClick={handleAddPhoto}
-            disabled={!addPhotoFiles.length || addingPhoto}
-            className="w-full bg-[#78350f] text-white font-semibold py-3 rounded-2xl active:bg-[#5c2709] disabled:opacity-50 cursor-pointer hover:bg-[#5c2709]"
+            onClick={handleBulkDeletePhotos}
+            disabled={deletingPhotos}
+            className="w-full bg-red-500 text-white font-semibold py-3.5 rounded-2xl active:bg-red-600 disabled:opacity-50 cursor-pointer hover:bg-red-600"
           >
-            {addingPhoto ? 'Uploading…' : 'Add Photo'}
+            {deletingPhotos ? 'Deleting…' : 'Yes, delete'}
+          </button>
+          <button
+            onClick={() => setShowDeletePhotosConfirm(false)}
+            disabled={deletingPhotos}
+            className="w-full bg-stone-100 text-stone-700 font-semibold py-3.5 rounded-2xl active:bg-stone-200 disabled:opacity-50 cursor-pointer hover:bg-stone-200"
+          >
+            Cancel
           </button>
         </div>
       </BottomSheet>
