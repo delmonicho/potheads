@@ -2,7 +2,7 @@
 
 A mobile-first PWA for tracking pottery pieces through the production process — from the wheel to the kiln and beyond.
 
-**Live app:** https://potheads-two.vercel.app
+**Live app:** https://pot-heads.studio
 
 ---
 

@@ -5,7 +5,7 @@ Build two browsable reference catalogs (clay bodies + glazes) plus per-user favo
 ## Context
 
 - Stack: Vite + React 19 + Tailwind v4 + Supabase + Vercel
-- Repo: `delmonicho/potheads`, deployed at `potheads-two.vercel.app`
+- Repo: `delmonicho/potheads`, deployed at `pot-heads.studio`
 - Studio: TPS 9th St (Gowanus), cone 10 reduction
 - Existing planning doc: `POTHEADS_CATALOG_PLAN.md` — supersede with this prompt where they conflict
 - Five Supabase tables already exist with RLS; this adds four more

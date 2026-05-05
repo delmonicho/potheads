@@ -5,6 +5,6 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    redirectTo: 'https://potheads-two.vercel.app/auth/callback'
+    redirectTo: 'https://pot-heads.studio/auth/callback'
   }
 })

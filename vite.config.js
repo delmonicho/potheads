@@ -27,7 +27,9 @@ export default defineConfig({
         background_color: '#fafaf9',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/',
+        start_url: 'https://pot-heads.studio/',
+        scope: 'https://pot-heads.studio/',
+        id: 'https://pot-heads.studio/',
         icons: [
           {
             src: '/icon-192.png',

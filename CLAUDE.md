@@ -15,7 +15,7 @@ Built for iPhone (add to home screen). Private by default — each user sees onl
 - `vite-plugin-pwa` installed with `--legacy-peer-deps`; `.npmrc` contains `legacy-peer-deps=true` — required for Vercel builds
 - `vercel.json` contains the `/auth/callback` → Supabase rewrite rule (see Auth & Routing)
 - PWA icons at `public/icon-192.png` and `public/icon-512.png`
-- Deployed at: `https://potheads-two.vercel.app`
+- Deployed at: `https://pot-heads.studio`
 
 ## Supabase
 - Project URL in VITE_SUPABASE_URL
@@ -27,7 +27,7 @@ Built for iPhone (add to home screen). Private by default — each user sees onl
 
 ## Auth & Routing
 - Google OAuth via Supabase (`auth.signInWithOAuth`)
-- `redirectTo` is hard-coded to `https://potheads-two.vercel.app/auth/callback` in `src/lib/supabase.js`
+- `redirectTo` is hard-coded to `https://pot-heads.studio/auth/callback` in `src/lib/supabase.js`
 - Vercel proxies `/auth/callback` → `https://kkagpnsekzsupwswnryo.supabase.co/auth/v1/callback` via rewrite in `vercel.json`
 - Post-login redirect lands on `/board` — handled by `onAuthStateChange` in `App.jsx`
 - Routes: `/` redirects to `/board`, `/board`, `/piece/:id`, `/graveyard`, `/catalog` (redirects to `/catalog/clay`), `/catalog/:tab` where `tab` ∈ {`clay`, `glazes`}
