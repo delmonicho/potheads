@@ -162,7 +162,7 @@ export default function Board({ user }) {
     if (p.lost) return false
     const tags = allTagsByPiece.get(p.id) || []
     if (tags.some(t => t.name === 'lost')) return false
-    return !p.imperfect
+    return true
   }), [pieces, allTagsByPiece])
 
   const piecesByStage = useMemo(
@@ -172,8 +172,6 @@ export default function Board({ user }) {
     }, {}),
     [activepieces]
   )
-
-  const imperfectPieces = useMemo(() => pieces.filter(p => p.imperfect && !p.lost), [pieces])
 
   const clayBodyGroups = useMemo(() => {
     const groups = new Map()
@@ -307,20 +305,7 @@ export default function Board({ user }) {
             onToggleSelect={toggleSelect}
           />
         ))}
-        {!loading && !error && viewMode === 'stage' && imperfectPieces.length > 0 && (
-          <div className="mb-8">
-            <div className="flex items-baseline justify-between mb-3 border-b border-stone-200 pb-2">
-              <h2 className="font-display italic text-2xl text-[#1c1917]">Imperfect</h2>
-              <span className="text-sm text-muted tabular-nums">{String(imperfectPieces.length).padStart(2, '0')}</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {imperfectPieces.map(piece => (
-                <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
-              ))}
-            </div>
-          </div>
-        )}
-        {!loading && !error && viewMode === 'clay_body' && clayBodyGroups.map(({ key, label, pieces: groupPieces }) => (
+{!loading && !error && viewMode === 'clay_body' && clayBodyGroups.map(({ key, label, pieces: groupPieces }) => (
           <div key={key} className="mb-8">
             <div className="flex items-baseline justify-between mb-3 border-b border-stone-200 pb-2">
               <h2 className="font-display italic text-2xl text-[#1c1917] capitalize">{label}</h2>

@@ -165,15 +165,6 @@ export async function markLost(pieceId) {
   if (error) throw error
 }
 
-export async function markImperfect(pieceId, value = true) {
-  const { error } = await supabase
-    .from('pieces')
-    .update({ imperfect: value })
-    .eq('id', pieceId)
-
-  if (error) throw error
-}
-
 export async function deletePiece(pieceId) {
   const { error } = await supabase
     .from('pieces')
