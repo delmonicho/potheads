@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase.js'
 import { STAGES, STAGE_LABELS, nextStage, advanceStage, getStageEvents, updatePiece, getPieceIds, getPiecesByIds, upsertStageNote } from '../lib/pieces.js'
 import { getPhotosForPiece, getPhotosForPieces, uploadPhoto, getPhotoUrl, updatePhotoStage, deletePhoto } from '../lib/photos.js'
 import { getTagsForPiece, getOrCreateTag, addTagToPiece, removeTagFromPiece, getUserTags, updateTagColor, PRESET_TAGS } from '../lib/tags.js'
+import { listClayBodies } from '../lib/catalog.js'
 import TagChip from '../components/TagChip.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
 import PotteryPlaceholder from '../components/PotteryPlaceholder.jsx'
@@ -88,6 +89,7 @@ export default function PieceDetail({ user }) {
   const [editName, setEditName] = useState('')
   const [editClayBody, setEditClayBody] = useState('')
   const [editStage, setEditStage] = useState('drying')
+  const [catalogClayBodies, setCatalogClayBodies] = useState([])
   const [editNotes, setEditNotes] = useState('')
   const [editCreatedAt, setEditCreatedAt] = useState('')
   const [savingPiece, setSavingPiece] = useState(false)
@@ -195,7 +197,7 @@ export default function PieceDetail({ user }) {
             const firstPhoto = photoList[0]
             let thumbUrl = null
             if (firstPhoto) {
-              try { thumbUrl = await getPhotoUrl(firstPhoto.storage_path) } catch {}
+              try { thumbUrl = await getPhotoUrl(firstPhoto.storage_path) } catch { }
             }
             return { id: pid, name: p.name, clayBody: p.clay_body, thumbUrl }
           }
@@ -223,7 +225,7 @@ export default function PieceDetail({ user }) {
     if (!userTags.length) return
     for (const tag of userTags) {
       if (!tag.color && tagColors[tag.name]) {
-        updateTagColor(tag.id, tagColors[tag.name]).catch(() => {})
+        updateTagColor(tag.id, tagColors[tag.name]).catch(() => { })
       }
     }
   }, [userTags])
@@ -565,6 +567,7 @@ export default function PieceDetail({ user }) {
     setEditNotes(piece.notes || '')
     setEditCreatedAt(toDateInput(piece.created_at))
     setShowEditPieceSheet(true)
+    listClayBodies().then(setCatalogClayBodies).catch(() => { })
   }
 
   async function handleSavePiece() {
@@ -792,270 +795,268 @@ export default function PieceDetail({ user }) {
     : `transform ${SWIPE_DURATION_MS}ms ${SWIPE_EASE}`
   const wrapperShadow =
     dragOffset < -2 ? '8px 0 16px -6px rgba(0,0,0,0.18)'
-    : dragOffset > 2 ? '-8px 0 16px -6px rgba(0,0,0,0.18)'
-    : 'none'
+      : dragOffset > 2 ? '-8px 0 16px -6px rgba(0,0,0,0.18)'
+        : 'none'
 
   return (
     <>
-    <div className="relative min-h-screen overflow-hidden bg-[#fafaf9]">
-      {/* Previous-piece peek panel — 8px sliver visible at rest as a
+      <div className="relative min-h-screen overflow-hidden bg-[#fafaf9]">
+        {/* Previous-piece peek panel — 8px sliver visible at rest as a
           page-turn affordance. The right edge gets a soft shadow that reads
           as a catalog-page gutter against the active page. */}
-      <div
-        className="absolute inset-0 pointer-events-none overflow-hidden before:absolute before:inset-y-0 before:right-0 before:w-3 before:bg-gradient-to-l before:from-black/10 before:to-transparent before:z-10"
-        style={{
-          transform: `translate3d(${wrapperOffset - vw + 8}px, 0, 0)`,
-          transition: wrapperTransition,
-          willChange: 'transform',
-        }}
-        aria-hidden="true"
-      >
-        {adjacentPreviews.prev && <PiecePreview preview={adjacentPreviews.prev} />}
-      </div>
+        <div
+          className="absolute inset-0 pointer-events-none overflow-hidden before:absolute before:inset-y-0 before:right-0 before:w-3 before:bg-gradient-to-l before:from-black/10 before:to-transparent before:z-10"
+          style={{
+            transform: `translate3d(${wrapperOffset - vw + 8}px, 0, 0)`,
+            transition: wrapperTransition,
+            willChange: 'transform',
+          }}
+          aria-hidden="true"
+        >
+          {adjacentPreviews.prev && <PiecePreview preview={adjacentPreviews.prev} />}
+        </div>
 
-      {/* Next-piece peek panel — mirror sliver. */}
-      <div
-        className="absolute inset-0 pointer-events-none overflow-hidden before:absolute before:inset-y-0 before:left-0 before:w-3 before:bg-gradient-to-r before:from-black/10 before:to-transparent before:z-10"
-        style={{
-          transform: `translate3d(${wrapperOffset + vw - 8}px, 0, 0)`,
-          transition: wrapperTransition,
-          willChange: 'transform',
-        }}
-        aria-hidden="true"
-      >
-        {adjacentPreviews.next && <PiecePreview preview={adjacentPreviews.next} />}
-      </div>
+        {/* Next-piece peek panel — mirror sliver. */}
+        <div
+          className="absolute inset-0 pointer-events-none overflow-hidden before:absolute before:inset-y-0 before:left-0 before:w-3 before:bg-gradient-to-r before:from-black/10 before:to-transparent before:z-10"
+          style={{
+            transform: `translate3d(${wrapperOffset + vw - 8}px, 0, 0)`,
+            transition: wrapperTransition,
+            willChange: 'transform',
+          }}
+          aria-hidden="true"
+        >
+          {adjacentPreviews.next && <PiecePreview preview={adjacentPreviews.next} />}
+        </div>
 
-      {/* Active page — swipeable wrapper. Owns the vertical scroll itself so
+        {/* Active page — swipeable wrapper. Owns the vertical scroll itself so
           touch-action: pan-y applies on the same element where horizontal
           gestures originate; otherwise iOS commits diagonal touches to an
           inner overflow:auto descendant before our threshold trips. */}
-      <div
-        ref={swipeWrapperRef}
-        className="relative flex flex-col h-[100dvh] overflow-y-auto overscroll-y-contain bg-[#fafaf9]"
-        style={{
-          transform: `translate3d(${wrapperOffset}px, 0, 0)`,
-          transition: wrapperTransition,
-          boxShadow: wrapperShadow,
-          touchAction: 'pan-y',
-          userSelect: dragging ? 'none' : 'auto',
-          willChange: 'transform',
-        }}
-      >
-      {/* Full-bleed hero photo */}
-      <div
-        ref={heroRef}
-        className={`relative h-[40vh] md:max-h-120 shrink-0 bg-tan overflow-hidden ${heroUrl ? 'cursor-pointer' : ''}`}
-        onTouchStart={handleHeroTouchStart}
-        onTouchEnd={handleHeroTouchEnd}
-        onClick={() => { if (heroUrl) { setViewerIndex(heroIndex); setViewerOpen(true) } }}
-      >
-        {heroUrl ? (
-          <img src={heroUrl} alt="" className="w-full h-full object-contain" />
-        ) : (
-          <PotteryPlaceholder formTag={tags.find((t) => t.category === 'form')?.name} className="rounded-none" />
-        )}
-
-        {/* Back button */}
-        <button
-          onClick={(e) => { e.stopPropagation(); navigate('/board') }}
-          style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}
-          className="absolute left-4 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center text-[#1c1917] text-2xl leading-none cursor-pointer hover:bg-white"
-          aria-label="Back"
+        <div
+          ref={swipeWrapperRef}
+          className="relative flex flex-col h-[100dvh] overflow-y-auto overscroll-y-contain bg-[#fafaf9]"
+          style={{
+            transform: `translate3d(${wrapperOffset}px, 0, 0)`,
+            transition: wrapperTransition,
+            boxShadow: wrapperShadow,
+            touchAction: 'pan-y',
+            userSelect: dragging ? 'none' : 'auto',
+            willChange: 'transform',
+          }}
         >
-          ‹
-        </button>
-
-        {/* Stage pill — bottom-left */}
-        {photos[heroIndex]?.stage && (
-          <div className="absolute bottom-3 left-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-sm pointer-events-none">
-            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-              photos[heroIndex].stage === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
-            }`} />
-            <span className="text-white text-xs font-medium leading-none">
-              {STAGE_LABELS[photos[heroIndex].stage]}
-            </span>
-          </div>
-        )}
-
-        {/* Pagination dots */}
-        {photos.length > 1 && (
-          <div className="absolute bottom-3 inset-x-0 flex justify-center gap-1.5">
-            {photos.map((_, i) => (
-              <button
-                key={i}
-                onClick={(e) => { e.stopPropagation(); setHeroIndex(i) }}
-                className={`w-2 h-2 rounded-full transition-colors cursor-pointer hover:bg-white ${i === heroIndex ? 'bg-white' : 'bg-white/50'}`}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Edit photos button */}
-        <button
-          onClick={(e) => { e.stopPropagation(); setAddPhotoStage(piece.current_stage); setShowAddPhotoSheet(true) }}
-          className="absolute bottom-3 right-4 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center active:bg-white cursor-pointer hover:bg-white"
-          aria-label="Edit photos"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1c1917" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 20h9" />
-            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-          </svg>
-        </button>
-      </div>
-
-      <main className="flex-1 pb-safe">
-        {/* Piece identity */}
-        <div className="px-5 pt-5 pb-4">
-          <p className="text-xs uppercase tracking-widest text-muted mb-1">
-            Piece No. {pieceNumber != null ? String(pieceNumber).padStart(3, '0') : '—'}
-            {pieceIds.length > 1 && pieceIds.indexOf(id) >= 0 && (
-              <span> · {pieceIds.indexOf(id) + 1} of {pieceIds.length}</span>
+          {/* Full-bleed hero photo */}
+          <div
+            ref={heroRef}
+            className={`relative h-[40vh] md:max-h-120 shrink-0 bg-tan overflow-hidden ${heroUrl ? 'cursor-pointer' : ''}`}
+            onTouchStart={handleHeroTouchStart}
+            onTouchEnd={handleHeroTouchEnd}
+            onClick={() => { if (heroUrl) { setViewerIndex(heroIndex); setViewerOpen(true) } }}
+          >
+            {heroUrl ? (
+              <img src={heroUrl} alt="" className="w-full h-full object-contain" />
+            ) : (
+              <PotteryPlaceholder formTag={tags.find((t) => t.category === 'form')?.name} className="rounded-none" />
             )}
-          </p>
-          <div className="flex items-start justify-between gap-3">
-            <h1 className="text-3xl font-semibold text-[#1c1917] leading-tight">{piece.name}</h1>
+
+            {/* Back button */}
             <button
-              onClick={openEditPiece}
-              className="text-[#78350f] text-sm font-medium flex-shrink-0 mt-1.5 cursor-pointer hover:text-[#5c2709]"
+              onClick={(e) => { e.stopPropagation(); navigate('/board') }}
+              style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}
+              className="absolute left-4 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center text-[#1c1917] text-2xl leading-none cursor-pointer hover:bg-white"
+              aria-label="Back"
             >
-              Edit
+              ‹
+            </button>
+
+            {/* Stage pill — bottom-left */}
+            {photos[heroIndex]?.stage && (
+              <div className="absolute bottom-3 left-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-sm pointer-events-none">
+                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${photos[heroIndex].stage === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
+                  }`} />
+                <span className="text-white text-xs font-medium leading-none">
+                  {STAGE_LABELS[photos[heroIndex].stage]}
+                </span>
+              </div>
+            )}
+
+            {/* Pagination dots */}
+            {photos.length > 1 && (
+              <div className="absolute bottom-3 inset-x-0 flex justify-center gap-1.5">
+                {photos.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={(e) => { e.stopPropagation(); setHeroIndex(i) }}
+                    className={`w-2 h-2 rounded-full transition-colors cursor-pointer hover:bg-white ${i === heroIndex ? 'bg-white' : 'bg-white/50'}`}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Edit photos button */}
+            <button
+              onClick={(e) => { e.stopPropagation(); setAddPhotoStage(piece.current_stage); setShowAddPhotoSheet(true) }}
+              className="absolute bottom-3 right-4 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center active:bg-white cursor-pointer hover:bg-white"
+              aria-label="Edit photos"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1c1917" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+              </svg>
             </button>
           </div>
-          {piece.clay_body && (
-            <p className="text-sm text-muted mt-1">{piece.clay_body}</p>
-          )}
-          {piece.notes && (
-            <p className="text-sm text-[#1c1917] mt-2 leading-relaxed">{piece.notes}</p>
-          )}
-        </div>
 
-        {/* Stage timeline */}
-        <div className="px-5 pb-5">
-          <p className="text-xs uppercase tracking-widest text-muted mb-4">Stages</p>
-          <div className="flex flex-col">
-            {STAGES.map((stage, i) => {
-              const status = getStageStatus(stage)
-              const isLast = i === STAGES.length - 1
-              const stagePhotoCount = photos.filter(p => p.stage === stage).length
-              return (
-                <div
-                  key={stage}
-                  className={`flex gap-4 ${stagePhotoCount > 0 ? 'cursor-pointer hover:opacity-80' : ''}`}
-                  onClick={stagePhotoCount > 0 ? () => handleStageTap(stage) : undefined}
+          <main className="flex-1 pb-safe">
+            {/* Piece identity */}
+            <div className="px-5 pt-5 pb-4">
+              <p className="text-xs uppercase tracking-widest text-muted mb-1">
+                Piece No. {pieceNumber != null ? String(pieceNumber).padStart(3, '0') : '—'}
+                {pieceIds.length > 1 && pieceIds.indexOf(id) >= 0 && (
+                  <span> · {pieceIds.indexOf(id) + 1} of {pieceIds.length}</span>
+                )}
+              </p>
+              <div className="flex items-start justify-between gap-3">
+                <h1 className="text-3xl font-semibold text-[#1c1917] leading-tight">{piece.name}</h1>
+                <button
+                  onClick={openEditPiece}
+                  className="text-[#78350f] text-sm font-medium flex-shrink-0 mt-1.5 cursor-pointer hover:text-[#5c2709]"
                 >
-                  {/* Timeline column */}
-                  <div className="flex flex-col items-center">
-                    {status === 'complete' && (
-                      <div className="w-6 h-6 rounded-full bg-[#4a7c59] flex items-center justify-center flex-shrink-0">
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                          <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </div>
-                    )}
-                    {status === 'current' && stage !== 'finished' && (
-                      <div className="w-6 h-6 rounded-full bg-[#78350f] flex items-center justify-center flex-shrink-0">
-                        <div className="w-2.5 h-2.5 rounded-full bg-white" />
-                      </div>
-                    )}
-                    {status === 'current' && stage === 'finished' && (
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-300 to-amber-600 flex items-center justify-center flex-shrink-0">
-                        <svg width="12" height="12" viewBox="0 0 16 16" fill="white">
-                          <path d="M8 0L9.3 6.7L16 8L9.3 9.3L8 16L6.7 9.3L0 8L6.7 6.7Z" />
-                        </svg>
-                      </div>
-                    )}
-                    {status === 'pending' && (
-                      <div className="w-6 h-6 rounded-full border-2 border-[#d4c5b0] flex-shrink-0" />
-                    )}
-                    {!isLast && (
-                      <div className="w-px flex-1 min-h-[28px] bg-[#d4c5b0] my-1" />
-                    )}
-                  </div>
+                  Edit
+                </button>
+              </div>
+              {piece.clay_body && (
+                <p className="text-sm text-muted mt-1">{piece.clay_body}</p>
+              )}
+              {piece.notes && (
+                <p className="text-sm text-[#1c1917] mt-2 leading-relaxed">{piece.notes}</p>
+              )}
+            </div>
 
-                  {/* Stage info */}
-                  <div className={`flex-1 flex items-start justify-between ${isLast ? 'pb-0' : 'pb-5'}`}>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <p className={`font-medium leading-tight ${
-                          status === 'current' ? 'text-[#78350f]' :
-                          status === 'complete' ? 'text-[#4a7c59]' :
-                          'text-muted'
-                        }`}>
-                          {STAGE_LABELS[stage]}
-                        </p>
-                        {status !== 'pending' && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); openNoteSheet(stage) }}
-                            className="text-stone-300 hover:text-stone-500 cursor-pointer transition-colors"
-                            aria-label="Edit note"
-                          >
-                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M11.5 2.5a1.414 1.414 0 0 1 2 2L5 13H2v-3L11.5 2.5z" />
+            {/* Stage timeline */}
+            <div className="px-5 pb-5">
+              <p className="text-xs uppercase tracking-widest text-muted mb-4">Stages</p>
+              <div className="flex flex-col">
+                {STAGES.map((stage, i) => {
+                  const status = getStageStatus(stage)
+                  const isLast = i === STAGES.length - 1
+                  const stagePhotoCount = photos.filter(p => p.stage === stage).length
+                  return (
+                    <div
+                      key={stage}
+                      className={`flex gap-4 ${stagePhotoCount > 0 ? 'cursor-pointer hover:opacity-80' : ''}`}
+                      onClick={stagePhotoCount > 0 ? () => handleStageTap(stage) : undefined}
+                    >
+                      {/* Timeline column */}
+                      <div className="flex flex-col items-center">
+                        {status === 'complete' && (
+                          <div className="w-6 h-6 rounded-full bg-[#4a7c59] flex items-center justify-center flex-shrink-0">
+                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                              <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
+                          </div>
+                        )}
+                        {status === 'current' && stage !== 'finished' && (
+                          <div className="w-6 h-6 rounded-full bg-[#78350f] flex items-center justify-center flex-shrink-0">
+                            <div className="w-2.5 h-2.5 rounded-full bg-white" />
+                          </div>
+                        )}
+                        {status === 'current' && stage === 'finished' && (
+                          <div className="w-6 h-6 rounded-full bg-[#4a7c59] flex items-center justify-center flex-shrink-0">
+                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                              <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </div>
+                        )}
+                        {status === 'pending' && (
+                          <div className="w-6 h-6 rounded-full border-2 border-[#d4c5b0] flex-shrink-0" />
+                        )}
+                        {!isLast && (
+                          <div className="w-px flex-1 min-h-[28px] bg-[#d4c5b0] my-1" />
+                        )}
+                      </div>
+
+                      {/* Stage info */}
+                      <div className={`flex-1 flex items-start justify-between ${isLast ? 'pb-0' : 'pb-5'}`}>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <p className={`font-medium leading-tight ${status === 'current' ? 'text-[#78350f]' :
+                                status === 'complete' ? 'text-[#4a7c59]' :
+                                  'text-muted'
+                              }`}>
+                              {STAGE_LABELS[stage]}
+                            </p>
+                            {status !== 'pending' && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); openNoteSheet(stage) }}
+                                className="text-stone-300 hover:text-stone-500 cursor-pointer transition-colors"
+                                aria-label="Edit note"
+                              >
+                                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M11.5 2.5a1.414 1.414 0 0 1 2 2L5 13H2v-3L11.5 2.5z" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted mt-0.5">
+                            {status === 'complete' ? 'complete' : status === 'current' ? 'current' : 'not yet'}
+                            {stagePhotoCount > 0 && (
+                              <span className="ml-2">{stagePhotoCount} photo{stagePhotoCount > 1 ? 's' : ''}</span>
+                            )}
+                          </p>
+                          {stageTimestamp(stage) && (
+                            <p className="text-xs text-stone-300 mt-0.5">{fmtDate(stageTimestamp(stage))}</p>
+                          )}
+                          {status !== 'pending' && eventByStage[stage]?.notes && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openNoteSheet(stage) }}
+                              className="mt-1.5 block text-left text-xs text-stone-600 bg-stone-100 rounded-lg px-2.5 py-1.5 max-w-full cursor-pointer hover:bg-stone-200"
+                            >
+                              <span className="line-clamp-2">{eventByStage[stage].notes}</span>
+                            </button>
+                          )}
+                        </div>
+                        {status === 'current' && next && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setAdvanceTargetStage(next || piece.current_stage)
+                              setShowAdvanceSheet(true)
+                            }}
+                            className="ml-3 px-4 py-1.5 bg-[#78350f] text-white text-xs font-semibold rounded-full uppercase tracking-wide active:bg-[#5c2709] flex-shrink-0 cursor-pointer hover:bg-[#5c2709]"
+                          >
+                            Advance
                           </button>
                         )}
                       </div>
-                      <p className="text-xs text-muted mt-0.5">
-                        {status === 'complete' ? 'complete' : status === 'current' ? 'current' : 'not yet'}
-                        {stagePhotoCount > 0 && (
-                          <span className="ml-2">{stagePhotoCount} photo{stagePhotoCount > 1 ? 's' : ''}</span>
-                        )}
-                      </p>
-                      {stageTimestamp(stage) && (
-                        <p className="text-xs text-stone-300 mt-0.5">{fmtDate(stageTimestamp(stage))}</p>
-                      )}
-                      {status !== 'pending' && eventByStage[stage]?.notes && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openNoteSheet(stage) }}
-                          className="mt-1.5 block text-left text-xs text-stone-600 bg-stone-100 rounded-lg px-2.5 py-1.5 max-w-full cursor-pointer hover:bg-stone-200"
-                        >
-                          <span className="line-clamp-2">{eventByStage[stage].notes}</span>
-                        </button>
-                      )}
                     </div>
-                    {status === 'current' && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setAdvanceTargetStage(next || piece.current_stage)
-                          setShowAdvanceSheet(true)
-                        }}
-                        className="ml-3 px-4 py-1.5 bg-[#78350f] text-white text-xs font-semibold rounded-full uppercase tracking-wide active:bg-[#5c2709] flex-shrink-0 cursor-pointer hover:bg-[#5c2709]"
-                      >
-                        Advance
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Tags */}
-        <div className="px-5 py-4 pb-6 border-t border-stone-100">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs uppercase tracking-widest text-muted">Tags</p>
-            <button onClick={() => setShowTagSheet(true)} className="text-[#78350f] text-sm font-medium cursor-pointer hover:text-[#5c2709]">
-              Edit
-            </button>
-          </div>
-          {tags.length === 0 ? (
-            <p className="text-muted text-sm">No tags yet</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => (
-                <TagChip key={tag.id} tag={tag} selected color={tag.color || tagColors[tag.name]} />
-              ))}
+                  )
+                })}
+              </div>
             </div>
-          )}
-        </div>
 
-        {error && <p className="px-5 py-2 text-red-600 text-xs">{error}</p>}
-      </main>
+            {/* Tags */}
+            <div className="px-5 py-4 pb-6 border-t border-stone-100">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs uppercase tracking-widest text-muted">Tags</p>
+                <button onClick={() => setShowTagSheet(true)} className="text-[#78350f] text-sm font-medium cursor-pointer hover:text-[#5c2709]">
+                  Edit
+                </button>
+              </div>
+              {tags.length === 0 ? (
+                <p className="text-muted text-sm">No tags yet</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {tags.map((tag) => (
+                    <TagChip key={tag.id} tag={tag} selected color={tag.color || tagColors[tag.name]} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {error && <p className="px-5 py-2 text-red-600 text-xs">{error}</p>}
+          </main>
+        </div>
       </div>
-    </div>
 
       {/* Advance stage sheet */}
       <BottomSheet
@@ -1071,15 +1072,13 @@ export default function PieceDetail({ user }) {
                 <button
                   key={s}
                   onClick={() => setAdvanceTargetStage(s)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors cursor-pointer hover:bg-stone-100 ${
-                    advanceTargetStage === s
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors cursor-pointer hover:bg-stone-100 ${advanceTargetStage === s
                       ? 'bg-stone-100 border-stone-300 text-[#1c1917] font-semibold'
                       : 'border-stone-200 text-stone-600'
-                  }`}
+                    }`}
                 >
-                  <span className={`w-3 h-3 rounded-full flex-shrink-0 ${
-                    s === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
-                  }`} />
+                  <span className={`w-3 h-3 rounded-full flex-shrink-0 ${s === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
+                    }`} />
                   <span className="text-sm flex-1 text-left">{STAGE_LABELS[s]}</span>
                   {advanceTargetStage === s && (
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -1371,11 +1370,10 @@ export default function PieceDetail({ user }) {
                 <button
                   key={s}
                   onClick={() => setAddPhotoStage(addPhotoStage === s ? null : s)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${
-                    addPhotoStage === s
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${addPhotoStage === s
                       ? 'bg-[#78350f] text-white border-[#78350f] hover:bg-[#5c2709]'
                       : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
-                  }`}
+                    }`}
                 >
                   {STAGE_LABELS[s]}
                 </button>
@@ -1448,9 +1446,8 @@ export default function PieceDetail({ user }) {
                   onClick={(e) => { e.stopPropagation(); setShowEditStageSheet(true) }}
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm active:bg-white/25 cursor-pointer hover:bg-white/25"
                 >
-                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                    photos[viewerIndex].stage === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
-                  }`} />
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${photos[viewerIndex].stage === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
+                    }`} />
                   <span className="text-white text-xs font-medium">{STAGE_LABELS[photos[viewerIndex].stage]}</span>
                   <span className="text-white/70 text-xs leading-none">›</span>
                 </button>
@@ -1527,11 +1524,10 @@ export default function PieceDetail({ user }) {
           <button
             onClick={() => handleEditStage(photos[viewerIndex]?.id, null)}
             disabled={savingStage}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors disabled:opacity-50 cursor-pointer hover:bg-stone-100 ${
-              !photos[viewerIndex]?.stage
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors disabled:opacity-50 cursor-pointer hover:bg-stone-100 ${!photos[viewerIndex]?.stage
                 ? 'bg-stone-100 border-stone-300 text-[#1c1917] font-semibold'
                 : 'border-stone-200 text-stone-500'
-            }`}
+              }`}
           >
             <span className="w-3 h-3 rounded-full border-2 border-stone-400 flex-shrink-0" />
             <span className="text-sm">No stage</span>
@@ -1541,15 +1537,13 @@ export default function PieceDetail({ user }) {
               key={s}
               onClick={() => handleEditStage(photos[viewerIndex]?.id, s)}
               disabled={savingStage}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors disabled:opacity-50 cursor-pointer hover:bg-stone-100 ${
-                photos[viewerIndex]?.stage === s
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors disabled:opacity-50 cursor-pointer hover:bg-stone-100 ${photos[viewerIndex]?.stage === s
                   ? 'bg-stone-100 border-stone-300 text-[#1c1917] font-semibold'
                   : 'border-stone-200 text-stone-600'
-              }`}
+                }`}
             >
-              <span className={`w-3 h-3 rounded-full flex-shrink-0 ${
-                s === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
-              }`} />
+              <span className={`w-3 h-3 rounded-full flex-shrink-0 ${s === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
+                }`} />
               <span className="text-sm">{STAGE_LABELS[s]}</span>
             </button>
           ))}
@@ -1575,12 +1569,16 @@ export default function PieceDetail({ user }) {
           </div>
           <div>
             <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Clay body</label>
-            <input
-              className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm text-[#1c1917] bg-stone-50"
-              placeholder="e.g. LBM"
+            <select
+              className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm text-[#1c1917] bg-stone-50 cursor-pointer"
               value={editClayBody}
               onChange={(e) => setEditClayBody(e.target.value)}
-            />
+            >
+              <option value="">— None —</option>
+              {catalogClayBodies.map(cb => (
+                <option key={cb.id} value={cb.name}>{cb.name}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Current stage</label>
@@ -1589,15 +1587,13 @@ export default function PieceDetail({ user }) {
                 <button
                   key={s}
                   onClick={() => setEditStage(s)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors cursor-pointer hover:bg-stone-100 ${
-                    editStage === s
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors cursor-pointer hover:bg-stone-100 ${editStage === s
                       ? 'bg-stone-100 border-stone-300 text-[#1c1917] font-semibold'
                       : 'border-stone-200 text-stone-600'
-                  }`}
+                    }`}
                 >
-                  <span className={`w-3 h-3 rounded-full flex-shrink-0 ${
-                    s === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
-                  }`} />
+                  <span className={`w-3 h-3 rounded-full flex-shrink-0 ${s === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
+                    }`} />
                   <span className="text-sm flex-1 text-left">{STAGE_LABELS[s]}</span>
                   {editStage === s && (
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -1607,7 +1603,6 @@ export default function PieceDetail({ user }) {
                 </button>
               ))}
             </div>
-            <p className="text-xs text-muted mt-1.5">Quietly correct the stage — no timeline event is added.</p>
           </div>
           <div>
             <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Date started</label>

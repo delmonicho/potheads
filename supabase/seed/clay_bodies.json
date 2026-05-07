@@ -453,5 +453,39 @@
     "studios": ["brooklyn-9th-st"],
     "image_url": "https://thepotterystudio.com/cdn/shop/files/Screenshot2025-03-07at12.20.42PM_195x195@2x.png",
     "source_url": "https://thepotterystudio.com/products/molochite-grog-porcelain-brooklyn"
+  },
+  {
+    "slug": "stdclay-240-white",
+    "name": "Standard Clay #240 White",
+    "manufacturer": "Standard Clay",
+    "category": "stoneware",
+    "cone": "6",
+    "atmosphere": "oxidation",
+    "color_fired": "white",
+    "hex_swatch": "#f0ece0",
+    "texture": "smooth",
+    "shrinkage_pct": 13.0,
+    "absorption_pct": 1.5,
+    "best_for": ["wheel"],
+    "notes": "Very smooth, plastic throwing body; formulated firmer for better wheel control. Shrinkage 13% / absorption 1.5% at cone 6.",
+    "studios": [],
+    "source_url": "https://www.standardclay.com/products/240-white-clay"
+  },
+  {
+    "slug": "stdclay-211-hazelnut-brown",
+    "name": "Standard Clay #211 Hazelnut Brown",
+    "manufacturer": "Standard Clay",
+    "category": "stoneware",
+    "cone": "4-6",
+    "atmosphere": "oxidation",
+    "color_fired": "warm hazelnut brown",
+    "hex_swatch": "#8b6b48",
+    "texture": "smooth",
+    "shrinkage_pct": 12.5,
+    "absorption_pct": 2.0,
+    "best_for": ["wheel", "handbuilding"],
+    "notes": "Warm brown plastic body suitable for throwing and handbuilding. Reacts well with glazes. Shrinkage 12.5% / absorption 2.0% at cone 6.",
+    "studios": [],
+    "source_url": "https://www.standardclay.com/products/211-hazelnut-brown-clay"
   }
 ]
