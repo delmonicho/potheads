@@ -13,6 +13,7 @@ import GlazeCard from '../components/catalog/GlazeCard.jsx'
 import ClayDetail from '../components/catalog/ClayDetail.jsx'
 import GlazeDetail from '../components/catalog/GlazeDetail.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
+import PageHeader from '../components/PageHeader.jsx'
 
 const CLAY_CATEGORIES = ['stoneware', 'porcelain', 'earthenware', 'sculpture']
 const CLAY_TEXTURES = ['smooth', 'fine grog', 'medium grog', 'heavy grog']
@@ -173,22 +174,7 @@ export default function Catalog({ user }) {
 
   return (
     <div className="flex flex-col min-h-screen bg-surface">
-      <header className="px-5 pt-safe bg-surface sticky top-0 z-10">
-        <div className="flex items-center justify-between pt-3 pb-3">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/board')}
-              className="text-muted hover:text-stone-600 cursor-pointer active:text-stone-600"
-              aria-label="Back"
-            >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 12H5M12 5l-7 7 7 7" />
-              </svg>
-            </button>
-            <h1 className="font-display italic text-3xl text-ink">Catalog.</h1>
-          </div>
-        </div>
-
+      <PageHeader title="Catalog." onBack={() => navigate('/board')}>
         {/* Tabs */}
         <div className="flex gap-6 border-b border-stone-200">
           {[['clay', 'Clay'], ['glazes', 'Glazes']].map(([key, label]) => (
@@ -260,7 +246,7 @@ export default function Catalog({ user }) {
             </>
           )}
         </div>
-      </header>
+      </PageHeader>
 
       <main className="flex-1 px-4 pb-24">
         {loading && (

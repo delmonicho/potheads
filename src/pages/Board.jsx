@@ -219,7 +219,7 @@ export default function Board({ user }) {
   return (
     <div className="flex flex-col min-h-screen bg-surface">
       {/* Header */}
-      <header className="px-5 pt-safe bg-surface">
+      <header className="px-5 pt-safe bg-surface sticky top-0 z-10 border-b border-line/70">
         <div className="flex items-center justify-between pt-3 pb-1">
           <p className="text-xs uppercase tracking-widest text-muted">
             Studio · {activepieces.length} {activepieces.length === 1 ? 'piece' : 'pieces'}

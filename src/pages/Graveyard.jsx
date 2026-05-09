@@ -5,6 +5,7 @@ import { getPhotosForPieces, getPhotoUrl } from '../lib/photos.js'
 import { getTagsForPieces } from '../lib/tags.js'
 import PotteryPlaceholder from '../components/PotteryPlaceholder.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
+import PageHeader from '../components/PageHeader.jsx'
 
 function SelectIcon() {
   return (
@@ -113,40 +114,28 @@ export default function Graveyard({ user }) {
 
   return (
     <div className="flex flex-col min-h-screen bg-surface">
-      <header className="px-5 pt-safe bg-surface">
-        <div className="flex items-center justify-between pt-3 pb-4">
-          <div className="flex items-center gap-3">
+      <PageHeader
+        title="Graveyard."
+        onBack={() => navigate('/board')}
+        trailing={pieces.length > 0 && (
+          selectMode ? (
             <button
-              onClick={() => navigate('/board')}
-              className="text-muted hover:text-stone-600 cursor-pointer active:text-stone-600"
-              aria-label="Back"
+              onClick={exitSelectMode}
+              className="text-xs uppercase tracking-widest text-clay font-semibold cursor-pointer hover:text-clay-dark"
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 12H5M12 5l-7 7 7 7" />
-              </svg>
+              Cancel
             </button>
-            <h1 className="font-display italic text-3xl text-ink">Graveyard.</h1>
-          </div>
-          {pieces.length > 0 && (
-            selectMode ? (
-              <button
-                onClick={exitSelectMode}
-                className="text-xs uppercase tracking-widest text-clay font-semibold cursor-pointer hover:text-clay-dark"
-              >
-                Cancel
-              </button>
-            ) : (
-              <button
-                onClick={() => setSelectMode(true)}
-                className="text-muted active:text-stone-600 cursor-pointer hover:text-stone-600"
-                aria-label="Select pieces"
-              >
-                <SelectIcon />
-              </button>
-            )
-          )}
-        </div>
-      </header>
+          ) : (
+            <button
+              onClick={() => setSelectMode(true)}
+              className="text-muted active:text-stone-600 cursor-pointer hover:text-stone-600"
+              aria-label="Select pieces"
+            >
+              <SelectIcon />
+            </button>
+          )
+        )}
+      />
 
       <main className="flex-1 px-4 py-2 pb-24">
         {loading && (
