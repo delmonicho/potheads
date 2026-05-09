@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
-import { addPiece, getClayBodies, STAGES, STAGE_LABELS } from '../lib/pieces.js'
+import { useState } from 'react'
+import { addPiece, STAGES, STAGE_LABELS } from '../lib/pieces.js'
 import { uploadPhoto } from '../lib/photos.js'
 import { getOrCreateTag, addTagToPiece, PRESET_TAGS } from '../lib/tags.js'
 import BottomSheet from './BottomSheet.jsx'
+import ClayBodyPicker from './ClayBodyPicker.jsx'
 
 const FORM_TAGS = PRESET_TAGS.form
 
@@ -15,11 +16,6 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
   const [previews, setPreviews] = useState([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
-  const [clayBodyOptions, setClayBodyOptions] = useState([])
-
-  useEffect(() => {
-    if (open) getClayBodies(user.id).then(setClayBodyOptions).catch(() => { })
-  }, [open, user.id])
 
   function reset() {
     setName('')
@@ -132,19 +128,7 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
         {/* Clay body */}
         <div>
           <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Clay Body</label>
-          <input
-            type="text"
-            list="clay-body-options"
-            className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm text-[#1c1917] bg-white placeholder:text-muted"
-            placeholder="e.g. Speckled buff"
-            value={clayBody}
-            onChange={(e) => setClayBody(e.target.value)}
-          />
-          {clayBodyOptions.length > 0 && (
-            <datalist id="clay-body-options">
-              {clayBodyOptions.map(opt => <option key={opt} value={opt} />)}
-            </datalist>
-          )}
+          <ClayBodyPicker value={clayBody} onChange={setClayBody} userId={user.id} />
         </div>
 
         {/* Stage selector */}
