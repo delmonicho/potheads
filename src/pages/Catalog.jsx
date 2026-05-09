@@ -302,7 +302,7 @@ export default function Catalog({ user }) {
           </div>
         )}
         {!loading && !error && visible.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 pt-2">
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3 pt-2">
             {isClay
               ? filteredClay.map(c => (
                   <ClayCard
