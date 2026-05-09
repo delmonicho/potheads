@@ -355,7 +355,7 @@ export default function Board({ user }) {
               <h2 className="font-display italic text-2xl text-ink capitalize">{label}</h2>
               <span className="text-sm text-muted tabular-nums">{String(groupPieces.length).padStart(2, '0')}</span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-3 sm:gap-4">
               {groupPieces.map((piece) => (
                 <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
               ))}
@@ -368,7 +368,7 @@ export default function Board({ user }) {
               <h2 className="font-display italic text-2xl text-ink capitalize">{label}</h2>
               <span className="text-sm text-muted tabular-nums">{String(groupPieces.length).padStart(2, '0')}</span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-3 sm:gap-4">
               {groupPieces.map((piece) => (
                 <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
               ))}

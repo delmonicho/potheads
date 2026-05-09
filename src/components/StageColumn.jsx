@@ -17,7 +17,7 @@ export const PieceCard = memo(function PieceCard({ piece, thumbUrl, formTag, sel
 
   return (
     <div
-      className="flex flex-col rounded-2xl overflow-hidden active:opacity-75 cursor-pointer hover:opacity-90 relative"
+      className="flex flex-col rounded-2xl overflow-hidden bg-surface-raised border border-line shadow-sm hover:shadow-md transition-shadow active:opacity-90 cursor-pointer relative"
       onClick={handleTap}
     >
       {/* Square photo thumbnail */}
@@ -52,10 +52,10 @@ export const PieceCard = memo(function PieceCard({ piece, thumbUrl, formTag, sel
       )}
 
       {/* Card footer */}
-      <div className="px-1.5 py-1.5 bg-surface">
-        <p className="text-xs font-semibold text-ink truncate leading-snug">{piece.name}</p>
+      <div className="px-3 py-2.5 bg-surface-raised">
+        <p className="text-sm font-semibold text-ink truncate leading-snug">{piece.name}</p>
         {formTag && (
-          <p className="text-[9px] uppercase tracking-widest text-muted mt-0.5 truncate">{formTag}</p>
+          <p className="text-[10px] uppercase tracking-widest text-muted mt-1 truncate">{formTag}</p>
         )}
       </div>
     </div>
@@ -75,7 +75,7 @@ export default memo(function StageColumn({ stage, pieces, thumbUrls, formTags, s
           {String(pieces.length).padStart(2, '0')}
         </span>
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-3 sm:gap-4">
         {pieces.map((piece) => (
           <PieceCard
             key={piece.id}
