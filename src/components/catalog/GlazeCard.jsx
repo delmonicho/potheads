@@ -6,7 +6,7 @@ function GlazeCard({ glaze, favorite, onToggleFavorite, onOpen }) {
     <button
       type="button"
       onClick={() => onOpen(glaze)}
-      className="relative flex flex-col bg-white rounded-2xl overflow-hidden border border-stone-200 cursor-pointer hover:border-[#4a7c59]/40 hover:shadow-sm active:scale-[0.99] transition-all text-left"
+      className="relative flex flex-col bg-white rounded-2xl overflow-hidden border border-stone-200 cursor-pointer hover:border-stage-complete/40 hover:shadow-sm active:scale-[0.99] transition-all text-left"
     >
       <div
         className="aspect-square w-full"
@@ -19,14 +19,14 @@ function GlazeCard({ glaze, favorite, onToggleFavorite, onOpen }) {
       </div>
       <div className="p-3 flex flex-col gap-1.5">
         <div>
-          <p className="text-sm font-semibold text-[#1c1917] leading-tight">{glaze.name}</p>
+          <p className="text-sm font-semibold text-ink leading-tight">{glaze.name}</p>
           {glaze.family && (
             <p className="text-[11px] text-muted">{glaze.family}</p>
           )}
         </div>
         <div className="flex flex-wrap gap-1">
           {glaze.finish && (
-            <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#4a7c59]/10 text-[#4a7c59]">
+            <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-stage-complete/10 text-stage-complete">
               {glaze.finish}
             </span>
           )}

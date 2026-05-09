@@ -23,7 +23,7 @@ export default function Login() {
       <div className="flex flex-col items-center gap-6 w-full max-w-xs">
         {/* Logo / branding */}
         <div className="flex flex-col items-center gap-2">
-          <h1 className="font-display italic text-5xl text-[#1c1917]">Potheads.</h1>
+          <h1 className="font-display italic text-5xl text-ink">Potheads.</h1>
           <p className="text-muted text-sm text-center tracking-wide">Track your pottery from wheel to kiln</p>
         </div>
 

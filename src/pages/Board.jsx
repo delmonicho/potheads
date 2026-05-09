@@ -217,9 +217,9 @@ export default function Board({ user }) {
   const userInitial = (user.user_metadata?.full_name || user.email || '?')[0].toUpperCase()
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#fafaf9]">
+    <div className="flex flex-col min-h-screen bg-surface">
       {/* Header */}
-      <header className="px-5 pt-safe bg-[#fafaf9]">
+      <header className="px-5 pt-safe bg-surface">
         <div className="flex items-center justify-between pt-3 pb-1">
           <p className="text-xs uppercase tracking-widest text-muted">
             Studio · {activepieces.length} {activepieces.length === 1 ? 'piece' : 'pieces'}
@@ -228,7 +228,7 @@ export default function Board({ user }) {
             {selectMode ? (
               <button
                 onClick={exitSelectMode}
-                className="text-xs uppercase tracking-widest text-[#78350f] font-semibold cursor-pointer hover:text-[#5c2709]"
+                className="text-xs uppercase tracking-widest text-clay font-semibold cursor-pointer hover:text-clay-dark"
               >
                 Cancel
               </button>
@@ -257,7 +257,7 @@ export default function Board({ user }) {
             </button>
             <button
               onClick={() => setShowProfile(true)}
-              className="w-9 h-9 rounded-full bg-[#78350f] flex items-center justify-center active:bg-[#5c2709] cursor-pointer hover:bg-[#5c2709]"
+              className="w-9 h-9 rounded-full bg-clay flex items-center justify-center active:bg-clay-dark cursor-pointer hover:bg-clay-dark"
               aria-label="Profile"
             >
               <span className="text-white text-sm font-semibold">{userInitial}</span>
@@ -265,18 +265,18 @@ export default function Board({ user }) {
           </div>
         </div>
         <div className="flex items-baseline justify-between pb-3">
-          <h1 className="font-display italic text-4xl text-[#1c1917]">Potheads.</h1>
+          <h1 className="font-display italic text-4xl text-ink">Potheads.</h1>
           <div className="relative flex items-center">
             <select
               value={viewMode}
               onChange={e => setViewMode(e.target.value)}
-              className="appearance-none text-xs uppercase tracking-widest font-semibold text-[#78350f] bg-transparent border-none cursor-pointer pr-4 focus:outline-none"
+              className="appearance-none text-xs uppercase tracking-widest font-semibold text-clay bg-transparent border-none cursor-pointer pr-4 focus:outline-none"
             >
               <option value="stage">Stage</option>
               <option value="clay_body">Clay Body</option>
               <option value="glaze">Glaze</option>
             </select>
-            <svg className="pointer-events-none absolute right-0 text-[#78350f]" width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+            <svg className="pointer-events-none absolute right-0 text-clay" width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
               <path d="M0 3l5 5 5-5H0z" />
             </svg>
           </div>
@@ -287,7 +287,7 @@ export default function Board({ user }) {
       <main className="flex-1 overflow-y-auto px-4 py-4 pb-24">
         {loading && (
           <div className="flex justify-center py-12">
-            <div className="w-8 h-8 border-4 border-[#78350f] border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-4 border-clay border-t-transparent rounded-full animate-spin" />
           </div>
         )}
         {error && (
@@ -308,7 +308,7 @@ export default function Board({ user }) {
 {!loading && !error && viewMode === 'clay_body' && clayBodyGroups.map(({ key, label, pieces: groupPieces }) => (
           <div key={key} className="mb-8">
             <div className="flex items-baseline justify-between mb-3 border-b border-stone-200 pb-2">
-              <h2 className="font-display italic text-2xl text-[#1c1917] capitalize">{label}</h2>
+              <h2 className="font-display italic text-2xl text-ink capitalize">{label}</h2>
               <span className="text-sm text-muted tabular-nums">{String(groupPieces.length).padStart(2, '0')}</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
@@ -321,7 +321,7 @@ export default function Board({ user }) {
         {!loading && !error && viewMode === 'glaze' && glazeGroups.map(({ key, label, pieces: groupPieces }) => (
           <div key={key} className="mb-8">
             <div className="flex items-baseline justify-between mb-3 border-b border-stone-200 pb-2">
-              <h2 className="font-display italic text-2xl text-[#1c1917] capitalize">{label}</h2>
+              <h2 className="font-display italic text-2xl text-ink capitalize">{label}</h2>
               <span className="text-sm text-muted tabular-nums">{String(groupPieces.length).padStart(2, '0')}</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
@@ -337,7 +337,7 @@ export default function Board({ user }) {
       {!selectMode && (
         <button
           onClick={() => setShowAddPiece(true)}
-          className="fixed bottom-8 right-5 w-14 h-14 bg-[#78350f] text-white text-3xl rounded-full shadow-lg flex items-center justify-center active:bg-[#5c2709] cursor-pointer hover:bg-[#5c2709]"
+          className="fixed bottom-8 right-5 w-14 h-14 bg-clay text-white text-3xl rounded-full shadow-lg flex items-center justify-center active:bg-clay-dark cursor-pointer hover:bg-clay-dark"
           aria-label="Add piece"
         >
           +
@@ -354,7 +354,7 @@ export default function Board({ user }) {
             <button
               onClick={() => setShowTagSheet(true)}
               disabled={bulkSaving}
-              className="px-4 py-2 rounded-xl border border-stone-300 text-sm text-[#1c1917] font-medium active:bg-stone-100 disabled:opacity-50 cursor-pointer hover:bg-stone-100"
+              className="px-4 py-2 rounded-xl border border-stone-300 text-sm text-ink font-medium active:bg-stone-100 disabled:opacity-50 cursor-pointer hover:bg-stone-100"
             >
               Edit Tags
             </button>
@@ -383,7 +383,7 @@ export default function Board({ user }) {
         title="Account"
       >
         <div className="flex flex-col gap-2 pb-4">
-          <p className="text-sm text-[#1c1917] font-medium">{user.user_metadata?.full_name || user.email}</p>
+          <p className="text-sm text-ink font-medium">{user.user_metadata?.full_name || user.email}</p>
           <p className="text-xs text-muted">{user.email}</p>
           <button
             onClick={handleLogout}
@@ -433,7 +433,7 @@ export default function Board({ user }) {
           )}
           <button
             onClick={handleTagSheetDone}
-            className="w-full bg-[#78350f] text-white font-semibold py-3.5 rounded-2xl active:bg-[#5c2709] mb-2 cursor-pointer hover:bg-[#5c2709]"
+            className="w-full bg-clay text-white font-semibold py-3.5 rounded-2xl active:bg-clay-dark mb-2 cursor-pointer hover:bg-clay-dark"
           >
             Done
           </button>

@@ -6,7 +6,7 @@ function Field({ label, value }) {
   return (
     <div className="flex flex-col gap-0.5">
       <span className="text-[10px] uppercase tracking-widest text-muted">{label}</span>
-      <span className="text-sm text-[#1c1917]">{value}</span>
+      <span className="text-sm text-ink">{value}</span>
     </div>
   )
 }
@@ -25,7 +25,7 @@ export default function ClayDetail({ clay, favorite, onToggleFavorite }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <h3 className="text-lg font-semibold text-[#1c1917] leading-tight">{clay.name}</h3>
+              <h3 className="text-lg font-semibold text-ink leading-tight">{clay.name}</h3>
               {clay.manufacturer && (
                 <p className="text-sm text-muted mt-0.5">{clay.manufacturer}</p>
               )}
@@ -42,7 +42,7 @@ export default function ClayDetail({ clay, favorite, onToggleFavorite }) {
       {bestFor.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {bestFor.map(b => (
-            <span key={b} className="text-xs px-2.5 py-1 rounded-full bg-[#78350f]/10 text-[#78350f]">
+            <span key={b} className="text-xs px-2.5 py-1 rounded-full bg-clay/10 text-clay">
               {b}
             </span>
           ))}
@@ -62,7 +62,7 @@ export default function ClayDetail({ clay, favorite, onToggleFavorite }) {
       {clay.notes && (
         <div className="flex flex-col gap-1">
           <span className="text-[10px] uppercase tracking-widest text-muted">Notes</span>
-          <p className="text-sm text-[#1c1917] leading-relaxed whitespace-pre-line">{clay.notes}</p>
+          <p className="text-sm text-ink leading-relaxed whitespace-pre-line">{clay.notes}</p>
         </div>
       )}
 
@@ -80,7 +80,7 @@ export default function ClayDetail({ clay, favorite, onToggleFavorite }) {
           href={clay.source_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-[#78350f] hover:text-[#5c2709] underline self-start cursor-pointer"
+          className="text-xs text-clay hover:text-clay-dark underline self-start cursor-pointer"
         >
           View on The Pottery Studio →
         </a>

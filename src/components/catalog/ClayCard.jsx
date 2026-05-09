@@ -6,7 +6,7 @@ function ClayCard({ clay, favorite, onToggleFavorite, onOpen }) {
     <button
       type="button"
       onClick={() => onOpen(clay)}
-      className="relative flex flex-col bg-white rounded-2xl overflow-hidden border border-stone-200 cursor-pointer hover:border-[#78350f]/40 hover:shadow-sm active:scale-[0.99] transition-all text-left"
+      className="relative flex flex-col bg-white rounded-2xl overflow-hidden border border-stone-200 cursor-pointer hover:border-clay/40 hover:shadow-sm active:scale-[0.99] transition-all text-left"
     >
       <div
         className="aspect-square w-full"
@@ -19,18 +19,18 @@ function ClayCard({ clay, favorite, onToggleFavorite, onOpen }) {
       </div>
       <div className="p-3 flex flex-col gap-1.5">
         <div>
-          <p className="text-sm font-semibold text-[#1c1917] leading-tight">{clay.name}</p>
+          <p className="text-sm font-semibold text-ink leading-tight">{clay.name}</p>
           {clay.manufacturer && (
             <p className="text-[11px] text-muted">{clay.manufacturer}</p>
           )}
         </div>
         <div className="flex flex-wrap gap-1">
           {clay.texture && (
-            <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-stone-100 text-[#7c5545]">
+            <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-stone-100 text-muted">
               {clay.texture}
             </span>
           )}
-          <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#78350f]/10 text-[#78350f]">
+          <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-clay/10 text-clay">
             {clay.category}
           </span>
         </div>

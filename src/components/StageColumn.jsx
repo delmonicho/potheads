@@ -36,10 +36,10 @@ export const PieceCard = memo(function PieceCard({ piece, thumbUrl, formTag, sel
 
       {/* Selection overlay */}
       {selectMode && (
-        <div className={`absolute inset-0 rounded-2xl transition-colors ${selected ? 'bg-[#78350f]/20' : ''}`}>
+        <div className={`absolute inset-0 rounded-2xl transition-colors ${selected ? 'bg-clay/20' : ''}`}>
           <div className={`absolute top-2 left-2 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
             selected
-              ? 'bg-[#78350f] border-[#78350f]'
+              ? 'bg-clay border-clay'
               : 'bg-white/70 border-white'
           }`}>
             {selected && (
@@ -52,8 +52,8 @@ export const PieceCard = memo(function PieceCard({ piece, thumbUrl, formTag, sel
       )}
 
       {/* Card footer */}
-      <div className="px-1.5 py-1.5 bg-[#fafaf9]">
-        <p className="text-xs font-semibold text-[#1c1917] truncate leading-snug">{piece.name}</p>
+      <div className="px-1.5 py-1.5 bg-surface">
+        <p className="text-xs font-semibold text-ink truncate leading-snug">{piece.name}</p>
         {formTag && (
           <p className="text-[9px] uppercase tracking-widest text-muted mt-0.5 truncate">{formTag}</p>
         )}
@@ -68,7 +68,7 @@ export default memo(function StageColumn({ stage, pieces, thumbUrls, formTags, s
   return (
     <div className="mb-8">
       <div className="flex items-baseline justify-between mb-3 border-b border-stone-200 pb-2">
-        <h2 className="font-display italic text-2xl text-[#1c1917]">
+        <h2 className="font-display italic text-2xl text-ink">
           {STAGE_LABELS[stage]}
         </h2>
         <span className="text-sm text-muted tabular-nums">

@@ -770,17 +770,17 @@ export default function PieceDetail({ user }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#fafaf9]">
-        <div className="w-8 h-8 border-4 border-[#78350f] border-t-transparent rounded-full animate-spin" />
+      <div className="flex items-center justify-center min-h-screen bg-surface">
+        <div className="w-8 h-8 border-4 border-clay border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
   if (error || !piece) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#fafaf9] px-4">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-surface px-4">
         <p className="text-red-600 text-sm">{error || 'Piece not found'}</p>
-        <button onClick={() => navigate('/board')} className="mt-4 text-[#78350f] underline text-sm cursor-pointer hover:text-[#5c2709]">Go back</button>
+        <button onClick={() => navigate('/board')} className="mt-4 text-clay underline text-sm cursor-pointer hover:text-clay-dark">Go back</button>
       </div>
     )
   }
@@ -798,7 +798,7 @@ export default function PieceDetail({ user }) {
 
   return (
     <>
-      <div className="relative min-h-screen overflow-hidden bg-[#fafaf9]">
+      <div className="relative min-h-screen overflow-hidden bg-surface">
         {/* Previous-piece peek panel — 8px sliver visible at rest as a
           page-turn affordance. The right edge gets a soft shadow that reads
           as a catalog-page gutter against the active page. */}
@@ -833,7 +833,7 @@ export default function PieceDetail({ user }) {
           inner overflow:auto descendant before our threshold trips. */}
         <div
           ref={swipeWrapperRef}
-          className="relative flex flex-col h-[100dvh] overflow-y-auto overscroll-y-contain bg-[#fafaf9]"
+          className="relative flex flex-col h-[100dvh] overflow-y-auto overscroll-y-contain bg-surface"
           style={{
             transform: `translate3d(${wrapperOffset}px, 0, 0)`,
             transition: wrapperTransition,
@@ -861,7 +861,7 @@ export default function PieceDetail({ user }) {
             <button
               onClick={(e) => { e.stopPropagation(); navigate('/board') }}
               style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}
-              className="absolute left-4 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center text-[#1c1917] text-2xl leading-none cursor-pointer hover:bg-white"
+              className="absolute left-4 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center text-ink text-2xl leading-none cursor-pointer hover:bg-white"
               aria-label="Back"
             >
               ‹
@@ -870,7 +870,7 @@ export default function PieceDetail({ user }) {
             {/* Stage pill — bottom-left */}
             {photos[heroIndex]?.stage && (
               <div className="absolute bottom-3 left-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-sm pointer-events-none">
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${photos[heroIndex].stage === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
+                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${photos[heroIndex].stage === 'finished' ? 'bg-stage-complete' : 'bg-clay'
                   }`} />
                 <span className="text-white text-xs font-medium leading-none">
                   {STAGE_LABELS[photos[heroIndex].stage]}
@@ -914,10 +914,10 @@ export default function PieceDetail({ user }) {
                 )}
               </p>
               <div className="flex items-start justify-between gap-3">
-                <h1 className="text-3xl font-semibold text-[#1c1917] leading-tight">{piece.name}</h1>
+                <h1 className="text-3xl font-semibold text-ink leading-tight">{piece.name}</h1>
                 <button
                   onClick={openEditPiece}
-                  className="text-[#78350f] text-sm font-medium flex-shrink-0 mt-1.5 cursor-pointer hover:text-[#5c2709]"
+                  className="text-clay text-sm font-medium flex-shrink-0 mt-1.5 cursor-pointer hover:text-clay-dark"
                 >
                   Edit
                 </button>
@@ -926,7 +926,7 @@ export default function PieceDetail({ user }) {
                 <p className="text-sm text-muted mt-1">{piece.clay_body}</p>
               )}
               {piece.notes && (
-                <p className="text-sm text-[#1c1917] mt-2 leading-relaxed">{piece.notes}</p>
+                <p className="text-sm text-ink mt-2 leading-relaxed">{piece.notes}</p>
               )}
             </div>
 
@@ -947,29 +947,29 @@ export default function PieceDetail({ user }) {
                       {/* Timeline column */}
                       <div className="flex flex-col items-center">
                         {status === 'complete' && (
-                          <div className="w-6 h-6 rounded-full bg-[#4a7c59] flex items-center justify-center flex-shrink-0">
+                          <div className="w-6 h-6 rounded-full bg-stage-complete flex items-center justify-center flex-shrink-0">
                             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                               <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                           </div>
                         )}
                         {status === 'current' && stage !== 'finished' && (
-                          <div className="w-6 h-6 rounded-full bg-[#78350f] flex items-center justify-center flex-shrink-0">
+                          <div className="w-6 h-6 rounded-full bg-clay flex items-center justify-center flex-shrink-0">
                             <div className="w-2.5 h-2.5 rounded-full bg-white" />
                           </div>
                         )}
                         {status === 'current' && stage === 'finished' && (
-                          <div className="w-6 h-6 rounded-full bg-[#4a7c59] flex items-center justify-center flex-shrink-0">
+                          <div className="w-6 h-6 rounded-full bg-stage-complete flex items-center justify-center flex-shrink-0">
                             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                               <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                           </div>
                         )}
                         {status === 'pending' && (
-                          <div className="w-6 h-6 rounded-full border-2 border-[#d4c5b0] flex-shrink-0" />
+                          <div className="w-6 h-6 rounded-full border-2 border-line-strong flex-shrink-0" />
                         )}
                         {!isLast && (
-                          <div className="w-px flex-1 min-h-[28px] bg-[#d4c5b0] my-1" />
+                          <div className="w-px flex-1 min-h-[28px] bg-line-strong my-1" />
                         )}
                       </div>
 
@@ -977,8 +977,8 @@ export default function PieceDetail({ user }) {
                       <div className={`flex-1 flex items-start justify-between ${isLast ? 'pb-0' : 'pb-5'}`}>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
-                            <p className={`font-medium leading-tight ${status === 'current' ? 'text-[#78350f]' :
-                                status === 'complete' ? 'text-[#4a7c59]' :
+                            <p className={`font-medium leading-tight ${status === 'current' ? 'text-clay' :
+                                status === 'complete' ? 'text-stage-complete' :
                                   'text-muted'
                               }`}>
                               {STAGE_LABELS[stage]}
@@ -1020,7 +1020,7 @@ export default function PieceDetail({ user }) {
                               setAdvanceTargetStage(next || piece.current_stage)
                               setShowAdvanceSheet(true)
                             }}
-                            className="ml-3 px-4 py-1.5 bg-[#78350f] text-white text-xs font-semibold rounded-full uppercase tracking-wide active:bg-[#5c2709] flex-shrink-0 cursor-pointer hover:bg-[#5c2709]"
+                            className="ml-3 px-4 py-1.5 bg-clay text-white text-xs font-semibold rounded-full uppercase tracking-wide active:bg-clay-dark flex-shrink-0 cursor-pointer hover:bg-clay-dark"
                           >
                             Advance
                           </button>
@@ -1036,7 +1036,7 @@ export default function PieceDetail({ user }) {
             <div className="px-5 py-4 pb-6 border-t border-stone-100">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs uppercase tracking-widest text-muted">Tags</p>
-                <button onClick={() => setShowTagSheet(true)} className="text-[#78350f] text-sm font-medium cursor-pointer hover:text-[#5c2709]">
+                <button onClick={() => setShowTagSheet(true)} className="text-clay text-sm font-medium cursor-pointer hover:text-clay-dark">
                   Edit
                 </button>
               </div>
@@ -1071,11 +1071,11 @@ export default function PieceDetail({ user }) {
                   key={s}
                   onClick={() => setAdvanceTargetStage(s)}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors cursor-pointer hover:bg-stone-100 ${advanceTargetStage === s
-                      ? 'bg-stone-100 border-stone-300 text-[#1c1917] font-semibold'
+                      ? 'bg-stone-100 border-stone-300 text-ink font-semibold'
                       : 'border-stone-200 text-stone-600'
                     }`}
                 >
-                  <span className={`w-3 h-3 rounded-full flex-shrink-0 ${s === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
+                  <span className={`w-3 h-3 rounded-full flex-shrink-0 ${s === 'finished' ? 'bg-stage-complete' : 'bg-clay'
                     }`} />
                   <span className="text-sm flex-1 text-left">{STAGE_LABELS[s]}</span>
                   {advanceTargetStage === s && (
@@ -1090,7 +1090,7 @@ export default function PieceDetail({ user }) {
           <div>
             <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Note (optional)</label>
             <textarea
-              className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-[#1c1917] bg-stone-50 resize-none"
+              className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-ink bg-stone-50 resize-none"
               rows={3}
               placeholder="Any notes about this stage…"
               value={advanceNote}
@@ -1109,7 +1109,7 @@ export default function PieceDetail({ user }) {
           <button
             onClick={handleAdvance}
             disabled={advancing || !advanceTargetStage}
-            className="w-full bg-[#78350f] text-white font-semibold py-3 rounded-2xl active:bg-[#5c2709] disabled:opacity-50 cursor-pointer hover:bg-[#5c2709]"
+            className="w-full bg-clay text-white font-semibold py-3 rounded-2xl active:bg-clay-dark disabled:opacity-50 cursor-pointer hover:bg-clay-dark"
           >
             {advancing ? 'Saving…' : `Confirm${advanceTargetStage ? ` move to ${STAGE_LABELS[advanceTargetStage]}` : ''}`}
           </button>
@@ -1177,7 +1177,7 @@ export default function PieceDetail({ user }) {
           <div>
             <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Name</label>
             <input
-              className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm bg-stone-50 text-[#1c1917]"
+              className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm bg-stone-50 text-ink"
               placeholder={addTagCategory === 'glaze' ? 'e.g. cobalt blue' : 'e.g. yunomi'}
               value={addTagName}
               autoFocus
@@ -1241,7 +1241,7 @@ export default function PieceDetail({ user }) {
           <button
             onClick={handleAddCustomTag}
             disabled={!addTagName.trim() || !!togglingTag}
-            className="w-full bg-[#78350f] text-white font-semibold py-3 rounded-2xl active:bg-[#5c2709] disabled:opacity-40 cursor-pointer hover:bg-[#5c2709]"
+            className="w-full bg-clay text-white font-semibold py-3 rounded-2xl active:bg-clay-dark disabled:opacity-40 cursor-pointer hover:bg-clay-dark"
           >
             {togglingTag ? 'Saving…' : 'Add tag'}
           </button>
@@ -1280,7 +1280,7 @@ export default function PieceDetail({ user }) {
                       key={p.id}
                       type="button"
                       onClick={() => togglePhotoSelected(p.id)}
-                      className={`relative aspect-square rounded-xl overflow-hidden bg-stone-100 cursor-pointer hover:opacity-90 active:opacity-80 ${selected ? 'ring-2 ring-[#78350f]' : ''}`}
+                      className={`relative aspect-square rounded-xl overflow-hidden bg-stone-100 cursor-pointer hover:opacity-90 active:opacity-80 ${selected ? 'ring-2 ring-clay' : ''}`}
                       aria-pressed={selected}
                     >
                       {url ? (
@@ -1288,12 +1288,12 @@ export default function PieceDetail({ user }) {
                       ) : (
                         <div className="w-full h-full bg-stone-200" />
                       )}
-                      <div className={`absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center transition-colors ${selected ? 'bg-[#78350f] text-white' : 'bg-white/80 text-transparent border border-stone-300'}`}>
+                      <div className={`absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center transition-colors ${selected ? 'bg-clay text-white' : 'bg-white/80 text-transparent border border-stone-300'}`}>
                         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M2 6l3 3 5-5" />
                         </svg>
                       </div>
-                      {selected && <div className="absolute inset-0 bg-[#78350f]/15 pointer-events-none" />}
+                      {selected && <div className="absolute inset-0 bg-clay/15 pointer-events-none" />}
                     </button>
                   )
                 })}
@@ -1369,7 +1369,7 @@ export default function PieceDetail({ user }) {
                   key={s}
                   onClick={() => setAddPhotoStage(addPhotoStage === s ? null : s)}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${addPhotoStage === s
-                      ? 'bg-[#78350f] text-white border-[#78350f] hover:bg-[#5c2709]'
+                      ? 'bg-clay text-white border-clay hover:bg-clay-dark'
                       : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
                     }`}
                 >
@@ -1382,7 +1382,7 @@ export default function PieceDetail({ user }) {
           <div>
             <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Note (optional)</label>
             <textarea
-              className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-[#1c1917] bg-stone-50 resize-none"
+              className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-ink bg-stone-50 resize-none"
               rows={2}
               placeholder="Any notes about this photo…"
               value={addPhotoNote}
@@ -1394,7 +1394,7 @@ export default function PieceDetail({ user }) {
             <button
               onClick={handleAddPhoto}
               disabled={addingPhoto}
-              className="w-full bg-[#78350f] text-white font-semibold py-3 rounded-2xl active:bg-[#5c2709] disabled:opacity-50 cursor-pointer hover:bg-[#5c2709]"
+              className="w-full bg-clay text-white font-semibold py-3 rounded-2xl active:bg-clay-dark disabled:opacity-50 cursor-pointer hover:bg-clay-dark"
             >
               {addingPhoto ? 'Uploading…' : `Upload ${addPhotoFiles.length} ${addPhotoFiles.length === 1 ? 'photo' : 'photos'}`}
             </button>
@@ -1444,7 +1444,7 @@ export default function PieceDetail({ user }) {
                   onClick={(e) => { e.stopPropagation(); setShowEditStageSheet(true) }}
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm active:bg-white/25 cursor-pointer hover:bg-white/25"
                 >
-                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${photos[viewerIndex].stage === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${photos[viewerIndex].stage === 'finished' ? 'bg-stage-complete' : 'bg-clay'
                     }`} />
                   <span className="text-white text-xs font-medium">{STAGE_LABELS[photos[viewerIndex].stage]}</span>
                   <span className="text-white/70 text-xs leading-none">›</span>
@@ -1523,7 +1523,7 @@ export default function PieceDetail({ user }) {
             onClick={() => handleEditStage(photos[viewerIndex]?.id, null)}
             disabled={savingStage}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors disabled:opacity-50 cursor-pointer hover:bg-stone-100 ${!photos[viewerIndex]?.stage
-                ? 'bg-stone-100 border-stone-300 text-[#1c1917] font-semibold'
+                ? 'bg-stone-100 border-stone-300 text-ink font-semibold'
                 : 'border-stone-200 text-stone-500'
               }`}
           >
@@ -1536,11 +1536,11 @@ export default function PieceDetail({ user }) {
               onClick={() => handleEditStage(photos[viewerIndex]?.id, s)}
               disabled={savingStage}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors disabled:opacity-50 cursor-pointer hover:bg-stone-100 ${photos[viewerIndex]?.stage === s
-                  ? 'bg-stone-100 border-stone-300 text-[#1c1917] font-semibold'
+                  ? 'bg-stone-100 border-stone-300 text-ink font-semibold'
                   : 'border-stone-200 text-stone-600'
                 }`}
             >
-              <span className={`w-3 h-3 rounded-full flex-shrink-0 ${s === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
+              <span className={`w-3 h-3 rounded-full flex-shrink-0 ${s === 'finished' ? 'bg-stage-complete' : 'bg-clay'
                 }`} />
               <span className="text-sm">{STAGE_LABELS[s]}</span>
             </button>
@@ -1559,7 +1559,7 @@ export default function PieceDetail({ user }) {
           <div>
             <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Name</label>
             <input
-              className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm text-[#1c1917] bg-stone-50"
+              className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm text-ink bg-stone-50"
               placeholder="e.g. Curved mug"
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
@@ -1577,11 +1577,11 @@ export default function PieceDetail({ user }) {
                   key={s}
                   onClick={() => setEditStage(s)}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors cursor-pointer hover:bg-stone-100 ${editStage === s
-                      ? 'bg-stone-100 border-stone-300 text-[#1c1917] font-semibold'
+                      ? 'bg-stone-100 border-stone-300 text-ink font-semibold'
                       : 'border-stone-200 text-stone-600'
                     }`}
                 >
-                  <span className={`w-3 h-3 rounded-full flex-shrink-0 ${s === 'finished' ? 'bg-[#4a7c59]' : 'bg-[#78350f]'
+                  <span className={`w-3 h-3 rounded-full flex-shrink-0 ${s === 'finished' ? 'bg-stage-complete' : 'bg-clay'
                     }`} />
                   <span className="text-sm flex-1 text-left">{STAGE_LABELS[s]}</span>
                   {editStage === s && (
@@ -1597,7 +1597,7 @@ export default function PieceDetail({ user }) {
             <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Date started</label>
             <input
               type="date"
-              className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm text-[#1c1917] bg-stone-50"
+              className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm text-ink bg-stone-50"
               value={editCreatedAt}
               onChange={(e) => setEditCreatedAt(e.target.value)}
             />
@@ -1605,7 +1605,7 @@ export default function PieceDetail({ user }) {
           <div>
             <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Notes</label>
             <textarea
-              className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm text-[#1c1917] bg-stone-50 resize-none"
+              className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm text-ink bg-stone-50 resize-none"
               rows={3}
               placeholder="Any details about this piece…"
               value={editNotes}
@@ -1615,7 +1615,7 @@ export default function PieceDetail({ user }) {
           <button
             onClick={handleSavePiece}
             disabled={savingPiece || !editName.trim()}
-            className="w-full bg-[#78350f] text-white font-semibold py-3 rounded-2xl active:bg-[#5c2709] disabled:opacity-50 cursor-pointer hover:bg-[#5c2709]"
+            className="w-full bg-clay text-white font-semibold py-3 rounded-2xl active:bg-clay-dark disabled:opacity-50 cursor-pointer hover:bg-clay-dark"
           >
             {savingPiece ? 'Saving…' : 'Save'}
           </button>
@@ -1633,13 +1633,13 @@ export default function PieceDetail({ user }) {
             <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Date</label>
             <input
               type="date"
-              className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-[#1c1917] bg-stone-50"
+              className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-ink bg-stone-50"
               value={noteDate}
               onChange={(e) => setNoteDate(e.target.value)}
             />
           </div>
           <textarea
-            className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-[#1c1917] bg-stone-50 resize-none"
+            className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-ink bg-stone-50 resize-none"
             rows={4}
             placeholder="Anything worth remembering about this stage…"
             value={noteText}
@@ -1649,7 +1649,7 @@ export default function PieceDetail({ user }) {
           <button
             onClick={handleSaveNote}
             disabled={savingNote}
-            className="w-full bg-[#78350f] text-white font-semibold py-3 rounded-2xl active:bg-[#5c2709] disabled:opacity-50 cursor-pointer hover:bg-[#5c2709]"
+            className="w-full bg-clay text-white font-semibold py-3 rounded-2xl active:bg-clay-dark disabled:opacity-50 cursor-pointer hover:bg-clay-dark"
           >
             {savingNote ? 'Saving…' : 'Save note'}
           </button>
@@ -1661,8 +1661,8 @@ export default function PieceDetail({ user }) {
 
 function PiecePreview({ preview }) {
   return (
-    <div className="flex flex-col min-h-screen bg-[#fafaf9]">
-      <div className="relative h-[40vh] flex-shrink-0 bg-[#c4a882] overflow-hidden">
+    <div className="flex flex-col min-h-screen bg-surface">
+      <div className="relative h-[40vh] flex-shrink-0 bg-tan overflow-hidden">
         {preview.thumbUrl ? (
           <img src={preview.thumbUrl} alt="" className="w-full h-full object-cover" />
         ) : (
@@ -1671,7 +1671,7 @@ function PiecePreview({ preview }) {
       </div>
       <div className="px-5 pt-5">
         <p className="text-xs uppercase tracking-widest text-muted mb-1">Piece</p>
-        <h1 className="text-3xl font-semibold text-[#1c1917] leading-tight">{preview.name}</h1>
+        <h1 className="text-3xl font-semibold text-ink leading-tight">{preview.name}</h1>
         {preview.clayBody && (
           <p className="text-sm text-muted mt-1">{preview.clayBody}</p>
         )}

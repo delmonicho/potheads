@@ -7,6 +7,15 @@
   --color-stage-complete: #4a7c59;
   --color-stage-pending: #d4c5b0;
   --color-muted: #7c5545;
+  --color-surface: #fafaf9;
+  --color-surface-raised: #ffffff;
+  --color-surface-warm: #f0e8dc;
+  --color-surface-warm-hover: #e8ddd0;
+  --color-ink: #1c1917;
+  --color-ink-soft: #44403c;
+  --color-line: #e7e0d6;
+  --color-line-strong: #d4c5b0;
+  --color-clay-tint: rgba(120, 53, 15, 0.08);
   --font-display: 'Playfair Display', Georgia, serif;
 }
 

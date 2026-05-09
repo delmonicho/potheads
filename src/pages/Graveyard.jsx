@@ -112,8 +112,8 @@ export default function Graveyard({ user }) {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#fafaf9]">
-      <header className="px-5 pt-safe bg-[#fafaf9]">
+    <div className="flex flex-col min-h-screen bg-surface">
+      <header className="px-5 pt-safe bg-surface">
         <div className="flex items-center justify-between pt-3 pb-4">
           <div className="flex items-center gap-3">
             <button
@@ -125,13 +125,13 @@ export default function Graveyard({ user }) {
                 <path d="M19 12H5M12 5l-7 7 7 7" />
               </svg>
             </button>
-            <h1 className="font-display italic text-3xl text-[#1c1917]">Graveyard.</h1>
+            <h1 className="font-display italic text-3xl text-ink">Graveyard.</h1>
           </div>
           {pieces.length > 0 && (
             selectMode ? (
               <button
                 onClick={exitSelectMode}
-                className="text-xs uppercase tracking-widest text-[#78350f] font-semibold cursor-pointer hover:text-[#5c2709]"
+                className="text-xs uppercase tracking-widest text-clay font-semibold cursor-pointer hover:text-clay-dark"
               >
                 Cancel
               </button>
@@ -151,7 +151,7 @@ export default function Graveyard({ user }) {
       <main className="flex-1 px-4 py-2 pb-24">
         {loading && (
           <div className="flex justify-center py-12">
-            <div className="w-8 h-8 border-4 border-[#78350f] border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-4 border-clay border-t-transparent rounded-full animate-spin" />
           </div>
         )}
         {error && <p className="text-red-600 text-sm text-center py-4">{error}</p>}
@@ -166,7 +166,7 @@ export default function Graveyard({ user }) {
                 <div key={piece.id} className="flex flex-col gap-1">
                   <button
                     onClick={() => selectMode ? toggleSelect(piece.id) : navigate(`/piece/${piece.id}`)}
-                    className={`relative aspect-square rounded-2xl overflow-hidden bg-tan cursor-pointer hover:opacity-90 active:opacity-80 ${selected ? 'ring-2 ring-[#78350f]' : ''}`}
+                    className={`relative aspect-square rounded-2xl overflow-hidden bg-tan cursor-pointer hover:opacity-90 active:opacity-80 ${selected ? 'ring-2 ring-clay' : ''}`}
                   >
                     {thumbUrls[piece.id] ? (
                       <img src={thumbUrls[piece.id]} alt={piece.name} className="w-full h-full object-cover" />
@@ -174,8 +174,8 @@ export default function Graveyard({ user }) {
                       <PotteryPlaceholder form={formTags[piece.id]} className="w-full h-full" />
                     )}
                     {selected && (
-                      <div className="absolute inset-0 bg-[#78350f]/20 flex items-center justify-center">
-                        <div className="w-6 h-6 rounded-full bg-[#78350f] flex items-center justify-center">
+                      <div className="absolute inset-0 bg-clay/20 flex items-center justify-center">
+                        <div className="w-6 h-6 rounded-full bg-clay flex items-center justify-center">
                           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M2 6l3 3 5-5" />
                           </svg>
@@ -183,7 +183,7 @@ export default function Graveyard({ user }) {
                       </div>
                     )}
                   </button>
-                  <p className="text-xs text-[#1c1917] font-medium truncate px-0.5">{piece.name}</p>
+                  <p className="text-xs text-ink font-medium truncate px-0.5">{piece.name}</p>
                 </div>
               )
             })}
