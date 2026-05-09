@@ -94,7 +94,7 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
           <div className="flex flex-col gap-2">
             <div className="grid grid-cols-3 gap-2">
               {previews.map((src, i) => (
-                <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-stone-100">
+                <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-surface-warm">
                   <img src={src} alt="" className="w-full h-full object-cover" />
                   <button
                     onClick={() => removePhoto(i)}
@@ -105,7 +105,7 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
                   </button>
                 </div>
               ))}
-              <label className="aspect-square rounded-xl border-2 border-dashed border-stone-300 flex items-center justify-center cursor-pointer hover:border-stone-400 hover:bg-stone-50 transition-colors">
+              <label className="aspect-square rounded-xl border-2 border-dashed border-line-strong flex items-center justify-center cursor-pointer hover:border-clay hover:bg-surface-warm transition-colors">
                 <span className="text-muted text-2xl leading-none">+</span>
                 <input type="file" accept="image/*,image/heic,image/heif" multiple className="hidden" onChange={handleFileChange} />
               </label>
@@ -115,10 +115,10 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
 
         {/* Name */}
         <div>
-          <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Name</label>
+          <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Name</label>
           <input
             type="text"
-            className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm text-ink bg-white placeholder:text-muted"
+            className="w-full border border-line rounded-xl px-4 py-3 text-sm text-ink bg-surface-warm placeholder:text-muted"
             placeholder="e.g. Morning bowl"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -127,13 +127,13 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
 
         {/* Clay body */}
         <div>
-          <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Clay Body</label>
+          <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Clay Body</label>
           <ClayBodyPicker value={clayBody} onChange={setClayBody} userId={user.id} />
         </div>
 
         {/* Stage selector */}
         <div>
-          <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2">Stage</label>
+          <label className="block text-xs uppercase tracking-widest text-muted mb-2">Stage</label>
           <div className="flex flex-wrap gap-2">
             {STAGES.map((s) => (
               <button
@@ -141,7 +141,7 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
                 onClick={() => setStage(s)}
                 className={`px-4 py-1.5 rounded-full text-sm border transition-colors cursor-pointer ${stage === s
                     ? 'bg-clay text-white border-clay hover:bg-clay-dark'
-                    : 'border-stone-300 text-stone-700 bg-white hover:bg-stone-50'
+                    : 'border-line-strong text-ink-soft bg-surface-warm hover:bg-surface-warm'
                   }`}
               >
                 {STAGE_LABELS[s]}
@@ -152,15 +152,15 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
 
         {/* Form tags */}
         <div>
-          <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2">Form</label>
+          <label className="block text-xs uppercase tracking-widest text-muted mb-2">Form</label>
           <div className="flex flex-wrap gap-2">
             {FORM_TAGS.map((tag) => (
               <button
                 key={tag}
                 onClick={() => setSelectedForm(selectedForm === tag ? null : tag)}
                 className={`px-4 py-1.5 rounded-full text-sm border transition-colors cursor-pointer ${selectedForm === tag
-                    ? 'bg-stone-900 text-white border-stone-900 hover:bg-stone-800'
-                    : 'border-stone-300 text-stone-700 bg-white hover:bg-stone-50'
+                    ? 'bg-clay text-white border-clay hover:bg-clay-dark'
+                    : 'border-line-strong text-ink-soft bg-surface-warm hover:bg-surface-warm'
                   }`}
               >
                 {tag}

@@ -27,7 +27,7 @@ function Chip({ active, onClick, children }) {
       className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap cursor-pointer transition-colors ${
         active
           ? 'bg-clay text-white hover:bg-clay-dark'
-          : 'bg-stone-100 text-muted hover:bg-stone-200'
+          : 'bg-surface-warm text-muted hover:bg-surface-warm-hover'
       }`}
     >
       {children}
@@ -176,7 +176,7 @@ export default function Catalog({ user }) {
     <div className="flex flex-col min-h-screen bg-surface">
       <PageHeader title="Catalog." onBack={() => navigate('/board')}>
         {/* Tabs */}
-        <div className="flex gap-6 border-b border-stone-200">
+        <div className="flex gap-6 border-b border-line">
           {[['clay', 'Clay'], ['glazes', 'Glazes']].map(([key, label]) => (
             <button
               key={key}
@@ -199,7 +199,7 @@ export default function Catalog({ user }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={isClay ? 'Search clay bodies…' : 'Search glazes…'}
-            className="w-full px-4 py-2.5 rounded-xl bg-white border border-stone-200 text-sm focus:outline-none focus:border-clay/60 placeholder:text-muted"
+            className="w-full px-4 py-2.5 rounded-xl bg-surface-warm border border-line text-sm focus:outline-none focus:border-clay/60 placeholder:text-muted"
           />
         </div>
 

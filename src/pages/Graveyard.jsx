@@ -128,7 +128,7 @@ export default function Graveyard({ user }) {
           ) : (
             <button
               onClick={() => setSelectMode(true)}
-              className="text-muted active:text-stone-600 cursor-pointer hover:text-stone-600"
+              className="text-muted active:text-ink-soft cursor-pointer hover:text-ink-soft"
               aria-label="Select pieces"
             >
               <SelectIcon />
@@ -184,9 +184,9 @@ export default function Graveyard({ user }) {
 
       {/* Bulk action bar */}
       {selectMode && selectedIds.size > 0 && (
-        <div className="fixed bottom-0 inset-x-0 pb-safe bg-white border-t border-stone-200 px-4 pt-3">
+        <div className="fixed bottom-0 inset-x-0 pb-safe bg-surface-raised border-t border-line px-4 pt-3">
           <div className="flex items-center gap-3 pb-3">
-            <span className="text-sm text-stone-500 flex-1">
+            <span className="text-sm text-muted flex-1">
               {selectedIds.size} {selectedIds.size === 1 ? 'piece' : 'pieces'} selected
             </span>
             <button
@@ -215,7 +215,7 @@ export default function Graveyard({ user }) {
         title={`Delete ${selectedIds.size} ${selectedIds.size === 1 ? 'piece' : 'pieces'} forever?`}
       >
         <div className="flex flex-col gap-3 pb-2">
-          <p className="text-sm text-stone-500">
+          <p className="text-sm text-muted">
             This permanently removes {selectedIds.size === 1 ? 'it' : 'them'} from your account. This cannot be undone.
           </p>
           <button
@@ -230,7 +230,7 @@ export default function Graveyard({ user }) {
           </button>
           <button
             onClick={() => setShowDeleteConfirm(false)}
-            className="w-full bg-stone-100 text-stone-700 font-semibold py-3.5 rounded-2xl active:bg-stone-200 cursor-pointer hover:bg-stone-200"
+            className="w-full bg-surface-warm text-ink-soft font-semibold py-3.5 rounded-2xl active:bg-surface-warm-hover cursor-pointer hover:bg-surface-warm-hover"
           >
             Cancel
           </button>

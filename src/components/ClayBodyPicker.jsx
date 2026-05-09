@@ -86,7 +86,7 @@ export default function ClayBodyPicker({ value, onChange, userId }) {
         <input
           ref={inputRef}
           type="text"
-          className="flex-1 min-w-0 border border-stone-200 rounded-xl px-4 py-3 text-sm text-ink bg-white placeholder:text-muted"
+          className="flex-1 min-w-0 border border-line rounded-xl px-4 py-3 text-sm text-ink bg-surface-warm placeholder:text-muted"
           placeholder="e.g. Speckled buff"
           value={customDraft}
           onChange={(e) => setCustomDraft(e.target.value)}
@@ -104,7 +104,7 @@ export default function ClayBodyPicker({ value, onChange, userId }) {
         </button>
         <button
           onClick={cancelCustom}
-          className="px-4 py-3 rounded-xl border border-stone-200 text-stone-600 text-sm cursor-pointer hover:bg-stone-50"
+          className="px-4 py-3 rounded-xl border border-line text-ink-soft text-sm cursor-pointer hover:bg-surface-warm-hover"
         >
           Cancel
         </button>
@@ -114,7 +114,7 @@ export default function ClayBodyPicker({ value, onChange, userId }) {
 
   return (
     <select
-      className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm text-ink bg-white cursor-pointer"
+      className="w-full border border-line rounded-xl px-4 py-3 text-sm text-ink bg-surface-warm cursor-pointer"
       value={value || ''}
       onChange={handleSelectChange}
     >

@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import { STAGES, STAGE_LABELS, nextStage, advanceStage, getStageEvents, updatePiece, getPieceIds, getPiecesByIds, upsertStageNote } from '../lib/pieces.js'
 import { getPhotosForPiece, getPhotosForPieces, uploadPhoto, getPhotoUrl, updatePhotoStage, deletePhoto } from '../lib/photos.js'
-import { getTagsForPiece, getOrCreateTag, addTagToPiece, removeTagFromPiece, getUserTags, updateTagColor, PRESET_TAGS } from '../lib/tags.js'
+import { getTagsForPiece, getOrCreateTag, addTagToPiece, removeTagFromPiece, getUserTags, updateTagColor, renameTag, deleteTag, countPiecesForTag, PRESET_TAGS } from '../lib/tags.js'
 import TagChip from '../components/TagChip.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
 import PotteryPlaceholder from '../components/PotteryPlaceholder.jsx'
@@ -59,6 +59,17 @@ export default function PieceDetail({ user }) {
   const [addTagColor, setAddTagColor] = useState('#78350f')
   const [tagColorManuallySet, setTagColorManuallySet] = useState(false)
   const { tagColors, recentColors, saveTagColor, addRecentColor } = useTagColors()
+
+  // Manage / edit tag modal
+  const [manageMode, setManageMode] = useState(false)
+  const [editingTag, setEditingTag] = useState(null)
+  const [editTagName, setEditTagName] = useState('')
+  const [editTagColor, setEditTagColor] = useState('#78350f')
+  const [editTagManuallySet, setEditTagManuallySet] = useState(false)
+  const [editTagSaving, setEditTagSaving] = useState(false)
+  const [editTagError, setEditTagError] = useState(null)
+  const [showDeleteTagConfirm, setShowDeleteTagConfirm] = useState(false)
+  const [tagDeleteCount, setTagDeleteCount] = useState(null)
 
   // Lightbox viewer
   const touchStartX = useRef(null)
@@ -328,6 +339,86 @@ export default function PieceDetail({ user }) {
     setAddTagName('')
     setAddTagColor('#78350f')
     setTagColorManuallySet(false)
+  }
+
+  function openEditTag(name, category) {
+    const t = userTags.find((u) => u.name === name && u.category === category)
+    if (!t) return
+    setEditingTag(t)
+    setEditTagName(t.name)
+    setEditTagColor(t.color || tagColors[t.name] || (category === 'glaze' ? '#4a7c59' : '#78350f'))
+    setEditTagManuallySet(false)
+    setEditTagError(null)
+  }
+
+  function closeEditTag() {
+    setEditingTag(null)
+    setEditTagName('')
+    setEditTagColor('#78350f')
+    setEditTagManuallySet(false)
+    setEditTagError(null)
+  }
+
+  async function handleSaveEditTag() {
+    if (!editingTag) return
+    const newName = editTagName.trim().toLowerCase()
+    if (!newName) return
+    setEditTagSaving(true)
+    setEditTagError(null)
+    try {
+      if (newName !== editingTag.name) {
+        await renameTag(editingTag.id, newName)
+        saveTagColor(newName, editTagColor)
+      }
+      if (editTagColor !== editingTag.color) {
+        await updateTagColor(editingTag.id, editTagColor)
+        addRecentColor(editTagColor)
+      }
+      const [allUserTags, refreshedTags] = await Promise.all([
+        getUserTags(user.id),
+        getTagsForPiece(id),
+      ])
+      setUserTags(allUserTags)
+      setTags(refreshedTags)
+      closeEditTag()
+    } catch (err) {
+      setEditTagError(err.message)
+    } finally {
+      setEditTagSaving(false)
+    }
+  }
+
+  async function handleOpenDeleteTagConfirm() {
+    if (!editingTag) return
+    setTagDeleteCount(null)
+    setShowDeleteTagConfirm(true)
+    try {
+      const n = await countPiecesForTag(editingTag.id)
+      setTagDeleteCount(n)
+    } catch {
+      setTagDeleteCount(null)
+    }
+  }
+
+  async function handleDeleteEditTag() {
+    if (!editingTag) return
+    setEditTagSaving(true)
+    setEditTagError(null)
+    try {
+      await deleteTag(editingTag.id)
+      const [allUserTags, refreshedTags] = await Promise.all([
+        getUserTags(user.id),
+        getTagsForPiece(id),
+      ])
+      setUserTags(allUserTags)
+      setTags(refreshedTags)
+      setShowDeleteTagConfirm(false)
+      closeEditTag()
+    } catch (err) {
+      setEditTagError(err.message)
+    } finally {
+      setEditTagSaving(false)
+    }
   }
 
   async function handleEditStage(photoId, stage) {
@@ -996,7 +1087,7 @@ export default function PieceDetail({ user }) {
                             {status !== 'pending' && (
                               <button
                                 onClick={(e) => { e.stopPropagation(); openNoteSheet(stage) }}
-                                className="text-stone-300 hover:text-stone-500 cursor-pointer transition-colors"
+                                className="text-stone-300 hover:text-ink-soft cursor-pointer transition-colors"
                                 aria-label="Edit note"
                               >
                                 <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -1017,7 +1108,7 @@ export default function PieceDetail({ user }) {
                           {status !== 'pending' && eventByStage[stage]?.notes && (
                             <button
                               onClick={(e) => { e.stopPropagation(); openNoteSheet(stage) }}
-                              className="mt-1.5 block text-left text-xs text-stone-600 bg-stone-100 rounded-lg px-2.5 py-1.5 max-w-full cursor-pointer hover:bg-stone-200"
+                              className="mt-1.5 block text-left text-xs text-ink-soft bg-surface-warm rounded-lg px-2.5 py-1.5 max-w-full cursor-pointer hover:bg-surface-warm-hover"
                             >
                               <span className="line-clamp-2">{eventByStage[stage].notes}</span>
                             </button>
@@ -1043,7 +1134,7 @@ export default function PieceDetail({ user }) {
             </div>
 
             {/* Tags */}
-            <div className="px-5 py-4 pb-6 border-t border-stone-100">
+            <div className="px-5 py-4 pb-6 border-t border-line">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs uppercase tracking-widest text-muted">Details</p>
                 <button onClick={() => setShowTagSheet(true)} className="text-clay text-sm font-medium cursor-pointer hover:text-clay-dark">
@@ -1074,15 +1165,15 @@ export default function PieceDetail({ user }) {
       >
         <div className="flex flex-col gap-4">
           <div>
-            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Select stage</label>
+            <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Select stage</label>
             <div className="flex flex-col gap-2">
               {STAGES.map((s) => (
                 <button
                   key={s}
                   onClick={() => setAdvanceTargetStage(s)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors cursor-pointer hover:bg-stone-100 ${advanceTargetStage === s
-                      ? 'bg-stone-100 border-stone-300 text-ink font-semibold'
-                      : 'border-stone-200 text-stone-600'
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors cursor-pointer hover:bg-surface-warm-hover ${advanceTargetStage === s
+                      ? 'bg-surface-warm border-line-strong text-ink font-semibold'
+                      : 'border-line text-ink-soft'
                     }`}
                 >
                   <span className={`w-3 h-3 rounded-full flex-shrink-0 ${s === 'finished' ? 'bg-stage-complete' : 'bg-clay'
@@ -1098,9 +1189,9 @@ export default function PieceDetail({ user }) {
             </div>
           </div>
           <div>
-            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Note (optional)</label>
+            <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Note (optional)</label>
             <textarea
-              className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-ink bg-stone-50 resize-none"
+              className="w-full border border-line rounded-xl px-3 py-2 text-sm text-ink bg-surface-warm resize-none"
               rows={3}
               placeholder="Any notes about this stage…"
               value={advanceNote}
@@ -1108,11 +1199,11 @@ export default function PieceDetail({ user }) {
             />
           </div>
           <div>
-            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Photo (optional)</label>
+            <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Photo (optional)</label>
             <input
               type="file"
               accept="image/*,image/heic,image/heif"
-              className="text-sm text-stone-700"
+              className="text-sm text-ink-soft"
               onChange={(e) => setAdvanceFile(e.target.files[0] || null)}
             />
           </div>
@@ -1129,10 +1220,21 @@ export default function PieceDetail({ user }) {
       {/* Tag sheet */}
       <BottomSheet
         open={showTagSheet}
-        onClose={() => { setShowTagSheet(false); setTagSearch({ form: '', glaze: '' }) }}
+        onClose={() => { setShowTagSheet(false); setTagSearch({ form: '', glaze: '' }); setManageMode(false) }}
         title="Edit details"
       >
         <div className="flex flex-col gap-5">
+          <div className="flex items-center justify-between -mt-2">
+            <p className="text-[11px] text-muted/80">
+              {manageMode ? 'Tap a custom tag to rename or delete.' : ''}
+            </p>
+            <button
+              onClick={() => setManageMode(m => !m)}
+              className="text-xs uppercase tracking-widest text-clay font-semibold cursor-pointer hover:text-clay-dark px-2 py-1"
+            >
+              {manageMode ? 'Done' : 'Manage'}
+            </button>
+          </div>
           {Object.entries(PRESET_TAGS).map(([category, presetNames], categoryIdx) => {
             const customNames = userTags
               .filter(t => t.category === category && !presetNames.includes(t.name))
@@ -1155,32 +1257,43 @@ export default function PieceDetail({ user }) {
                     value={query}
                     onChange={(e) => setTagSearch(prev => ({ ...prev, [category]: e.target.value }))}
                     placeholder="Search…"
-                    className="w-full mb-2 px-3 py-2 text-sm rounded-xl bg-stone-50 border border-line focus:border-clay/60 focus:outline-none"
+                    className="w-full mb-2 px-3 py-2 text-sm rounded-xl bg-surface-warm border border-line focus:border-clay/60 focus:outline-none"
                   />
                 )}
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => {
-                      setAddTagCategory(category)
-                      setAddTagName('')
-                      setAddTagColor(category === 'glaze' ? '#4a7c59' : '#78350f')
-                      setTagColorManuallySet(false)
-                      setShowAddTagSheet(true)
-                    }}
-                    className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-dashed border-stone-300 text-muted text-sm font-medium active:opacity-70 cursor-pointer hover:border-stone-400 hover:text-stone-600"
-                  >
-                    + Add
-                  </button>
+                  {!manageMode && (
+                    <button
+                      onClick={() => {
+                        setAddTagCategory(category)
+                        setAddTagName('')
+                        setAddTagColor(category === 'glaze' ? '#4a7c59' : '#78350f')
+                        setTagColorManuallySet(false)
+                        setShowAddTagSheet(true)
+                      }}
+                      className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-dashed border-line-strong text-muted text-sm font-medium active:opacity-70 cursor-pointer hover:border-clay hover:text-ink-soft"
+                    >
+                      + Add
+                    </button>
+                  )}
                   {filteredNames.map((name) => {
                     const isSelected = tags.some((t) => t.name === name)
+                    const isPreset = presetNames.includes(name)
                     return (
-                      <TagChip
+                      <div
                         key={name}
-                        tag={{ id: name, name, category }}
-                        selected={isSelected}
-                        color={userTags.find(t => t.name === name)?.color || tagColors[name]}
-                        onToggle={() => handleTagToggle(name, category)}
-                      />
+                        className={manageMode && isPreset ? 'opacity-40 pointer-events-none' : ''}
+                      >
+                        <TagChip
+                          tag={{ id: name, name, category }}
+                          selected={isSelected}
+                          color={userTags.find(t => t.name === name)?.color || tagColors[name]}
+                          onToggle={
+                            manageMode
+                              ? (isPreset ? undefined : () => openEditTag(name, category))
+                              : () => handleTagToggle(name, category)
+                          }
+                        />
+                      </div>
                     )
                   })}
                   {filteredNames.length === 0 && (
@@ -1208,7 +1321,7 @@ export default function PieceDetail({ user }) {
           <div>
             <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Name</label>
             <input
-              className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm bg-stone-50 text-ink"
+              className="w-full border border-line rounded-xl px-3 py-2.5 text-sm bg-surface-warm text-ink"
               placeholder={addTagCategory === 'glaze' ? 'e.g. cobalt blue' : 'e.g. yunomi'}
               value={addTagName}
               autoFocus
@@ -1229,7 +1342,7 @@ export default function PieceDetail({ user }) {
             <div className="flex items-center gap-3">
               <label className="relative cursor-pointer flex-shrink-0">
                 <div
-                  className="w-11 h-11 rounded-full border-2 border-stone-200 shadow-inner"
+                  className="w-11 h-11 rounded-full border-2 border-line shadow-inner"
                   style={{ backgroundColor: addTagColor }}
                 />
                 <input
@@ -1251,7 +1364,7 @@ export default function PieceDetail({ user }) {
                 {recentColors.map((hex) => (
                   <button
                     key={hex}
-                    className={`w-8 h-8 rounded-full border-2 transition-transform active:scale-95 cursor-pointer hover:scale-110 ${addTagColor === hex ? 'border-stone-500 scale-110' : 'border-transparent'}`}
+                    className={`w-8 h-8 rounded-full border-2 transition-transform active:scale-95 cursor-pointer hover:scale-110 ${addTagColor === hex ? 'border-ink-soft scale-110' : 'border-transparent'}`}
                     style={{ backgroundColor: hex }}
                     onClick={() => { setAddTagColor(hex); setTagColorManuallySet(true) }}
                   />
@@ -1279,6 +1392,149 @@ export default function PieceDetail({ user }) {
         </div>
       </BottomSheet>
 
+      {/* Edit tag sheet (rename / recolor / delete) */}
+      <BottomSheet
+        open={!!editingTag}
+        onClose={closeEditTag}
+        title={editingTag ? `Edit "${editingTag.name}"` : 'Edit tag'}
+        zClassName="z-60"
+      >
+        {editingTag && (() => {
+          const trimmed = editTagName.trim().toLowerCase()
+          const presetCollision = PRESET_TAGS[editingTag.category].includes(trimmed) && trimmed !== editingTag.name
+          const nameChanged = !!trimmed && trimmed !== editingTag.name
+          const colorChanged = editTagColor !== (editingTag.color || '')
+          const canSave = !!trimmed && !presetCollision && (nameChanged || colorChanged)
+          return (
+            <div className="flex flex-col gap-5">
+              {/* Name */}
+              <div>
+                <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Name</label>
+                <input
+                  className="w-full border border-line rounded-xl px-3 py-2.5 text-sm bg-surface-warm text-ink"
+                  value={editTagName}
+                  autoFocus
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setEditTagName(val)
+                    if (!editTagManuallySet) {
+                      const detected = detectColor(val)
+                      if (detected) setEditTagColor(detected)
+                    }
+                  }}
+                />
+                {presetCollision && (
+                  <p className="text-red-500 text-xs mt-1.5">"{trimmed}" is a built-in tag. Choose a different name.</p>
+                )}
+              </div>
+
+              {/* Color picker */}
+              <div>
+                <label className="block text-xs uppercase tracking-widest text-muted mb-2">Color</label>
+                <div className="flex items-center gap-3">
+                  <label className="relative cursor-pointer flex-shrink-0">
+                    <div
+                      className="w-11 h-11 rounded-full border-2 border-line shadow-inner"
+                      style={{ backgroundColor: editTagColor }}
+                    />
+                    <input
+                      type="color"
+                      value={editTagColor}
+                      onChange={(e) => { setEditTagColor(e.target.value); setEditTagManuallySet(true) }}
+                      className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                    />
+                  </label>
+                  <span className="text-sm text-muted">Tap to open color wheel</span>
+                </div>
+              </div>
+
+              {/* Recent colors */}
+              {recentColors.length > 0 && (
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-muted mb-2">Recent</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {recentColors.map((hex) => (
+                      <button
+                        key={hex}
+                        className={`w-8 h-8 rounded-full border-2 transition-transform active:scale-95 cursor-pointer hover:scale-110 ${editTagColor === hex ? 'border-ink-soft scale-110' : 'border-transparent'}`}
+                        style={{ backgroundColor: hex }}
+                        onClick={() => { setEditTagColor(hex); setEditTagManuallySet(true) }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Preview */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted uppercase tracking-widest">Preview</span>
+                <TagChip
+                  tag={{ id: '__preview', name: trimmed || editingTag.name, category: editingTag.category }}
+                  selected
+                  color={editTagColor}
+                />
+              </div>
+
+              {editTagError && (
+                <p className="text-red-500 text-xs text-center">{editTagError}</p>
+              )}
+
+              {/* Save */}
+              <button
+                onClick={handleSaveEditTag}
+                disabled={!canSave || editTagSaving}
+                className="w-full bg-clay text-white font-semibold py-3 rounded-2xl active:bg-clay-dark disabled:opacity-40 cursor-pointer hover:bg-clay-dark"
+              >
+                {editTagSaving ? 'Saving…' : 'Save'}
+              </button>
+
+              {/* Delete */}
+              <button
+                onClick={handleOpenDeleteTagConfirm}
+                disabled={editTagSaving}
+                className="w-full text-red-500 font-semibold py-2 cursor-pointer hover:text-red-700 disabled:opacity-40"
+              >
+                Delete tag
+              </button>
+            </div>
+          )
+        })()}
+      </BottomSheet>
+
+      {/* Delete tag confirmation */}
+      <BottomSheet
+        open={showDeleteTagConfirm}
+        onClose={() => { setShowDeleteTagConfirm(false); setTagDeleteCount(null) }}
+        title={editingTag ? `Delete "${editingTag.name}"?` : 'Delete tag?'}
+        zClassName="z-[70]"
+      >
+        <div className="flex flex-col gap-3 pb-2">
+          <p className="text-sm text-muted">
+            {tagDeleteCount === null && 'Checking how many pieces use this tag…'}
+            {tagDeleteCount === 0 && "This tag isn't on any piece. It'll be removed from your tag list."}
+            {tagDeleteCount === 1 && (
+              <>This tag is currently on <span className="font-semibold text-ink">1 piece</span>. It'll be removed from that piece and from your tag list.</>
+            )}
+            {typeof tagDeleteCount === 'number' && tagDeleteCount > 1 && (
+              <>This tag is currently on <span className="font-semibold text-ink">{tagDeleteCount} pieces</span>. It'll be removed from each of them and from your tag list.</>
+            )}
+          </p>
+          <button
+            onClick={handleDeleteEditTag}
+            disabled={editTagSaving}
+            className="w-full bg-red-500 text-white font-semibold py-3.5 rounded-2xl active:bg-red-600 disabled:opacity-50 cursor-pointer hover:bg-red-600"
+          >
+            {editTagSaving ? 'Deleting…' : 'Yes, delete tag'}
+          </button>
+          <button
+            onClick={() => { setShowDeleteTagConfirm(false); setTagDeleteCount(null) }}
+            className="w-full bg-surface-warm text-ink-soft font-semibold py-3.5 rounded-2xl active:bg-surface-warm-hover cursor-pointer hover:bg-surface-warm-hover"
+          >
+            Cancel
+          </button>
+        </div>
+      </BottomSheet>
+
       {/* Edit photos sheet */}
       <BottomSheet
         open={showAddPhotoSheet}
@@ -1290,13 +1546,13 @@ export default function PieceDetail({ user }) {
           {photos.length > 0 && (
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <p className="text-xs uppercase tracking-widest text-stone-500">
+                <p className="text-xs uppercase tracking-widest text-muted">
                   Current photos ({photos.length})
                 </p>
                 {selectedPhotoIds.size > 0 && (
                   <button
                     onClick={() => setSelectedPhotoIds(new Set())}
-                    className="text-xs text-muted cursor-pointer hover:text-stone-600"
+                    className="text-xs text-muted cursor-pointer hover:text-ink-soft"
                   >
                     Clear selection
                   </button>
@@ -1311,15 +1567,15 @@ export default function PieceDetail({ user }) {
                       key={p.id}
                       type="button"
                       onClick={() => togglePhotoSelected(p.id)}
-                      className={`relative aspect-square rounded-xl overflow-hidden bg-stone-100 cursor-pointer hover:opacity-90 active:opacity-80 ${selected ? 'ring-2 ring-clay' : ''}`}
+                      className={`relative aspect-square rounded-xl overflow-hidden bg-surface-warm cursor-pointer hover:opacity-90 active:opacity-80 ${selected ? 'ring-2 ring-clay' : ''}`}
                       aria-pressed={selected}
                     >
                       {url ? (
                         <img src={url} alt="" className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full bg-stone-200" />
+                        <div className="w-full h-full bg-surface-warm-hover" />
                       )}
-                      <div className={`absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center transition-colors ${selected ? 'bg-clay text-white' : 'bg-white/80 text-transparent border border-stone-300'}`}>
+                      <div className={`absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center transition-colors ${selected ? 'bg-clay text-white' : 'bg-white/80 text-transparent border border-line-strong'}`}>
                         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M2 6l3 3 5-5" />
                         </svg>
@@ -1342,13 +1598,13 @@ export default function PieceDetail({ user }) {
           )}
 
           {photos.length > 0 && (
-            <div className="border-t border-stone-100 -mx-4" />
+            <div className="border-t border-line -mx-4" />
           )}
 
           {/* Add new photos */}
-          <p className="text-xs uppercase tracking-widest text-stone-500">Add new photos</p>
+          <p className="text-xs uppercase tracking-widest text-muted">Add new photos</p>
           {addPhotoPreviews.length === 0 ? (
-            <label className="block w-full h-40 rounded-2xl overflow-hidden bg-stone-100 cursor-pointer hover:bg-stone-200 transition-colors active:opacity-80 flex-shrink-0">
+            <label className="block w-full h-40 rounded-2xl overflow-hidden bg-surface-warm cursor-pointer hover:bg-surface-warm-hover transition-colors active:opacity-80 flex-shrink-0">
               <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-muted">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
@@ -1367,7 +1623,7 @@ export default function PieceDetail({ user }) {
           ) : (
             <div className="grid grid-cols-3 gap-2">
               {addPhotoPreviews.map((src, i) => (
-                <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-stone-100">
+                <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-surface-warm">
                   <img src={src} alt="" className="w-full h-full object-cover" />
                   <button
                     onClick={() => {
@@ -1379,7 +1635,7 @@ export default function PieceDetail({ user }) {
                   >×</button>
                 </div>
               ))}
-              <label className="aspect-square rounded-xl border-2 border-dashed border-stone-300 flex items-center justify-center cursor-pointer hover:border-stone-400 hover:bg-stone-50 transition-colors">
+              <label className="aspect-square rounded-xl border-2 border-dashed border-line-strong flex items-center justify-center cursor-pointer hover:border-clay hover:bg-surface-warm transition-colors">
                 <span className="text-muted text-2xl leading-none">+</span>
                 <input type="file" accept="image/*,image/heic,image/heif" multiple className="hidden" onChange={(e) => {
                   const incoming = Array.from(e.target.files)
@@ -1393,7 +1649,7 @@ export default function PieceDetail({ user }) {
           )}
 
           <div>
-            <p className="text-xs uppercase tracking-widest text-stone-500 mb-1.5">Tag with stage (optional)</p>
+            <p className="text-xs uppercase tracking-widest text-muted mb-1.5">Tag with stage (optional)</p>
             <div className="flex flex-wrap gap-2">
               {STAGES.map((s) => (
                 <button
@@ -1401,7 +1657,7 @@ export default function PieceDetail({ user }) {
                   onClick={() => setAddPhotoStage(addPhotoStage === s ? null : s)}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${addPhotoStage === s
                       ? 'bg-clay text-white border-clay hover:bg-clay-dark'
-                      : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
+                      : 'bg-surface-raised text-ink-soft border-line hover:bg-surface-warm'
                     }`}
                 >
                   {STAGE_LABELS[s]}
@@ -1411,9 +1667,9 @@ export default function PieceDetail({ user }) {
           </div>
 
           <div>
-            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Note (optional)</label>
+            <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Note (optional)</label>
             <textarea
-              className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-ink bg-stone-50 resize-none"
+              className="w-full border border-line rounded-xl px-3 py-2 text-sm text-ink bg-surface-warm resize-none"
               rows={2}
               placeholder="Any notes about this photo…"
               value={addPhotoNote}
@@ -1441,7 +1697,7 @@ export default function PieceDetail({ user }) {
         zClassName="z-[60]"
       >
         <div className="flex flex-col gap-3 pb-2">
-          <p className="text-sm text-stone-500">
+          <p className="text-sm text-muted">
             This permanently removes {selectedPhotoIds.size === 1 ? 'it' : 'them'} from this piece. This cannot be undone.
           </p>
           <button
@@ -1454,7 +1710,7 @@ export default function PieceDetail({ user }) {
           <button
             onClick={() => setShowDeletePhotosConfirm(false)}
             disabled={deletingPhotos}
-            className="w-full bg-stone-100 text-stone-700 font-semibold py-3.5 rounded-2xl active:bg-stone-200 disabled:opacity-50 cursor-pointer hover:bg-stone-200"
+            className="w-full bg-surface-warm text-ink-soft font-semibold py-3.5 rounded-2xl active:bg-surface-warm-hover disabled:opacity-50 cursor-pointer hover:bg-surface-warm-hover"
           >
             Cancel
           </button>
@@ -1553,12 +1809,12 @@ export default function PieceDetail({ user }) {
           <button
             onClick={() => handleEditStage(photos[viewerIndex]?.id, null)}
             disabled={savingStage}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors disabled:opacity-50 cursor-pointer hover:bg-stone-100 ${!photos[viewerIndex]?.stage
-                ? 'bg-stone-100 border-stone-300 text-ink font-semibold'
-                : 'border-stone-200 text-stone-500'
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors disabled:opacity-50 cursor-pointer hover:bg-surface-warm-hover ${!photos[viewerIndex]?.stage
+                ? 'bg-surface-warm border-line-strong text-ink font-semibold'
+                : 'border-line text-muted'
               }`}
           >
-            <span className="w-3 h-3 rounded-full border-2 border-stone-400 flex-shrink-0" />
+            <span className="w-3 h-3 rounded-full border-2 border-line-strong flex-shrink-0" />
             <span className="text-sm">No stage</span>
           </button>
           {STAGES.map((s) => (
@@ -1566,9 +1822,9 @@ export default function PieceDetail({ user }) {
               key={s}
               onClick={() => handleEditStage(photos[viewerIndex]?.id, s)}
               disabled={savingStage}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors disabled:opacity-50 cursor-pointer hover:bg-stone-100 ${photos[viewerIndex]?.stage === s
-                  ? 'bg-stone-100 border-stone-300 text-ink font-semibold'
-                  : 'border-stone-200 text-stone-600'
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors disabled:opacity-50 cursor-pointer hover:bg-surface-warm-hover ${photos[viewerIndex]?.stage === s
+                  ? 'bg-surface-warm border-line-strong text-ink font-semibold'
+                  : 'border-line text-ink-soft'
                 }`}
             >
               <span className={`w-3 h-3 rounded-full flex-shrink-0 ${s === 'finished' ? 'bg-stage-complete' : 'bg-clay'
@@ -1588,28 +1844,28 @@ export default function PieceDetail({ user }) {
       >
         <div className="flex flex-col gap-4">
           <div>
-            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Name</label>
+            <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Name</label>
             <input
-              className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm text-ink bg-stone-50"
+              className="w-full border border-line rounded-xl px-4 py-3 text-sm text-ink bg-surface-warm"
               placeholder="e.g. Curved mug"
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
             />
           </div>
           <div>
-            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Clay body</label>
+            <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Clay body</label>
             <ClayBodyPicker value={editClayBody} onChange={setEditClayBody} userId={user.id} />
           </div>
           <div>
-            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Current stage</label>
+            <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Current stage</label>
             <div className="flex flex-col gap-2">
               {STAGES.map((s) => (
                 <button
                   key={s}
                   onClick={() => setEditStage(s)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors cursor-pointer hover:bg-stone-100 ${editStage === s
-                      ? 'bg-stone-100 border-stone-300 text-ink font-semibold'
-                      : 'border-stone-200 text-stone-600'
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors cursor-pointer hover:bg-surface-warm-hover ${editStage === s
+                      ? 'bg-surface-warm border-line-strong text-ink font-semibold'
+                      : 'border-line text-ink-soft'
                     }`}
                 >
                   <span className={`w-3 h-3 rounded-full flex-shrink-0 ${s === 'finished' ? 'bg-stage-complete' : 'bg-clay'
@@ -1625,18 +1881,18 @@ export default function PieceDetail({ user }) {
             </div>
           </div>
           <div>
-            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Date started</label>
+            <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Date started</label>
             <input
               type="date"
-              className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm text-ink bg-stone-50"
+              className="w-full border border-line rounded-xl px-4 py-3 text-sm text-ink bg-surface-warm"
               value={editCreatedAt}
               onChange={(e) => setEditCreatedAt(e.target.value)}
             />
           </div>
           <div>
-            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Notes</label>
+            <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Notes</label>
             <textarea
-              className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm text-ink bg-stone-50 resize-none"
+              className="w-full border border-line rounded-xl px-4 py-2 text-sm text-ink bg-surface-warm resize-none"
               rows={3}
               placeholder="Any details about this piece…"
               value={editNotes}
@@ -1664,13 +1920,13 @@ export default function PieceDetail({ user }) {
             <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Date</label>
             <input
               type="date"
-              className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-ink bg-stone-50"
+              className="w-full border border-line rounded-xl px-3 py-2 text-sm text-ink bg-surface-warm"
               value={noteDate}
               onChange={(e) => setNoteDate(e.target.value)}
             />
           </div>
           <textarea
-            className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-ink bg-stone-50 resize-none"
+            className="w-full border border-line rounded-xl px-3 py-2 text-sm text-ink bg-surface-warm resize-none"
             rows={4}
             placeholder="Anything worth remembering about this stage…"
             value={noteText}

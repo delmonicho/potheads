@@ -67,7 +67,7 @@ export default memo(function StageColumn({ stage, pieces, thumbUrls, formTags, s
 
   return (
     <div className="mb-8">
-      <div className="flex items-baseline justify-between mb-3 border-b border-stone-200 pb-2">
+      <div className="flex items-baseline justify-between mb-3 border-b border-line pb-2">
         <h2 className="font-display italic text-2xl text-ink">
           {STAGE_LABELS[stage]}
         </h2>

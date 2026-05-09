@@ -242,7 +242,7 @@ export default function Board({ user }) {
             ) : (
               <button
                 onClick={() => setSelectMode(true)}
-                className="text-muted active:text-stone-600 cursor-pointer hover:text-stone-600"
+                className="text-muted active:text-ink-soft cursor-pointer hover:text-ink-soft"
                 aria-label="Select pieces"
               >
                 <SelectIcon />
@@ -250,14 +250,14 @@ export default function Board({ user }) {
             )}
             <button
               onClick={() => navigate('/catalog')}
-              className="text-muted active:text-stone-600 cursor-pointer hover:text-stone-600"
+              className="text-muted active:text-ink-soft cursor-pointer hover:text-ink-soft"
               aria-label="Catalog"
             >
               <BookIcon />
             </button>
             <button
               onClick={() => navigate('/graveyard')}
-              className="text-muted active:text-stone-600 cursor-pointer hover:text-stone-600"
+              className="text-muted active:text-ink-soft cursor-pointer hover:text-ink-soft"
               aria-label="Reclaim"
             >
               <BrokenVaseIcon />
@@ -351,7 +351,7 @@ export default function Board({ user }) {
         ))}
 {!loading && !error && pieces.length > 0 && viewMode === 'clay_body' && clayBodyGroups.map(({ key, label, pieces: groupPieces }) => (
           <div key={key} className="mb-8">
-            <div className="flex items-baseline justify-between mb-3 border-b border-stone-200 pb-2">
+            <div className="flex items-baseline justify-between mb-3 border-b border-line pb-2">
               <h2 className="font-display italic text-2xl text-ink capitalize">{label}</h2>
               <span className="text-sm text-muted tabular-nums">{String(groupPieces.length).padStart(2, '0')}</span>
             </div>
@@ -364,7 +364,7 @@ export default function Board({ user }) {
         ))}
         {!loading && !error && pieces.length > 0 && viewMode === 'glaze' && glazeGroups.map(({ key, label, pieces: groupPieces }) => (
           <div key={key} className="mb-8">
-            <div className="flex items-baseline justify-between mb-3 border-b border-stone-200 pb-2">
+            <div className="flex items-baseline justify-between mb-3 border-b border-line pb-2">
               <h2 className="font-display italic text-2xl text-ink capitalize">{label}</h2>
               <span className="text-sm text-muted tabular-nums">{String(groupPieces.length).padStart(2, '0')}</span>
             </div>
@@ -390,15 +390,15 @@ export default function Board({ user }) {
 
       {/* Bulk action bar */}
       {selectMode && selectedIds.size > 0 && (
-        <div className="fixed bottom-0 inset-x-0 pb-safe bg-white border-t border-stone-200 px-4 pt-3">
+        <div className="fixed bottom-0 inset-x-0 pb-safe bg-surface-raised border-t border-line px-4 pt-3">
           <div className="flex items-center gap-3 pb-3">
-            <span className="text-sm text-stone-500 flex-1">
+            <span className="text-sm text-muted flex-1">
               {selectedIds.size} {selectedIds.size === 1 ? 'piece' : 'pieces'} selected
             </span>
             <button
               onClick={() => setShowTagSheet(true)}
               disabled={bulkSaving}
-              className="px-4 py-2 rounded-xl border border-stone-300 text-sm text-ink font-medium active:bg-stone-100 disabled:opacity-50 cursor-pointer hover:bg-stone-100"
+              className="px-4 py-2 rounded-xl border border-line-strong text-sm text-ink font-medium active:bg-surface-warm-hover disabled:opacity-50 cursor-pointer hover:bg-surface-warm-hover"
             >
               Edit Tags
             </button>
@@ -476,13 +476,13 @@ export default function Board({ user }) {
       >
         <div className="flex flex-col gap-5">
           <div>
-            <p className="text-xs uppercase tracking-widest text-stone-500 mb-2">Form</p>
+            <p className="text-xs uppercase tracking-widest text-muted mb-2">Form</p>
             <div className="flex flex-wrap gap-2">
               {PRESET_TAGS.form.map((tag) => (
                 <button
                   key={tag}
                   onClick={() => handleBulkToggleTag(tag, 'form')}
-                  className="px-4 py-1.5 rounded-full text-sm border border-stone-300 text-stone-700 bg-white active:bg-stone-100 cursor-pointer hover:bg-stone-100"
+                  className="px-4 py-1.5 rounded-full text-sm border border-line-strong text-ink-soft bg-surface-raised active:bg-surface-warm-hover cursor-pointer hover:bg-surface-warm-hover"
                 >
                   {tag}
                 </button>
@@ -491,13 +491,13 @@ export default function Board({ user }) {
           </div>
           {userTags.filter(t => t.category === 'glaze').length > 0 && (
             <div>
-              <p className="text-xs uppercase tracking-widest text-stone-500 mb-2">Glaze</p>
+              <p className="text-xs uppercase tracking-widest text-muted mb-2">Glaze</p>
               <div className="flex flex-wrap gap-2">
                 {userTags.filter(t => t.category === 'glaze').map((tag) => (
                   <button
                     key={tag.name}
                     onClick={() => handleBulkToggleTag(tag.name, 'glaze')}
-                    className="px-4 py-1.5 rounded-full text-sm border border-stone-300 text-stone-700 bg-white active:bg-stone-100 cursor-pointer hover:bg-stone-100"
+                    className="px-4 py-1.5 rounded-full text-sm border border-line-strong text-ink-soft bg-surface-raised active:bg-surface-warm-hover cursor-pointer hover:bg-surface-warm-hover"
                   >
                     {tag.name}
                   </button>
@@ -521,7 +521,7 @@ export default function Board({ user }) {
         title={`Send ${selectedIds.size} ${selectedIds.size === 1 ? 'piece' : 'pieces'} to graveyard?`}
       >
         <div className="flex flex-col gap-3 pb-2">
-          <p className="text-sm text-stone-500">
+          <p className="text-sm text-muted">
             {selectedIds.size === 1 ? 'It' : 'They'} will be tagged "lost" and hidden from your board.
           </p>
           <button
@@ -536,7 +536,7 @@ export default function Board({ user }) {
           </button>
           <button
             onClick={() => setShowDeleteConfirm(false)}
-            className="w-full bg-stone-100 text-stone-700 font-semibold py-3.5 rounded-2xl active:bg-stone-200 cursor-pointer hover:bg-stone-200"
+            className="w-full bg-surface-warm text-ink-soft font-semibold py-3.5 rounded-2xl active:bg-surface-warm-hover cursor-pointer hover:bg-surface-warm-hover"
           >
             Cancel
           </button>

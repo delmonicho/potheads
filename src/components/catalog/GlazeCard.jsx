@@ -6,7 +6,7 @@ function GlazeCard({ glaze, favorite, onToggleFavorite, onOpen }) {
     <button
       type="button"
       onClick={() => onOpen(glaze)}
-      className="relative flex flex-col bg-white rounded-2xl overflow-hidden border border-stone-200 cursor-pointer hover:border-stage-complete/40 hover:shadow-sm active:scale-[0.99] transition-all text-left"
+      className="relative flex flex-col bg-surface-raised rounded-2xl overflow-hidden border border-line cursor-pointer hover:border-stage-complete/40 hover:shadow-sm active:scale-[0.99] transition-all text-left"
     >
       <div
         className="aspect-square w-full"

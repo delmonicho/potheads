@@ -19,7 +19,7 @@ export default function ClayDetail({ clay, favorite, onToggleFavorite }) {
     <div className="flex flex-col gap-4 pb-2">
       <div className="flex items-start gap-4">
         <div
-          className="w-24 h-24 rounded-2xl shrink-0 border border-stone-200"
+          className="w-24 h-24 rounded-2xl shrink-0 border border-line"
           style={{ backgroundColor: clay.hex_swatch || '#d4c5b0' }}
         />
         <div className="flex-1 min-w-0">
@@ -71,7 +71,7 @@ export default function ClayDetail({ clay, favorite, onToggleFavorite }) {
           src={clay.image_url}
           alt={clay.name}
           loading="lazy"
-          className="w-full max-h-56 object-contain rounded-xl bg-stone-50 border border-stone-200"
+          className="w-full max-h-56 object-contain rounded-xl bg-surface-warm border border-line"
         />
       )}
 

@@ -18,7 +18,7 @@ export default function GlazeDetail({ glaze, favorite, onToggleFavorite }) {
     <div className="flex flex-col gap-4 pb-2">
       <div className="flex items-start gap-4">
         <div
-          className="w-24 h-24 rounded-2xl shrink-0 border border-stone-200"
+          className="w-24 h-24 rounded-2xl shrink-0 border border-line"
           style={{ backgroundColor: glaze.hex_swatch || '#d4c5b0' }}
         />
         <div className="flex-1 min-w-0">
@@ -59,7 +59,7 @@ export default function GlazeDetail({ glaze, favorite, onToggleFavorite }) {
           </span>
         )}
         {glaze.layers_well && (
-          <span className="text-xs px-2.5 py-1 rounded-full bg-stone-100 text-muted">
+          <span className="text-xs px-2.5 py-1 rounded-full bg-surface-warm text-muted">
             layers well
           </span>
         )}
