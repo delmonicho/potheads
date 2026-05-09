@@ -115,7 +115,7 @@ export default function Graveyard({ user }) {
   return (
     <div className="flex flex-col min-h-screen bg-surface">
       <PageHeader
-        title="Graveyard."
+        title="Reclaim."
         onBack={() => navigate('/board')}
         trailing={pieces.length > 0 && (
           selectMode ? (
@@ -145,7 +145,9 @@ export default function Graveyard({ user }) {
         )}
         {error && <p className="text-red-600 text-sm text-center py-4">{error}</p>}
         {!loading && !error && pieces.length === 0 && (
-          <p className="text-center text-muted text-sm py-16">No lost pieces.</p>
+          <p className="text-center text-muted text-sm py-16 px-8">
+            Nothing to reclaim. Lost pieces show up here so you can bring them back.
+          </p>
         )}
         {!loading && !error && pieces.length > 0 && (
           <div className="grid grid-cols-3 gap-2">
@@ -187,6 +189,14 @@ export default function Graveyard({ user }) {
             <span className="text-sm text-stone-500 flex-1">
               {selectedIds.size} {selectedIds.size === 1 ? 'piece' : 'pieces'} selected
             </span>
+            <button
+              type="button"
+              disabled
+              title="Coming soon"
+              className="px-3 py-2 rounded-xl border border-clay/40 text-clay text-sm font-medium opacity-60 cursor-not-allowed"
+            >
+              Restore
+            </button>
             <button
               onClick={() => setShowDeleteConfirm(true)}
               disabled={bulkDeleting}

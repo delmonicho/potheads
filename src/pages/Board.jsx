@@ -251,7 +251,7 @@ export default function Board({ user }) {
             <button
               onClick={() => navigate('/graveyard')}
               className="text-muted active:text-stone-600 cursor-pointer hover:text-stone-600"
-              aria-label="Graveyard"
+              aria-label="Reclaim"
             >
               <BrokenVaseIcon />
             </button>
