@@ -966,10 +966,19 @@ export default function PieceDetail({ user }) {
                           </div>
                         )}
                         {status === 'pending' && (
-                          <div className="w-6 h-6 rounded-full border-2 border-line-strong flex-shrink-0" />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setAdvanceTargetStage(stage)
+                              setShowAdvanceSheet(true)
+                            }}
+                            aria-label={`Advance to ${STAGE_LABELS[stage]}`}
+                            className="w-6 h-6 rounded-full border-[2.5px] border-line-strong hover:border-clay/50 flex-shrink-0 cursor-pointer transition-transform hover:scale-110 active:scale-95"
+                          />
                         )}
                         {!isLast && (
-                          <div className="w-px flex-1 min-h-[28px] bg-line-strong my-1" />
+                          <div className="w-px flex-1 min-h-[28px] bg-line-strong/60 my-1" />
                         )}
                       </div>
 
