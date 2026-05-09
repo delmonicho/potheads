@@ -38,6 +38,7 @@ export default function PieceDetail({ user }) {
 
   const [showTagSheet, setShowTagSheet] = useState(false)
   const [togglingTag, setTogglingTag] = useState(null)
+  const [tagSearch, setTagSearch] = useState({ form: '', glaze: '' })
 
   const [showAddPhotoSheet, setShowAddPhotoSheet] = useState(false)
   const [addPhotoFiles, setAddPhotoFiles] = useState([])
@@ -1044,13 +1045,13 @@ export default function PieceDetail({ user }) {
             {/* Tags */}
             <div className="px-5 py-4 pb-6 border-t border-stone-100">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-xs uppercase tracking-widest text-muted">Tags</p>
+                <p className="text-xs uppercase tracking-widest text-muted">Details</p>
                 <button onClick={() => setShowTagSheet(true)} className="text-clay text-sm font-medium cursor-pointer hover:text-clay-dark">
                   Edit
                 </button>
               </div>
               {tags.length === 0 ? (
-                <p className="text-muted text-sm">No tags yet</p>
+                <p className="text-muted text-sm">No details yet</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {tags.map((tag) => (
@@ -1128,18 +1129,35 @@ export default function PieceDetail({ user }) {
       {/* Tag sheet */}
       <BottomSheet
         open={showTagSheet}
-        onClose={() => setShowTagSheet(false)}
-        title="Edit Tags"
+        onClose={() => { setShowTagSheet(false); setTagSearch({ form: '', glaze: '' }) }}
+        title="Edit details"
       >
         <div className="flex flex-col gap-5">
-          {Object.entries(PRESET_TAGS).map(([category, presetNames]) => {
+          {Object.entries(PRESET_TAGS).map(([category, presetNames], categoryIdx) => {
             const customNames = userTags
               .filter(t => t.category === category && !presetNames.includes(t.name))
               .map(t => t.name)
             const allNames = [...presetNames, ...customNames]
+            const showSearch = allNames.length > 10
+            const query = tagSearch[category] || ''
+            const filteredNames = query
+              ? allNames.filter(n => n.toLowerCase().includes(query.toLowerCase()))
+              : allNames
+            const subtitle = category === 'form' ? 'Shape & function' : 'Surface & color'
+            const heading = category === 'form' ? 'Form' : category === 'glaze' ? 'Glaze' : category
             return (
-              <div key={category}>
-                <p className="text-xs uppercase tracking-widest text-muted mb-2">{category}</p>
+              <div key={category} className={categoryIdx > 0 ? 'pt-4 border-t border-line' : ''}>
+                <p className="text-xs uppercase tracking-widest text-muted">{heading}</p>
+                <p className="mt-1 text-[11px] text-muted/80 mb-2">{subtitle}</p>
+                {showSearch && (
+                  <input
+                    type="search"
+                    value={query}
+                    onChange={(e) => setTagSearch(prev => ({ ...prev, [category]: e.target.value }))}
+                    placeholder="Search…"
+                    className="w-full mb-2 px-3 py-2 text-sm rounded-xl bg-stone-50 border border-line focus:border-clay/60 focus:outline-none"
+                  />
+                )}
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => {
@@ -1153,24 +1171,28 @@ export default function PieceDetail({ user }) {
                   >
                     + Add
                   </button>
-                  {allNames.map((name) => {
+                  {filteredNames.map((name) => {
                     const isSelected = tags.some((t) => t.name === name)
                     return (
                       <TagChip
                         key={name}
                         tag={{ id: name, name, category }}
                         selected={isSelected}
-                        color={tagColors[name]}
                         color={userTags.find(t => t.name === name)?.color || tagColors[name]}
                         onToggle={() => handleTagToggle(name, category)}
                       />
                     )
                   })}
+                  {filteredNames.length === 0 && (
+                    <p className="text-muted text-xs py-1">No matches.</p>
+                  )}
                 </div>
               </div>
             )
           })}
-          {togglingTag && <p className="text-muted text-xs text-center">Saving…</p>}
+          <p className="text-muted text-xs text-center min-h-[1rem]">
+            {togglingTag ? 'Saving…' : ' '}
+          </p>
         </div>
       </BottomSheet>
 
