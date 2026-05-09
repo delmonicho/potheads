@@ -3,6 +3,10 @@
     {
       "source": "/auth/callback",
       "destination": "https://kkagpnsekzsupwswnryo.supabase.co/auth/v1/callback"
+    },
+    {
+      "source": "/((?!auth/callback).*)",
+      "destination": "/index.html"
     }
   ]
 }
