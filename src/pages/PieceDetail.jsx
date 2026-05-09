@@ -4,10 +4,10 @@ import { supabase } from '../lib/supabase.js'
 import { STAGES, STAGE_LABELS, nextStage, advanceStage, getStageEvents, updatePiece, getPieceIds, getPiecesByIds, upsertStageNote } from '../lib/pieces.js'
 import { getPhotosForPiece, getPhotosForPieces, uploadPhoto, getPhotoUrl, updatePhotoStage, deletePhoto } from '../lib/photos.js'
 import { getTagsForPiece, getOrCreateTag, addTagToPiece, removeTagFromPiece, getUserTags, updateTagColor, PRESET_TAGS } from '../lib/tags.js'
-import { listClayBodies } from '../lib/catalog.js'
 import TagChip from '../components/TagChip.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
 import PotteryPlaceholder from '../components/PotteryPlaceholder.jsx'
+import ClayBodyPicker from '../components/ClayBodyPicker.jsx'
 import { useTagColors, detectColor } from '../lib/useTagColors.js'
 
 const STAGE_RANK = { finished: 4, glazed: 3, bisque_ready: 2, drying: 1 }
@@ -89,7 +89,6 @@ export default function PieceDetail({ user }) {
   const [editName, setEditName] = useState('')
   const [editClayBody, setEditClayBody] = useState('')
   const [editStage, setEditStage] = useState('drying')
-  const [catalogClayBodies, setCatalogClayBodies] = useState([])
   const [editNotes, setEditNotes] = useState('')
   const [editCreatedAt, setEditCreatedAt] = useState('')
   const [savingPiece, setSavingPiece] = useState(false)
@@ -567,7 +566,6 @@ export default function PieceDetail({ user }) {
     setEditNotes(piece.notes || '')
     setEditCreatedAt(toDateInput(piece.created_at))
     setShowEditPieceSheet(true)
-    listClayBodies().then(setCatalogClayBodies).catch(() => { })
   }
 
   async function handleSavePiece() {
@@ -1569,16 +1567,7 @@ export default function PieceDetail({ user }) {
           </div>
           <div>
             <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Clay body</label>
-            <select
-              className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm text-[#1c1917] bg-stone-50 cursor-pointer"
-              value={editClayBody}
-              onChange={(e) => setEditClayBody(e.target.value)}
-            >
-              <option value="">— None —</option>
-              {catalogClayBodies.map(cb => (
-                <option key={cb.id} value={cb.name}>{cb.name}</option>
-              ))}
-            </select>
+            <ClayBodyPicker value={editClayBody} onChange={setEditClayBody} userId={user.id} />
           </div>
           <div>
             <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Current stage</label>
