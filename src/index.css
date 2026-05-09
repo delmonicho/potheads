@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant compact (&:where(.compact, .compact *));
+
 @theme {
   --color-clay: #78350f;
   --color-clay-dark: #5c2709;
@@ -24,4 +27,23 @@
 }
 @utility pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+.dark {
+  --color-surface: #1a1715;
+  --color-surface-raised: #25201c;
+  --color-surface-warm: #2c2520;
+  --color-surface-warm-hover: #342b25;
+  --color-ink: #f5efe6;
+  --color-ink-soft: #c8bfb3;
+  --color-line: #3a322c;
+  --color-line-strong: #5a4f44;
+  --color-clay: #c98a4d;
+  --color-clay-dark: #b07840;
+  --color-stage-complete: #7fb38a;
+  --color-stage-pending: #5a4f44;
+  --color-muted: #a89a8a;
+  --color-tan: #5a4a3a;
+  --color-clay-tint: rgba(201, 138, 77, 0.12);
+  color-scheme: dark;
 }

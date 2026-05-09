@@ -7,6 +7,8 @@ import { getTagsForPieces, getOrCreateTag, addTagToPiece, getUserTags, PRESET_TA
 import StageColumn, { PieceCard } from '../components/StageColumn.jsx'
 import AddPiece from '../components/AddPiece.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
+import SegmentedControl from '../components/SegmentedControl.jsx'
+import { getTheme, setTheme, getDensity, setDensity } from '../lib/prefs.js'
 
 function BookIcon() {
   return (
@@ -59,6 +61,11 @@ export default function Board({ user }) {
   const [showTagSheet, setShowTagSheet] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [bulkSaving, setBulkSaving] = useState(false)
+
+  const [theme, setThemeState] = useState(getTheme)
+  const [density, setDensityState] = useState(getDensity)
+  const handleThemeChange = (t) => { setThemeState(t); setTheme(t) }
+  const handleDensityChange = (d) => { setDensityState(d); setDensity(d) }
 
   const fetchAll = useCallback(async () => {
     try {
@@ -219,7 +226,7 @@ export default function Board({ user }) {
   return (
     <div className="flex flex-col min-h-screen bg-surface">
       {/* Header */}
-      <header className="px-5 pt-safe bg-surface sticky top-0 z-10 border-b border-line/70">
+      <header className="px-5 compact:px-4 pt-safe bg-surface sticky top-0 z-10 border-b border-line/70">
         <div className="flex items-center justify-between pt-3 pb-1">
           <p className="text-xs uppercase tracking-widest text-muted">
             Studio · {activepieces.length} {activepieces.length === 1 ? 'piece' : 'pieces'}
@@ -284,7 +291,7 @@ export default function Board({ user }) {
       </header>
 
       {/* Main */}
-      <main className="flex-1 overflow-y-auto px-4 py-4 pb-24">
+      <main className="flex-1 overflow-y-auto px-4 compact:px-3 py-4 pb-24">
         {loading && (
           <div className="flex justify-center py-12">
             <div className="w-8 h-8 border-4 border-clay border-t-transparent rounded-full animate-spin" />
@@ -293,7 +300,44 @@ export default function Board({ user }) {
         {error && (
           <p className="text-red-600 text-sm text-center py-4">{error}</p>
         )}
-        {!loading && !error && viewMode === 'stage' && STAGES.map((stage) => (
+        {!loading && !error && pieces.length === 0 && (
+          <div className="flex flex-col items-center pt-12 px-8 text-center">
+            <div className="relative w-56 h-40 opacity-70">
+              <img
+                src="/placeholders/bowl.svg"
+                alt=""
+                className="absolute left-0 bottom-0 w-28 h-28 object-contain"
+              />
+              <img
+                src="/placeholders/vase.svg"
+                alt=""
+                className="absolute left-1/2 -translate-x-1/2 top-0 w-32 h-36 object-contain"
+              />
+              <img
+                src="/placeholders/mug.svg"
+                alt=""
+                className="absolute right-0 bottom-0 w-24 h-24 object-contain"
+              />
+            </div>
+            <h2 className="font-display italic text-3xl text-ink mt-2">Your shelf is empty.</h2>
+            <p className="text-sm text-muted max-w-xs mt-2">
+              Throw your first piece — snap a photo and start the timeline.
+            </p>
+            <button
+              onClick={() => setShowAddPiece(true)}
+              className="bg-clay text-white py-3.5 px-6 rounded-2xl mt-6 w-full max-w-xs cursor-pointer hover:bg-clay-dark active:bg-clay-dark font-semibold"
+            >
+              Throw your first piece
+            </button>
+            <button
+              onClick={() => navigate('/catalog')}
+              className="text-xs uppercase tracking-widest text-muted mt-4 cursor-pointer hover:text-ink-soft"
+            >
+              Browse clays &amp; glazes first
+            </button>
+          </div>
+        )}
+        {!loading && !error && pieces.length > 0 && viewMode === 'stage' && STAGES.map((stage) => (
           <StageColumn
             key={stage}
             stage={stage}
@@ -305,7 +349,7 @@ export default function Board({ user }) {
             onToggleSelect={toggleSelect}
           />
         ))}
-{!loading && !error && viewMode === 'clay_body' && clayBodyGroups.map(({ key, label, pieces: groupPieces }) => (
+{!loading && !error && pieces.length > 0 && viewMode === 'clay_body' && clayBodyGroups.map(({ key, label, pieces: groupPieces }) => (
           <div key={key} className="mb-8">
             <div className="flex items-baseline justify-between mb-3 border-b border-stone-200 pb-2">
               <h2 className="font-display italic text-2xl text-ink capitalize">{label}</h2>
@@ -318,7 +362,7 @@ export default function Board({ user }) {
             </div>
           </div>
         ))}
-        {!loading && !error && viewMode === 'glaze' && glazeGroups.map(({ key, label, pieces: groupPieces }) => (
+        {!loading && !error && pieces.length > 0 && viewMode === 'glaze' && glazeGroups.map(({ key, label, pieces: groupPieces }) => (
           <div key={key} className="mb-8">
             <div className="flex items-baseline justify-between mb-3 border-b border-stone-200 pb-2">
               <h2 className="font-display italic text-2xl text-ink capitalize">{label}</h2>
@@ -334,10 +378,10 @@ export default function Board({ user }) {
       </main>
 
       {/* FAB */}
-      {!selectMode && (
+      {!selectMode && pieces.length > 0 && (
         <button
           onClick={() => setShowAddPiece(true)}
-          className="fixed bottom-8 right-5 w-14 h-14 bg-clay text-white text-3xl rounded-full shadow-lg flex items-center justify-center active:bg-clay-dark cursor-pointer hover:bg-clay-dark"
+          className="fixed bottom-8 right-5 w-14 h-14 compact:w-12 compact:h-12 bg-clay text-white text-3xl rounded-full shadow-lg flex items-center justify-center active:bg-clay-dark cursor-pointer hover:bg-clay-dark"
           aria-label="Add piece"
         >
           +
@@ -382,12 +426,42 @@ export default function Board({ user }) {
         onClose={() => setShowProfile(false)}
         title="Account"
       >
-        <div className="flex flex-col gap-2 pb-4">
-          <p className="text-sm text-ink font-medium">{user.user_metadata?.full_name || user.email}</p>
-          <p className="text-xs text-muted">{user.email}</p>
+        <div className="flex flex-col gap-5 pb-4">
+          <div>
+            <p className="text-sm text-ink font-medium">{user.user_metadata?.full_name || user.email}</p>
+            <p className="text-xs text-muted">{user.email}</p>
+          </div>
+
+          <div>
+            <p className="text-xs uppercase tracking-widest text-muted mb-2">Theme</p>
+            <SegmentedControl
+              ariaLabel="Theme"
+              value={theme}
+              onChange={handleThemeChange}
+              options={[
+                { value: 'light', label: 'Light' },
+                { value: 'dark', label: 'Dark' },
+                { value: 'system', label: 'System' },
+              ]}
+            />
+          </div>
+
+          <div>
+            <p className="text-xs uppercase tracking-widest text-muted mb-2">Density</p>
+            <SegmentedControl
+              ariaLabel="Density"
+              value={density}
+              onChange={handleDensityChange}
+              options={[
+                { value: 'comfortable', label: 'Comfortable' },
+                { value: 'compact', label: 'Compact' },
+              ]}
+            />
+          </div>
+
           <button
             onClick={handleLogout}
-            className="mt-6 text-left text-sm text-red-500 cursor-pointer hover:text-red-700"
+            className="mt-2 text-left text-sm text-red-500 cursor-pointer hover:text-red-700"
           >
             Sign out
           </button>
