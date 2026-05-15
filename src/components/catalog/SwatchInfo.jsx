@@ -9,7 +9,7 @@ export default function SwatchInfo({ className = '' }) {
         onClick={() => setOpen(o => !o)}
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
-        className="text-muted hover:text-[#5c2709] cursor-pointer"
+        className="text-muted hover:text-clay-dark cursor-pointer"
         aria-label="About this color swatch"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

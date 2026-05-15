@@ -5,6 +5,7 @@ import { getPhotosForPieces, getPhotoUrl } from '../lib/photos.js'
 import { getTagsForPieces } from '../lib/tags.js'
 import PotteryPlaceholder from '../components/PotteryPlaceholder.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
+import PageHeader from '../components/PageHeader.jsx'
 
 function SelectIcon() {
   return (
@@ -112,51 +113,41 @@ export default function Graveyard({ user }) {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#fafaf9]">
-      <header className="px-5 pt-safe bg-[#fafaf9]">
-        <div className="flex items-center justify-between pt-3 pb-4">
-          <div className="flex items-center gap-3">
+    <div className="flex flex-col min-h-screen bg-surface">
+      <PageHeader
+        title="Reclaim."
+        onBack={() => navigate('/board')}
+        trailing={pieces.length > 0 && (
+          selectMode ? (
             <button
-              onClick={() => navigate('/board')}
-              className="text-muted hover:text-stone-600 cursor-pointer active:text-stone-600"
-              aria-label="Back"
+              onClick={exitSelectMode}
+              className="text-xs uppercase tracking-widest text-clay font-semibold cursor-pointer hover:text-clay-dark"
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 12H5M12 5l-7 7 7 7" />
-              </svg>
+              Cancel
             </button>
-            <h1 className="font-display italic text-3xl text-[#1c1917]">Graveyard.</h1>
-          </div>
-          {pieces.length > 0 && (
-            selectMode ? (
-              <button
-                onClick={exitSelectMode}
-                className="text-xs uppercase tracking-widest text-[#78350f] font-semibold cursor-pointer hover:text-[#5c2709]"
-              >
-                Cancel
-              </button>
-            ) : (
-              <button
-                onClick={() => setSelectMode(true)}
-                className="text-muted active:text-stone-600 cursor-pointer hover:text-stone-600"
-                aria-label="Select pieces"
-              >
-                <SelectIcon />
-              </button>
-            )
-          )}
-        </div>
-      </header>
+          ) : (
+            <button
+              onClick={() => setSelectMode(true)}
+              className="text-muted active:text-ink-soft cursor-pointer hover:text-ink-soft"
+              aria-label="Select pieces"
+            >
+              <SelectIcon />
+            </button>
+          )
+        )}
+      />
 
       <main className="flex-1 px-4 py-2 pb-24">
         {loading && (
           <div className="flex justify-center py-12">
-            <div className="w-8 h-8 border-4 border-[#78350f] border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-4 border-clay border-t-transparent rounded-full animate-spin" />
           </div>
         )}
         {error && <p className="text-red-600 text-sm text-center py-4">{error}</p>}
         {!loading && !error && pieces.length === 0 && (
-          <p className="text-center text-muted text-sm py-16">No lost pieces.</p>
+          <p className="text-center text-muted text-sm py-16 px-8">
+            Nothing to reclaim. Lost pieces show up here so you can bring them back.
+          </p>
         )}
         {!loading && !error && pieces.length > 0 && (
           <div className="grid grid-cols-3 gap-2">
@@ -166,7 +157,7 @@ export default function Graveyard({ user }) {
                 <div key={piece.id} className="flex flex-col gap-1">
                   <button
                     onClick={() => selectMode ? toggleSelect(piece.id) : navigate(`/piece/${piece.id}`)}
-                    className={`relative aspect-square rounded-2xl overflow-hidden bg-tan cursor-pointer hover:opacity-90 active:opacity-80 ${selected ? 'ring-2 ring-[#78350f]' : ''}`}
+                    className={`relative aspect-square rounded-2xl overflow-hidden bg-tan cursor-pointer hover:opacity-90 active:opacity-80 ${selected ? 'ring-2 ring-clay' : ''}`}
                   >
                     {thumbUrls[piece.id] ? (
                       <img src={thumbUrls[piece.id]} alt={piece.name} className="w-full h-full object-cover" />
@@ -174,8 +165,8 @@ export default function Graveyard({ user }) {
                       <PotteryPlaceholder form={formTags[piece.id]} className="w-full h-full" />
                     )}
                     {selected && (
-                      <div className="absolute inset-0 bg-[#78350f]/20 flex items-center justify-center">
-                        <div className="w-6 h-6 rounded-full bg-[#78350f] flex items-center justify-center">
+                      <div className="absolute inset-0 bg-clay/20 flex items-center justify-center">
+                        <div className="w-6 h-6 rounded-full bg-clay flex items-center justify-center">
                           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M2 6l3 3 5-5" />
                           </svg>
@@ -183,7 +174,7 @@ export default function Graveyard({ user }) {
                       </div>
                     )}
                   </button>
-                  <p className="text-xs text-[#1c1917] font-medium truncate px-0.5">{piece.name}</p>
+                  <p className="text-xs text-ink font-medium truncate px-0.5">{piece.name}</p>
                 </div>
               )
             })}
@@ -193,11 +184,19 @@ export default function Graveyard({ user }) {
 
       {/* Bulk action bar */}
       {selectMode && selectedIds.size > 0 && (
-        <div className="fixed bottom-0 inset-x-0 pb-safe bg-white border-t border-stone-200 px-4 pt-3">
+        <div className="fixed bottom-0 inset-x-0 pb-safe bg-surface-raised border-t border-line px-4 pt-3">
           <div className="flex items-center gap-3 pb-3">
-            <span className="text-sm text-stone-500 flex-1">
+            <span className="text-sm text-muted flex-1">
               {selectedIds.size} {selectedIds.size === 1 ? 'piece' : 'pieces'} selected
             </span>
+            <button
+              type="button"
+              disabled
+              title="Coming soon"
+              className="px-3 py-2 rounded-xl border border-clay/40 text-clay text-sm font-medium opacity-60 cursor-not-allowed"
+            >
+              Restore
+            </button>
             <button
               onClick={() => setShowDeleteConfirm(true)}
               disabled={bulkDeleting}
@@ -216,7 +215,7 @@ export default function Graveyard({ user }) {
         title={`Delete ${selectedIds.size} ${selectedIds.size === 1 ? 'piece' : 'pieces'} forever?`}
       >
         <div className="flex flex-col gap-3 pb-2">
-          <p className="text-sm text-stone-500">
+          <p className="text-sm text-muted">
             This permanently removes {selectedIds.size === 1 ? 'it' : 'them'} from your account. This cannot be undone.
           </p>
           <button
@@ -231,7 +230,7 @@ export default function Graveyard({ user }) {
           </button>
           <button
             onClick={() => setShowDeleteConfirm(false)}
-            className="w-full bg-stone-100 text-stone-700 font-semibold py-3.5 rounded-2xl active:bg-stone-200 cursor-pointer hover:bg-stone-200"
+            className="w-full bg-surface-warm text-ink-soft font-semibold py-3.5 rounded-2xl active:bg-surface-warm-hover cursor-pointer hover:bg-surface-warm-hover"
           >
             Cancel
           </button>

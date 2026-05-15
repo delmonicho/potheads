@@ -19,12 +19,13 @@ export default function Login() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-stone-50 pt-safe pb-safe px-6">
-      <div className="flex flex-col items-center gap-6 w-full max-w-xs">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-surface pt-safe pb-safe px-6">
+      <div className="flex flex-col items-center gap-8 w-full max-w-sm">
         {/* Logo / branding */}
         <div className="flex flex-col items-center gap-2">
-          <h1 className="font-display italic text-5xl text-[#1c1917]">Potheads.</h1>
-          <p className="text-muted text-sm text-center tracking-wide">Track your pottery from wheel to kiln</p>
+          <img src="/placeholders/vase.svg" alt="" className="w-20 h-20 opacity-70" />
+          <h1 className="font-display italic text-6xl sm:text-7xl text-clay">Potheads.</h1>
+          <p className="text-ink-soft text-base text-center tracking-wide">Track your pottery from wheel to kiln</p>
         </div>
 
         {error && (
@@ -34,7 +35,7 @@ export default function Login() {
         <button
           onClick={handleGoogleSignIn}
           disabled={loading}
-          className="w-full flex items-center justify-center gap-3 bg-white border border-stone-300 rounded-xl px-4 py-3 text-stone-700 font-medium shadow-sm active:bg-stone-50 disabled:opacity-50 cursor-pointer hover:bg-stone-50"
+          className="w-full flex items-center justify-center gap-3 bg-surface-raised border border-line rounded-xl px-4 py-3.5 text-ink-soft font-medium shadow-sm active:bg-surface-warm disabled:opacity-50 cursor-pointer hover:bg-surface-warm-hover"
         >
           {/* Google icon */}
           <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">

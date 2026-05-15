@@ -79,13 +79,13 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
       <div className="flex flex-col gap-5">
         {/* Photo area */}
         {previews.length === 0 ? (
-          <label className="flex flex-col items-center justify-center w-full h-40 rounded-2xl bg-[#f0e8dc] cursor-pointer overflow-hidden hover:bg-[#e8ddd0] transition-colors">
+          <label className="flex flex-col items-center justify-center w-full h-40 rounded-2xl bg-surface-warm cursor-pointer overflow-hidden hover:bg-surface-warm-hover transition-colors">
             <div className="flex flex-col items-center gap-2">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#78350f" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
                 <circle cx="12" cy="13" r="4" />
               </svg>
-              <span className="font-display italic text-[#78350f] text-sm">Add photos</span>
+              <span className="font-display italic text-clay text-sm">Add photos</span>
               <span className="text-muted text-[10px] uppercase tracking-widest">Greenware · Wet</span>
             </div>
             <input type="file" accept="image/*,image/heic,image/heif" multiple className="hidden" onChange={handleFileChange} />
@@ -94,7 +94,7 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
           <div className="flex flex-col gap-2">
             <div className="grid grid-cols-3 gap-2">
               {previews.map((src, i) => (
-                <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-stone-100">
+                <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-surface-warm">
                   <img src={src} alt="" className="w-full h-full object-cover" />
                   <button
                     onClick={() => removePhoto(i)}
@@ -105,7 +105,7 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
                   </button>
                 </div>
               ))}
-              <label className="aspect-square rounded-xl border-2 border-dashed border-stone-300 flex items-center justify-center cursor-pointer hover:border-stone-400 hover:bg-stone-50 transition-colors">
+              <label className="aspect-square rounded-xl border-2 border-dashed border-line-strong flex items-center justify-center cursor-pointer hover:border-clay hover:bg-surface-warm transition-colors">
                 <span className="text-muted text-2xl leading-none">+</span>
                 <input type="file" accept="image/*,image/heic,image/heif" multiple className="hidden" onChange={handleFileChange} />
               </label>
@@ -115,10 +115,10 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
 
         {/* Name */}
         <div>
-          <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Name</label>
+          <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Name</label>
           <input
             type="text"
-            className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm text-[#1c1917] bg-white placeholder:text-muted"
+            className="w-full border border-line rounded-xl px-4 py-3 text-sm text-ink bg-surface-warm placeholder:text-muted"
             placeholder="e.g. Morning bowl"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -127,21 +127,21 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
 
         {/* Clay body */}
         <div>
-          <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1.5">Clay Body</label>
+          <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Clay Body</label>
           <ClayBodyPicker value={clayBody} onChange={setClayBody} userId={user.id} />
         </div>
 
         {/* Stage selector */}
         <div>
-          <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2">Stage</label>
+          <label className="block text-xs uppercase tracking-widest text-muted mb-2">Stage</label>
           <div className="flex flex-wrap gap-2">
             {STAGES.map((s) => (
               <button
                 key={s}
                 onClick={() => setStage(s)}
                 className={`px-4 py-1.5 rounded-full text-sm border transition-colors cursor-pointer ${stage === s
-                    ? 'bg-[#78350f] text-white border-[#78350f] hover:bg-[#5c2709]'
-                    : 'border-stone-300 text-stone-700 bg-white hover:bg-stone-50'
+                    ? 'bg-clay text-white border-clay hover:bg-clay-dark'
+                    : 'border-line-strong text-ink-soft bg-surface-warm hover:bg-surface-warm'
                   }`}
               >
                 {STAGE_LABELS[s]}
@@ -152,15 +152,15 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
 
         {/* Form tags */}
         <div>
-          <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2">Form</label>
+          <label className="block text-xs uppercase tracking-widest text-muted mb-2">Form</label>
           <div className="flex flex-wrap gap-2">
             {FORM_TAGS.map((tag) => (
               <button
                 key={tag}
                 onClick={() => setSelectedForm(selectedForm === tag ? null : tag)}
                 className={`px-4 py-1.5 rounded-full text-sm border transition-colors cursor-pointer ${selectedForm === tag
-                    ? 'bg-stone-900 text-white border-stone-900 hover:bg-stone-800'
-                    : 'border-stone-300 text-stone-700 bg-white hover:bg-stone-50'
+                    ? 'bg-clay text-white border-clay hover:bg-clay-dark'
+                    : 'border-line-strong text-ink-soft bg-surface-warm hover:bg-surface-warm'
                   }`}
               >
                 {tag}
@@ -174,7 +174,7 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="w-full bg-[#78350f] text-white font-semibold py-3.5 rounded-2xl active:bg-[#5c2709] disabled:opacity-50 text-base mb-2 cursor-pointer hover:bg-[#5c2709]"
+          className="w-full bg-clay text-white font-semibold py-3.5 rounded-2xl active:bg-clay-dark disabled:opacity-50 text-base mb-2 cursor-pointer hover:bg-clay-dark"
         >
           {saving ? 'Saving…' : 'Add piece'}
         </button>

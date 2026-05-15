@@ -7,6 +7,8 @@ import { getTagsForPieces, getOrCreateTag, addTagToPiece, getUserTags, PRESET_TA
 import StageColumn, { PieceCard } from '../components/StageColumn.jsx'
 import AddPiece from '../components/AddPiece.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
+import SegmentedControl from '../components/SegmentedControl.jsx'
+import { getTheme, setTheme, getDensity, setDensity } from '../lib/prefs.js'
 
 function BookIcon() {
   return (
@@ -59,6 +61,11 @@ export default function Board({ user }) {
   const [showTagSheet, setShowTagSheet] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [bulkSaving, setBulkSaving] = useState(false)
+
+  const [theme, setThemeState] = useState(getTheme)
+  const [density, setDensityState] = useState(getDensity)
+  const handleThemeChange = (t) => { setThemeState(t); setTheme(t) }
+  const handleDensityChange = (d) => { setDensityState(d); setDensity(d) }
 
   const fetchAll = useCallback(async () => {
     try {
@@ -217,9 +224,9 @@ export default function Board({ user }) {
   const userInitial = (user.user_metadata?.full_name || user.email || '?')[0].toUpperCase()
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#fafaf9]">
+    <div className="flex flex-col min-h-screen bg-surface">
       {/* Header */}
-      <header className="px-5 pt-safe bg-[#fafaf9]">
+      <header className="px-5 compact:px-4 pt-safe bg-surface sticky top-0 z-10 border-b border-line/70">
         <div className="flex items-center justify-between pt-3 pb-1">
           <p className="text-xs uppercase tracking-widest text-muted">
             Studio · {activepieces.length} {activepieces.length === 1 ? 'piece' : 'pieces'}
@@ -228,14 +235,14 @@ export default function Board({ user }) {
             {selectMode ? (
               <button
                 onClick={exitSelectMode}
-                className="text-xs uppercase tracking-widest text-[#78350f] font-semibold cursor-pointer hover:text-[#5c2709]"
+                className="text-xs uppercase tracking-widest text-clay font-semibold cursor-pointer hover:text-clay-dark"
               >
                 Cancel
               </button>
             ) : (
               <button
                 onClick={() => setSelectMode(true)}
-                className="text-muted active:text-stone-600 cursor-pointer hover:text-stone-600"
+                className="text-muted active:text-ink-soft cursor-pointer hover:text-ink-soft"
                 aria-label="Select pieces"
               >
                 <SelectIcon />
@@ -243,21 +250,21 @@ export default function Board({ user }) {
             )}
             <button
               onClick={() => navigate('/catalog')}
-              className="text-muted active:text-stone-600 cursor-pointer hover:text-stone-600"
+              className="text-muted active:text-ink-soft cursor-pointer hover:text-ink-soft"
               aria-label="Catalog"
             >
               <BookIcon />
             </button>
             <button
               onClick={() => navigate('/graveyard')}
-              className="text-muted active:text-stone-600 cursor-pointer hover:text-stone-600"
-              aria-label="Graveyard"
+              className="text-muted active:text-ink-soft cursor-pointer hover:text-ink-soft"
+              aria-label="Reclaim"
             >
               <BrokenVaseIcon />
             </button>
             <button
               onClick={() => setShowProfile(true)}
-              className="w-9 h-9 rounded-full bg-[#78350f] flex items-center justify-center active:bg-[#5c2709] cursor-pointer hover:bg-[#5c2709]"
+              className="w-9 h-9 rounded-full bg-clay flex items-center justify-center active:bg-clay-dark cursor-pointer hover:bg-clay-dark"
               aria-label="Profile"
             >
               <span className="text-white text-sm font-semibold">{userInitial}</span>
@@ -265,18 +272,18 @@ export default function Board({ user }) {
           </div>
         </div>
         <div className="flex items-baseline justify-between pb-3">
-          <h1 className="font-display italic text-4xl text-[#1c1917]">Potheads.</h1>
+          <h1 className="font-display italic text-4xl text-ink">Potheads.</h1>
           <div className="relative flex items-center">
             <select
               value={viewMode}
               onChange={e => setViewMode(e.target.value)}
-              className="appearance-none text-xs uppercase tracking-widest font-semibold text-[#78350f] bg-transparent border-none cursor-pointer pr-4 focus:outline-none"
+              className="appearance-none text-xs uppercase tracking-widest font-semibold text-clay bg-transparent border-none cursor-pointer pr-4 focus:outline-none"
             >
               <option value="stage">Stage</option>
               <option value="clay_body">Clay Body</option>
               <option value="glaze">Glaze</option>
             </select>
-            <svg className="pointer-events-none absolute right-0 text-[#78350f]" width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+            <svg className="pointer-events-none absolute right-0 text-clay" width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
               <path d="M0 3l5 5 5-5H0z" />
             </svg>
           </div>
@@ -284,16 +291,53 @@ export default function Board({ user }) {
       </header>
 
       {/* Main */}
-      <main className="flex-1 overflow-y-auto px-4 py-4 pb-24">
+      <main className="flex-1 overflow-y-auto px-4 compact:px-3 py-4 pb-24">
         {loading && (
           <div className="flex justify-center py-12">
-            <div className="w-8 h-8 border-4 border-[#78350f] border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-4 border-clay border-t-transparent rounded-full animate-spin" />
           </div>
         )}
         {error && (
           <p className="text-red-600 text-sm text-center py-4">{error}</p>
         )}
-        {!loading && !error && viewMode === 'stage' && STAGES.map((stage) => (
+        {!loading && !error && pieces.length === 0 && (
+          <div className="flex flex-col items-center pt-12 px-8 text-center">
+            <div className="relative w-56 h-40 opacity-70">
+              <img
+                src="/placeholders/bowl.svg"
+                alt=""
+                className="absolute left-0 bottom-0 w-28 h-28 object-contain"
+              />
+              <img
+                src="/placeholders/vase.svg"
+                alt=""
+                className="absolute left-1/2 -translate-x-1/2 top-0 w-32 h-36 object-contain"
+              />
+              <img
+                src="/placeholders/mug.svg"
+                alt=""
+                className="absolute right-0 bottom-0 w-24 h-24 object-contain"
+              />
+            </div>
+            <h2 className="font-display italic text-3xl text-ink mt-2">Your shelf is empty.</h2>
+            <p className="text-sm text-muted max-w-xs mt-2">
+              Throw your first piece — snap a photo and start the timeline.
+            </p>
+            <button
+              onClick={() => setShowAddPiece(true)}
+              className="bg-clay text-white py-3.5 px-6 rounded-2xl mt-6 w-full max-w-xs cursor-pointer hover:bg-clay-dark active:bg-clay-dark font-semibold"
+            >
+              Throw your first piece
+            </button>
+            <button
+              onClick={() => navigate('/catalog')}
+              className="text-xs uppercase tracking-widest text-muted mt-4 cursor-pointer hover:text-ink-soft"
+            >
+              Browse clays &amp; glazes first
+            </button>
+          </div>
+        )}
+        {!loading && !error && pieces.length > 0 && viewMode === 'stage' && STAGES.map((stage) => (
           <StageColumn
             key={stage}
             stage={stage}
@@ -305,26 +349,26 @@ export default function Board({ user }) {
             onToggleSelect={toggleSelect}
           />
         ))}
-{!loading && !error && viewMode === 'clay_body' && clayBodyGroups.map(({ key, label, pieces: groupPieces }) => (
+{!loading && !error && pieces.length > 0 && viewMode === 'clay_body' && clayBodyGroups.map(({ key, label, pieces: groupPieces }) => (
           <div key={key} className="mb-8">
-            <div className="flex items-baseline justify-between mb-3 border-b border-stone-200 pb-2">
-              <h2 className="font-display italic text-2xl text-[#1c1917] capitalize">{label}</h2>
+            <div className="flex items-baseline justify-between mb-3 border-b border-line pb-2">
+              <h2 className="font-display italic text-2xl text-ink capitalize">{label}</h2>
               <span className="text-sm text-muted tabular-nums">{String(groupPieces.length).padStart(2, '0')}</span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-3 sm:gap-4">
               {groupPieces.map((piece) => (
                 <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
               ))}
             </div>
           </div>
         ))}
-        {!loading && !error && viewMode === 'glaze' && glazeGroups.map(({ key, label, pieces: groupPieces }) => (
+        {!loading && !error && pieces.length > 0 && viewMode === 'glaze' && glazeGroups.map(({ key, label, pieces: groupPieces }) => (
           <div key={key} className="mb-8">
-            <div className="flex items-baseline justify-between mb-3 border-b border-stone-200 pb-2">
-              <h2 className="font-display italic text-2xl text-[#1c1917] capitalize">{label}</h2>
+            <div className="flex items-baseline justify-between mb-3 border-b border-line pb-2">
+              <h2 className="font-display italic text-2xl text-ink capitalize">{label}</h2>
               <span className="text-sm text-muted tabular-nums">{String(groupPieces.length).padStart(2, '0')}</span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-3 sm:gap-4">
               {groupPieces.map((piece) => (
                 <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
               ))}
@@ -334,10 +378,10 @@ export default function Board({ user }) {
       </main>
 
       {/* FAB */}
-      {!selectMode && (
+      {!selectMode && pieces.length > 0 && (
         <button
           onClick={() => setShowAddPiece(true)}
-          className="fixed bottom-8 right-5 w-14 h-14 bg-[#78350f] text-white text-3xl rounded-full shadow-lg flex items-center justify-center active:bg-[#5c2709] cursor-pointer hover:bg-[#5c2709]"
+          className="fixed bottom-8 right-5 w-14 h-14 compact:w-12 compact:h-12 bg-clay text-white text-3xl rounded-full shadow-lg flex items-center justify-center active:bg-clay-dark cursor-pointer hover:bg-clay-dark"
           aria-label="Add piece"
         >
           +
@@ -346,15 +390,15 @@ export default function Board({ user }) {
 
       {/* Bulk action bar */}
       {selectMode && selectedIds.size > 0 && (
-        <div className="fixed bottom-0 inset-x-0 pb-safe bg-white border-t border-stone-200 px-4 pt-3">
+        <div className="fixed bottom-0 inset-x-0 pb-safe bg-surface-raised border-t border-line px-4 pt-3">
           <div className="flex items-center gap-3 pb-3">
-            <span className="text-sm text-stone-500 flex-1">
+            <span className="text-sm text-muted flex-1">
               {selectedIds.size} {selectedIds.size === 1 ? 'piece' : 'pieces'} selected
             </span>
             <button
               onClick={() => setShowTagSheet(true)}
               disabled={bulkSaving}
-              className="px-4 py-2 rounded-xl border border-stone-300 text-sm text-[#1c1917] font-medium active:bg-stone-100 disabled:opacity-50 cursor-pointer hover:bg-stone-100"
+              className="px-4 py-2 rounded-xl border border-line-strong text-sm text-ink font-medium active:bg-surface-warm-hover disabled:opacity-50 cursor-pointer hover:bg-surface-warm-hover"
             >
               Edit Tags
             </button>
@@ -382,12 +426,42 @@ export default function Board({ user }) {
         onClose={() => setShowProfile(false)}
         title="Account"
       >
-        <div className="flex flex-col gap-2 pb-4">
-          <p className="text-sm text-[#1c1917] font-medium">{user.user_metadata?.full_name || user.email}</p>
-          <p className="text-xs text-muted">{user.email}</p>
+        <div className="flex flex-col gap-5 pb-4">
+          <div>
+            <p className="text-sm text-ink font-medium">{user.user_metadata?.full_name || user.email}</p>
+            <p className="text-xs text-muted">{user.email}</p>
+          </div>
+
+          <div>
+            <p className="text-xs uppercase tracking-widest text-muted mb-2">Theme</p>
+            <SegmentedControl
+              ariaLabel="Theme"
+              value={theme}
+              onChange={handleThemeChange}
+              options={[
+                { value: 'light', label: 'Light' },
+                { value: 'dark', label: 'Dark' },
+                { value: 'system', label: 'System' },
+              ]}
+            />
+          </div>
+
+          <div>
+            <p className="text-xs uppercase tracking-widest text-muted mb-2">Density</p>
+            <SegmentedControl
+              ariaLabel="Density"
+              value={density}
+              onChange={handleDensityChange}
+              options={[
+                { value: 'comfortable', label: 'Comfortable' },
+                { value: 'compact', label: 'Compact' },
+              ]}
+            />
+          </div>
+
           <button
             onClick={handleLogout}
-            className="mt-6 text-left text-sm text-red-500 cursor-pointer hover:text-red-700"
+            className="mt-2 text-left text-sm text-red-500 cursor-pointer hover:text-red-700"
           >
             Sign out
           </button>
@@ -402,13 +476,13 @@ export default function Board({ user }) {
       >
         <div className="flex flex-col gap-5">
           <div>
-            <p className="text-xs uppercase tracking-widest text-stone-500 mb-2">Form</p>
+            <p className="text-xs uppercase tracking-widest text-muted mb-2">Form</p>
             <div className="flex flex-wrap gap-2">
               {PRESET_TAGS.form.map((tag) => (
                 <button
                   key={tag}
                   onClick={() => handleBulkToggleTag(tag, 'form')}
-                  className="px-4 py-1.5 rounded-full text-sm border border-stone-300 text-stone-700 bg-white active:bg-stone-100 cursor-pointer hover:bg-stone-100"
+                  className="px-4 py-1.5 rounded-full text-sm border border-line-strong text-ink-soft bg-surface-raised active:bg-surface-warm-hover cursor-pointer hover:bg-surface-warm-hover"
                 >
                   {tag}
                 </button>
@@ -417,13 +491,13 @@ export default function Board({ user }) {
           </div>
           {userTags.filter(t => t.category === 'glaze').length > 0 && (
             <div>
-              <p className="text-xs uppercase tracking-widest text-stone-500 mb-2">Glaze</p>
+              <p className="text-xs uppercase tracking-widest text-muted mb-2">Glaze</p>
               <div className="flex flex-wrap gap-2">
                 {userTags.filter(t => t.category === 'glaze').map((tag) => (
                   <button
                     key={tag.name}
                     onClick={() => handleBulkToggleTag(tag.name, 'glaze')}
-                    className="px-4 py-1.5 rounded-full text-sm border border-stone-300 text-stone-700 bg-white active:bg-stone-100 cursor-pointer hover:bg-stone-100"
+                    className="px-4 py-1.5 rounded-full text-sm border border-line-strong text-ink-soft bg-surface-raised active:bg-surface-warm-hover cursor-pointer hover:bg-surface-warm-hover"
                   >
                     {tag.name}
                   </button>
@@ -433,7 +507,7 @@ export default function Board({ user }) {
           )}
           <button
             onClick={handleTagSheetDone}
-            className="w-full bg-[#78350f] text-white font-semibold py-3.5 rounded-2xl active:bg-[#5c2709] mb-2 cursor-pointer hover:bg-[#5c2709]"
+            className="w-full bg-clay text-white font-semibold py-3.5 rounded-2xl active:bg-clay-dark mb-2 cursor-pointer hover:bg-clay-dark"
           >
             Done
           </button>
@@ -447,7 +521,7 @@ export default function Board({ user }) {
         title={`Send ${selectedIds.size} ${selectedIds.size === 1 ? 'piece' : 'pieces'} to graveyard?`}
       >
         <div className="flex flex-col gap-3 pb-2">
-          <p className="text-sm text-stone-500">
+          <p className="text-sm text-muted">
             {selectedIds.size === 1 ? 'It' : 'They'} will be tagged "lost" and hidden from your board.
           </p>
           <button
@@ -462,7 +536,7 @@ export default function Board({ user }) {
           </button>
           <button
             onClick={() => setShowDeleteConfirm(false)}
-            className="w-full bg-stone-100 text-stone-700 font-semibold py-3.5 rounded-2xl active:bg-stone-200 cursor-pointer hover:bg-stone-200"
+            className="w-full bg-surface-warm text-ink-soft font-semibold py-3.5 rounded-2xl active:bg-surface-warm-hover cursor-pointer hover:bg-surface-warm-hover"
           >
             Cancel
           </button>

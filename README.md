@@ -4,6 +4,10 @@ A mobile-first PWA for tracking pottery pieces through the production process �
 
 **Live app:** https://pot-heads.studio
 
+![Potheads board view — pieces grouped by stage with photo thumbnails](docs/screenshot-board.png)
+
+![Piece detail view — hero photo, stage timeline, and tags](docs/screenshot-detail.png)
+
 ---
 
 ## What it does

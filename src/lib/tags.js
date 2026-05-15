@@ -87,3 +87,27 @@ export async function updateTagColor(tagId, color) {
   const { error } = await supabase.from('tags').update({ color }).eq('id', tagId)
   if (error) throw error
 }
+
+export async function renameTag(tagId, newName) {
+  const { error } = await supabase.from('tags').update({ name: newName }).eq('id', tagId)
+  if (error) {
+    if (error.code === '23505') throw new Error(`A tag named "${newName}" already exists`)
+    throw error
+  }
+}
+
+export async function countPiecesForTag(tagId) {
+  const { count, error } = await supabase
+    .from('piece_tags')
+    .select('*', { count: 'exact', head: true })
+    .eq('tag_id', tagId)
+  if (error) throw error
+  return count || 0
+}
+
+export async function deleteTag(tagId) {
+  const { error: ptError } = await supabase.from('piece_tags').delete().eq('tag_id', tagId)
+  if (ptError) throw ptError
+  const { error } = await supabase.from('tags').delete().eq('id', tagId)
+  if (error) throw error
+}

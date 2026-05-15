@@ -13,6 +13,7 @@ import GlazeCard from '../components/catalog/GlazeCard.jsx'
 import ClayDetail from '../components/catalog/ClayDetail.jsx'
 import GlazeDetail from '../components/catalog/GlazeDetail.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
+import PageHeader from '../components/PageHeader.jsx'
 
 const CLAY_CATEGORIES = ['stoneware', 'porcelain', 'earthenware', 'sculpture']
 const CLAY_TEXTURES = ['smooth', 'fine grog', 'medium grog', 'heavy grog']
@@ -25,8 +26,8 @@ function Chip({ active, onClick, children }) {
       onClick={onClick}
       className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap cursor-pointer transition-colors ${
         active
-          ? 'bg-[#78350f] text-white hover:bg-[#5c2709]'
-          : 'bg-stone-100 text-[#7c5545] hover:bg-stone-200'
+          ? 'bg-clay text-white hover:bg-clay-dark'
+          : 'bg-surface-warm text-muted hover:bg-surface-warm-hover'
       }`}
     >
       {children}
@@ -172,33 +173,18 @@ export default function Catalog({ user }) {
   const filtersActive = search || favoritesOnly || clayCategory || clayTexture || glazeFinish || foodSafeOnly
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#fafaf9]">
-      <header className="px-5 pt-safe bg-[#fafaf9] sticky top-0 z-10">
-        <div className="flex items-center justify-between pt-3 pb-3">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/board')}
-              className="text-muted hover:text-stone-600 cursor-pointer active:text-stone-600"
-              aria-label="Back"
-            >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 12H5M12 5l-7 7 7 7" />
-              </svg>
-            </button>
-            <h1 className="font-display italic text-3xl text-[#1c1917]">Catalog.</h1>
-          </div>
-        </div>
-
+    <div className="flex flex-col min-h-screen bg-surface">
+      <PageHeader title="Catalog." onBack={() => navigate('/board')}>
         {/* Tabs */}
-        <div className="flex gap-6 border-b border-stone-200">
+        <div className="flex gap-6 border-b border-line">
           {[['clay', 'Clay'], ['glazes', 'Glazes']].map(([key, label]) => (
             <button
               key={key}
               onClick={() => setTab(key)}
               className={`pb-2 -mb-px text-sm font-semibold uppercase tracking-widest cursor-pointer ${
                 tab === key
-                  ? 'text-[#78350f] border-b-2 border-[#78350f]'
-                  : 'text-muted hover:text-[#5c2709]'
+                  ? 'text-clay border-b-2 border-clay'
+                  : 'text-muted hover:text-clay-dark'
               }`}
             >
               {label}
@@ -213,7 +199,7 @@ export default function Catalog({ user }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={isClay ? 'Search clay bodies…' : 'Search glazes…'}
-            className="w-full px-4 py-2.5 rounded-xl bg-white border border-stone-200 text-sm focus:outline-none focus:border-[#78350f]/60 placeholder:text-muted"
+            className="w-full px-4 py-2.5 rounded-xl bg-surface-warm border border-line text-sm focus:outline-none focus:border-clay/60 placeholder:text-muted"
           />
         </div>
 
@@ -260,18 +246,18 @@ export default function Catalog({ user }) {
             </>
           )}
         </div>
-      </header>
+      </PageHeader>
 
       <main className="flex-1 px-4 pb-24">
         {loading && (
           <div className="flex justify-center py-12">
-            <div className="w-8 h-8 border-4 border-[#78350f] border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-4 border-clay border-t-transparent rounded-full animate-spin" />
           </div>
         )}
         {error && (
           <div className="flex flex-col items-center gap-2 py-8">
             <p className="text-red-600 text-sm">{error}</p>
-            <button onClick={fetchAll} className="text-xs uppercase tracking-widest text-[#78350f] font-semibold cursor-pointer hover:text-[#5c2709]">
+            <button onClick={fetchAll} className="text-xs uppercase tracking-widest text-clay font-semibold cursor-pointer hover:text-clay-dark">
               Retry
             </button>
           </div>
@@ -292,7 +278,7 @@ export default function Catalog({ user }) {
                 {filtersActive && (
                   <button
                     onClick={clearFilters}
-                    className="text-xs uppercase tracking-widest text-[#78350f] font-semibold cursor-pointer hover:text-[#5c2709]"
+                    className="text-xs uppercase tracking-widest text-clay font-semibold cursor-pointer hover:text-clay-dark"
                   >
                     Clear filters
                   </button>

@@ -6,7 +6,7 @@ function Field({ label, value }) {
   return (
     <div className="flex flex-col gap-0.5">
       <span className="text-[10px] uppercase tracking-widest text-muted">{label}</span>
-      <span className="text-sm text-[#1c1917]">{value}</span>
+      <span className="text-sm text-ink">{value}</span>
     </div>
   )
 }
@@ -18,13 +18,13 @@ export default function GlazeDetail({ glaze, favorite, onToggleFavorite }) {
     <div className="flex flex-col gap-4 pb-2">
       <div className="flex items-start gap-4">
         <div
-          className="w-24 h-24 rounded-2xl shrink-0 border border-stone-200"
+          className="w-24 h-24 rounded-2xl shrink-0 border border-line"
           style={{ backgroundColor: glaze.hex_swatch || '#d4c5b0' }}
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <h3 className="text-lg font-semibold text-[#1c1917] leading-tight">{glaze.name}</h3>
+              <h3 className="text-lg font-semibold text-ink leading-tight">{glaze.name}</h3>
               {glaze.family && (
                 <p className="text-sm text-muted mt-0.5">{glaze.family}</p>
               )}
@@ -40,7 +40,7 @@ export default function GlazeDetail({ glaze, favorite, onToggleFavorite }) {
 
       <div className="flex flex-wrap gap-1.5">
         {glaze.finish && (
-          <span className="text-xs px-2.5 py-1 rounded-full bg-[#4a7c59]/10 text-[#4a7c59]">
+          <span className="text-xs px-2.5 py-1 rounded-full bg-stage-complete/10 text-stage-complete">
             {glaze.finish}
           </span>
         )}
@@ -59,7 +59,7 @@ export default function GlazeDetail({ glaze, favorite, onToggleFavorite }) {
           </span>
         )}
         {glaze.layers_well && (
-          <span className="text-xs px-2.5 py-1 rounded-full bg-stone-100 text-[#7c5545]">
+          <span className="text-xs px-2.5 py-1 rounded-full bg-surface-warm text-muted">
             layers well
           </span>
         )}
@@ -75,7 +75,7 @@ export default function GlazeDetail({ glaze, favorite, onToggleFavorite }) {
       {glaze.notes && (
         <div className="flex flex-col gap-1">
           <span className="text-[10px] uppercase tracking-widest text-muted">Notes</span>
-          <p className="text-sm text-[#1c1917] leading-relaxed whitespace-pre-line">{glaze.notes}</p>
+          <p className="text-sm text-ink leading-relaxed whitespace-pre-line">{glaze.notes}</p>
         </div>
       )}
 
@@ -84,7 +84,7 @@ export default function GlazeDetail({ glaze, favorite, onToggleFavorite }) {
           href={glaze.source_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-[#78350f] hover:text-[#5c2709] underline self-start cursor-pointer"
+          className="text-xs text-clay hover:text-clay-dark underline self-start cursor-pointer"
         >
           View on The Pottery Studio →
         </a>
