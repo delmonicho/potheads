@@ -9,6 +9,15 @@ export const STAGE_LABELS = {
   finished: 'Finished',
 }
 
+// Saturated hues chosen to glow on both light and dark surfaces (single palette
+// for both themes). Used by the calendar activity heatmap.
+export const STAGE_COLORS = {
+  drying: '#b45309',       // raw/wet clay — amber
+  bisque_ready: '#c2691c', // bisque-fired terracotta
+  glazed: '#2f7d6e',       // wet glaze — teal
+  finished: '#4a7c59',     // sage = --color-stage-complete
+}
+
 export function nextStage(current) {
   const idx = STAGES.indexOf(current)
   return idx >= 0 && idx < STAGES.length - 1 ? STAGES[idx + 1] : null
@@ -143,6 +152,16 @@ export async function getStageEvents(pieceId) {
     console.warn('getStageEvents failed, returning []:', err.message)
     return []
   }
+}
+
+export async function getStageEventsForUser() {
+  // RLS scopes stage_events to the current user's pieces, so no user filter needed.
+  const { data, error } = await supabase
+    .from('stage_events')
+    .select('piece_id, stage, moved_at')
+
+  if (error) throw error
+  return data ?? []
 }
 
 export async function getClayBodies(userId) {
