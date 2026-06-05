@@ -9,6 +9,16 @@ export const STAGE_LABELS = {
   finished: 'Finished',
 }
 
+// Verbs for the *action* that put a piece into a stage — used by the calendar
+// day view so a past day reads as "what I did" rather than "current status".
+// `drying` is the throw/creation event.
+export const STAGE_ACTIONS = {
+  drying: 'Thrown',
+  bisque_ready: 'Bisque Ready',
+  glazed: 'Glazed',
+  finished: 'Finished',
+}
+
 // Saturated hues chosen to glow on both light and dark surfaces (single palette
 // for both themes). Used by the calendar activity heatmap.
 export const STAGE_COLORS = {

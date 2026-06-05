@@ -25,7 +25,9 @@ function eventTimestamp(ev) {
  * Build per-day activity from pieces + stage events.
  * - Each piece counts as one `drying` throw on its created_at day.
  * - Each stage_event counts toward its stage on its moved_at day.
- * Returns Map<dayKey, { total, stageCounts, pieceIds: Set }>.
+ * Returns Map<dayKey, { total, stageCounts, pieceIds: Set, pieceActions: Map<pieceId, Set<stage>> }>.
+ * `pieceActions` keeps which action(s) each piece had that day so the day view
+ * can group by action instead of collapsing everything to current status.
  */
 export function buildActivityByDay(pieces = [], stageEvents = []) {
   const byDay = new Map()
@@ -33,10 +35,24 @@ export function buildActivityByDay(pieces = [], stageEvents = []) {
   const ensure = (key) => {
     let entry = byDay.get(key)
     if (!entry) {
-      entry = { total: 0, stageCounts: emptyStageCounts(), pieceIds: new Set() }
+      entry = {
+        total: 0,
+        stageCounts: emptyStageCounts(),
+        pieceIds: new Set(),
+        pieceActions: new Map(),
+      }
       byDay.set(key, entry)
     }
     return entry
+  }
+
+  const addAction = (entry, pieceId, stage) => {
+    let set = entry.pieceActions.get(pieceId)
+    if (!set) {
+      set = new Set()
+      entry.pieceActions.set(pieceId, set)
+    }
+    set.add(stage)
   }
 
   for (const piece of pieces) {
@@ -45,6 +61,7 @@ export function buildActivityByDay(pieces = [], stageEvents = []) {
     entry.stageCounts.drying += 1
     entry.total += 1
     entry.pieceIds.add(piece.id)
+    addAction(entry, piece.id, 'drying')
   }
 
   for (const ev of stageEvents) {
@@ -53,7 +70,10 @@ export function buildActivityByDay(pieces = [], stageEvents = []) {
     const entry = ensure(dayKey(ts))
     entry.stageCounts[ev.stage] += 1
     entry.total += 1
-    if (ev.piece_id) entry.pieceIds.add(ev.piece_id)
+    if (ev.piece_id) {
+      entry.pieceIds.add(ev.piece_id)
+      addAction(entry, ev.piece_id, ev.stage)
+    }
   }
 
   return byDay

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
-import { getPieces, STAGES } from '../lib/pieces.js'
+import { getPieces, STAGES, STAGE_ACTIONS, STAGE_COLORS } from '../lib/pieces.js'
 import { getPhotosForPieces, getPhotoUrl } from '../lib/photos.js'
 import { getTagsForPieces, getOrCreateTag, addTagToPiece, getUserTags, PRESET_TAGS } from '../lib/tags.js'
 import StageColumn, { PieceCard } from '../components/StageColumn.jsx'
@@ -176,18 +176,41 @@ export default function Board({ user }) {
     exitSelectMode()
   }
 
-  const dayFilterSet = useMemo(
-    () => (dayFilter ? new Set(dayFilter.pieceIds) : null),
-    [dayFilter]
-  )
-
   const activepieces = useMemo(() => pieces.filter(p => {
     if (p.lost) return false
     const tags = allTagsByPiece.get(p.id) || []
     if (tags.some(t => t.name === 'lost')) return false
-    if (dayFilterSet && !dayFilterSet.has(p.id)) return false
     return true
-  }), [pieces, allTagsByPiece, dayFilterSet])
+  }), [pieces, allTagsByPiece])
+
+  const pieceById = useMemo(() => {
+    const m = new Map()
+    for (const p of pieces) m.set(p.id, p)
+    return m
+  }, [pieces])
+
+  // Day view: group the selected day's pieces by the *action* that happened
+  // that day (Thrown / Bisque Ready / Glazed / Finished), not current stage.
+  // A piece with two actions that day appears under both groups. Pieces are
+  // looked up from the full list so historical activity shows even if the
+  // piece was later lost — matching what the calendar counted.
+  const dayActionGroups = useMemo(() => {
+    if (!dayFilter?.actions) return []
+    return STAGES
+      .map(stage => {
+        const groupPieces = []
+        for (const [id, stages] of Object.entries(dayFilter.actions)) {
+          if (stages.includes(stage)) {
+            const piece = pieceById.get(id)
+            if (piece) groupPieces.push(piece)
+          }
+        }
+        return { stage, label: STAGE_ACTIONS[stage], color: STAGE_COLORS[stage], pieces: groupPieces }
+      })
+      .filter(g => g.pieces.length > 0)
+  }, [dayFilter, pieceById])
+
+  const dayPieceCount = dayFilter?.actions ? Object.keys(dayFilter.actions).length : 0
 
   const piecesByStage = useMemo(
     () => STAGES.reduce((acc, stage) => {
@@ -297,34 +320,48 @@ export default function Board({ user }) {
         </div>
         <div className="flex items-baseline justify-between pb-3">
           <h1 className="font-display italic text-4xl text-ink">Potheads.</h1>
-          <div className="relative flex items-center">
-            <select
-              value={viewMode}
-              onChange={e => setViewMode(e.target.value)}
-              className="appearance-none text-xs uppercase tracking-widest font-semibold text-clay bg-transparent border-none cursor-pointer pr-4 focus:outline-none"
-            >
-              <option value="stage">Stage</option>
-              <option value="clay_body">Clay Body</option>
-              <option value="glaze">Glaze</option>
-            </select>
-            <svg className="pointer-events-none absolute right-0 text-clay" width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-              <path d="M0 3l5 5 5-5H0z" />
-            </svg>
-          </div>
+          {!dayFilter && (
+            <div className="relative flex items-center">
+              <select
+                value={viewMode}
+                onChange={e => setViewMode(e.target.value)}
+                className="appearance-none text-xs uppercase tracking-widest font-semibold text-clay bg-transparent border-none cursor-pointer pr-4 focus:outline-none"
+              >
+                <option value="stage">Stage</option>
+                <option value="clay_body">Clay Body</option>
+                <option value="glaze">Glaze</option>
+              </select>
+              <svg className="pointer-events-none absolute right-0 text-clay" width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                <path d="M0 3l5 5 5-5H0z" />
+              </svg>
+            </div>
+          )}
         </div>
       </header>
 
       {dayFilter && (
-        <div className="flex items-center justify-between px-5 compact:px-4 py-2 bg-clay-tint border-b border-line/70">
-          <span className="text-xs uppercase tracking-widest text-clay font-semibold">
-            Activity on {dayFilter.label} · {activepieces.length} {activepieces.length === 1 ? 'piece' : 'pieces'}
-          </span>
-          <button
-            onClick={() => navigate('/board', { replace: true })}
-            className="text-xs uppercase tracking-widest text-clay font-semibold cursor-pointer hover:text-clay-dark"
-          >
-            Clear
-          </button>
+        <div className="px-5 compact:px-4 py-2.5 bg-clay-tint border-b border-line/70">
+          <div className="flex items-center justify-between">
+            <span className="text-xs uppercase tracking-widest text-clay font-semibold">
+              Activity on {dayFilter.label} · {dayPieceCount} {dayPieceCount === 1 ? 'piece' : 'pieces'}
+            </span>
+            <button
+              onClick={() => navigate('/board', { replace: true })}
+              className="text-xs uppercase tracking-widest text-clay font-semibold cursor-pointer hover:text-clay-dark"
+            >
+              Clear
+            </button>
+          </div>
+          {dayActionGroups.length > 0 && (
+            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5">
+              {dayActionGroups.map(({ stage, label, color, pieces: gp }) => (
+                <span key={stage} className="flex items-center gap-1 text-[11px] text-muted">
+                  <span className="w-2 h-2 rounded-full" style={{ background: color }} />
+                  {label} {gp.length}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -375,7 +412,23 @@ export default function Board({ user }) {
             </button>
           </div>
         )}
-        {!loading && !error && pieces.length > 0 && viewMode === 'stage' && STAGES.map((stage) => (
+        {!loading && !error && dayFilter && dayActionGroups.map(({ stage, label, color, pieces: groupPieces }) => (
+          <div key={stage} className="mb-8">
+            <div className="flex items-baseline justify-between mb-3 border-b border-line pb-2">
+              <h2 className="flex items-center gap-2 font-display italic text-2xl text-ink">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
+                {label}
+              </h2>
+              <span className="text-sm text-muted tabular-nums">{String(groupPieces.length).padStart(2, '0')}</span>
+            </div>
+            <div className="grid grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+              {groupPieces.map((piece) => (
+                <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} actionStage={stage} />
+              ))}
+            </div>
+          </div>
+        ))}
+        {!loading && !error && !dayFilter && pieces.length > 0 && viewMode === 'stage' && STAGES.map((stage) => (
           <StageColumn
             key={stage}
             stage={stage}
@@ -387,7 +440,7 @@ export default function Board({ user }) {
             onToggleSelect={toggleSelect}
           />
         ))}
-{!loading && !error && pieces.length > 0 && viewMode === 'clay_body' && clayBodyGroups.map(({ key, label, pieces: groupPieces }) => (
+{!loading && !error && !dayFilter && pieces.length > 0 && viewMode === 'clay_body' && clayBodyGroups.map(({ key, label, pieces: groupPieces }) => (
           <div key={key} className="mb-8">
             <div className="flex items-baseline justify-between mb-3 border-b border-line pb-2">
               <h2 className="font-display italic text-2xl text-ink capitalize">{label}</h2>
@@ -400,7 +453,7 @@ export default function Board({ user }) {
             </div>
           </div>
         ))}
-        {!loading && !error && pieces.length > 0 && viewMode === 'glaze' && glazeGroups.map(({ key, label, pieces: groupPieces }) => (
+        {!loading && !error && !dayFilter && pieces.length > 0 && viewMode === 'glaze' && glazeGroups.map(({ key, label, pieces: groupPieces }) => (
           <div key={key} className="mb-8">
             <div className="flex items-baseline justify-between mb-3 border-b border-line pb-2">
               <h2 className="font-display italic text-2xl text-ink capitalize">{label}</h2>

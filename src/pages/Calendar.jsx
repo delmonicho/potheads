@@ -80,8 +80,13 @@ export default function Calendar({ user }) {
     const entry = activityByDay.get(key)
     if (!entry || entry.pieceIds.size === 0) return
     const label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    // Serialize pieceActions (Map<id, Set>) to plain JSON for router state so the
+    // Board can group the day by action. pieceIds is derivable from its keys.
+    const actions = Object.fromEntries(
+      [...entry.pieceActions].map(([id, set]) => [id, [...set]]),
+    )
     navigate('/board', {
-      state: { dayFilter: { key, label, pieceIds: [...entry.pieceIds] } },
+      state: { dayFilter: { key, label, actions } },
     })
   }
 
