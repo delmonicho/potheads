@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import { getPieces, STAGES } from '../lib/pieces.js'
 import { getPhotosForPieces, getPhotoUrl } from '../lib/photos.js'
@@ -29,6 +29,15 @@ function BrokenVaseIcon() {
   )
 }
 
+function CalendarIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4.5" width="18" height="16" rx="2.5" />
+      <path d="M3 9h18M8 2.5v4M16 2.5v4" />
+    </svg>
+  )
+}
+
 function SelectIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -44,6 +53,8 @@ function SelectIcon() {
 
 export default function Board({ user }) {
   const navigate = useNavigate()
+  const location = useLocation()
+  const dayFilter = location.state?.dayFilter || null
   const [pieces, setPieces] = useState([])
   const [thumbUrls, setThumbUrls] = useState({})  // pieceId → signed URL
   const [formTags, setFormTags] = useState({})     // pieceId → form tag name
@@ -165,12 +176,18 @@ export default function Board({ user }) {
     exitSelectMode()
   }
 
+  const dayFilterSet = useMemo(
+    () => (dayFilter ? new Set(dayFilter.pieceIds) : null),
+    [dayFilter]
+  )
+
   const activepieces = useMemo(() => pieces.filter(p => {
     if (p.lost) return false
     const tags = allTagsByPiece.get(p.id) || []
     if (tags.some(t => t.name === 'lost')) return false
+    if (dayFilterSet && !dayFilterSet.has(p.id)) return false
     return true
-  }), [pieces, allTagsByPiece])
+  }), [pieces, allTagsByPiece, dayFilterSet])
 
   const piecesByStage = useMemo(
     () => STAGES.reduce((acc, stage) => {
@@ -249,6 +266,13 @@ export default function Board({ user }) {
               </button>
             )}
             <button
+              onClick={() => navigate('/calendar')}
+              className="text-muted active:text-ink-soft cursor-pointer hover:text-ink-soft"
+              aria-label="Calendar"
+            >
+              <CalendarIcon />
+            </button>
+            <button
               onClick={() => navigate('/catalog')}
               className="text-muted active:text-ink-soft cursor-pointer hover:text-ink-soft"
               aria-label="Catalog"
@@ -289,6 +313,20 @@ export default function Board({ user }) {
           </div>
         </div>
       </header>
+
+      {dayFilter && (
+        <div className="flex items-center justify-between px-5 compact:px-4 py-2 bg-clay-tint border-b border-line/70">
+          <span className="text-xs uppercase tracking-widest text-clay font-semibold">
+            Activity on {dayFilter.label} · {activepieces.length} {activepieces.length === 1 ? 'piece' : 'pieces'}
+          </span>
+          <button
+            onClick={() => navigate('/board', { replace: true })}
+            className="text-xs uppercase tracking-widest text-clay font-semibold cursor-pointer hover:text-clay-dark"
+          >
+            Clear
+          </button>
+        </div>
+      )}
 
       {/* Main */}
       <main className="flex-1 overflow-y-auto px-4 compact:px-3 py-4 pb-24">

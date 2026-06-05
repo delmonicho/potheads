@@ -6,6 +6,7 @@ import Board from './pages/Board.jsx'
 import PieceDetail from './pages/PieceDetail.jsx'
 import Graveyard from './pages/Graveyard.jsx'
 import Catalog from './pages/Catalog.jsx'
+import Calendar from './pages/Calendar.jsx'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -42,6 +43,7 @@ export default function App() {
       <Route path="/board" element={<Board user={user} />} />
       <Route path="/piece/:id" element={<PieceDetail user={user} />} />
       <Route path="/graveyard" element={<Graveyard user={user} />} />
+      <Route path="/calendar" element={<Calendar user={user} />} />
       <Route path="/catalog" element={<Navigate to="/catalog/clay" replace />} />
       <Route path="/catalog/:tab" element={<Catalog user={user} />} />
     </Routes>
