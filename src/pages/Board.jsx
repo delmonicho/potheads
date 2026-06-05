@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
-import { getPieces, STAGES, STAGE_ACTIONS, STAGE_COLORS } from '../lib/pieces.js'
+import { getPieces, getStageEventsForUser, STAGES, STAGE_ACTIONS, STAGE_COLORS } from '../lib/pieces.js'
+import { buildActivityByDay, parseDayKey } from '../lib/calendar.js'
 import { getPhotosForPieces, getPhotoUrl } from '../lib/photos.js'
 import { getTagsForPieces, getOrCreateTag, addTagToPiece, getUserTags, PRESET_TAGS } from '../lib/tags.js'
 import StageColumn, { PieceCard } from '../components/StageColumn.jsx'
@@ -54,7 +55,21 @@ function SelectIcon() {
 export default function Board({ user }) {
   const navigate = useNavigate()
   const location = useLocation()
-  const dayFilter = location.state?.dayFilter || null
+  // Day mode: which day's activity we're viewing. Seeded by navigation from the
+  // calendar, then mutated locally by the prev/next-day stepper. We adjust the
+  // day during render (React's "reset state on prop change" pattern) keyed on
+  // location.key, so a fresh navigation re-seeds it while a local prev/next step
+  // (same location.key) is preserved.
+  const navDayKey = location.state?.dayKey ?? null
+  const [dayState, setDayState] = useState({ key: navDayKey, navKey: location.key })
+  let dayKey = dayState.key
+  if (dayState.navKey !== location.key) {
+    dayKey = navDayKey
+    setDayState({ key: navDayKey, navKey: location.key })
+  }
+  const setDayKey = (k) => setDayState({ key: k, navKey: location.key })
+  const [stageEvents, setStageEvents] = useState([])
+  const [stageEventsLoaded, setStageEventsLoaded] = useState(false)
   const [pieces, setPieces] = useState([])
   const [thumbUrls, setThumbUrls] = useState({})  // pieceId → signed URL
   const [formTags, setFormTags] = useState({})     // pieceId → form tag name
@@ -131,6 +146,17 @@ export default function Board({ user }) {
     fetchAll()
   }, [fetchAll])
 
+  // Stage events power the per-day action grouping + day stepper; only needed in
+  // day mode, so fetch them lazily the first time a day is opened.
+  useEffect(() => {
+    if (dayKey && !stageEventsLoaded) {
+      getStageEventsForUser()
+        .then(setStageEvents)
+        .catch(() => setStageEvents([]))
+        .finally(() => setStageEventsLoaded(true))
+    }
+  }, [dayKey, stageEventsLoaded])
+
   async function handleLogout() {
     await supabase.auth.signOut()
   }
@@ -189,18 +215,27 @@ export default function Board({ user }) {
     return m
   }, [pieces])
 
-  // Day view: group the selected day's pieces by the *action* that happened
-  // that day (Thrown / Bisque Ready / Glazed / Finished), not current stage.
-  // A piece with two actions that day appears under both groups. Pieces are
-  // looked up from the full list so historical activity shows even if the
-  // piece was later lost — matching what the calendar counted.
+  // Per-day activity, computed here (not passed in) so the day page can step
+  // between days on its own. Only built in day mode, once stage events load.
+  const activityByDay = useMemo(
+    () => (dayKey && stageEventsLoaded ? buildActivityByDay(pieces, stageEvents) : null),
+    [dayKey, stageEventsLoaded, pieces, stageEvents],
+  )
+
+  const dayEntry = activityByDay && dayKey ? activityByDay.get(dayKey) : null
+
+  // Group the selected day's pieces by the *action* that happened that day
+  // (Thrown / Bisque Ready / Glazed / Finished), not current stage. A piece with
+  // two actions that day appears under both groups. Pieces are looked up from the
+  // full list so historical activity shows even if the piece was later lost —
+  // matching what the calendar counted.
   const dayActionGroups = useMemo(() => {
-    if (!dayFilter?.actions) return []
+    if (!dayEntry) return []
     return STAGES
       .map(stage => {
         const groupPieces = []
-        for (const [id, stages] of Object.entries(dayFilter.actions)) {
-          if (stages.includes(stage)) {
+        for (const [id, stages] of dayEntry.pieceActions) {
+          if (stages.has(stage)) {
             const piece = pieceById.get(id)
             if (piece) groupPieces.push(piece)
           }
@@ -208,9 +243,29 @@ export default function Board({ user }) {
         return { stage, label: STAGE_ACTIONS[stage], color: STAGE_COLORS[stage], pieces: groupPieces }
       })
       .filter(g => g.pieces.length > 0)
-  }, [dayFilter, pieceById])
+  }, [dayEntry, pieceById])
 
-  const dayPieceCount = dayFilter?.actions ? Object.keys(dayFilter.actions).length : 0
+  const dayPieceCount = dayEntry ? dayEntry.pieceIds.size : 0
+
+  // Days that have activity, chronological — the stepper hops between these,
+  // skipping empty days. (YYYY-MM-DD keys sort lexicographically = by date.)
+  const activeDayKeys = useMemo(
+    () => (activityByDay ? [...activityByDay.keys()].sort() : []),
+    [activityByDay],
+  )
+  const dayIdx = dayKey ? activeDayKeys.indexOf(dayKey) : -1
+  const prevDayKey = dayIdx > 0 ? activeDayKeys[dayIdx - 1] : null
+  const nextDayKey = dayIdx >= 0 && dayIdx < activeDayKeys.length - 1 ? activeDayKeys[dayIdx + 1] : null
+
+  const dayDate = dayKey ? parseDayKey(dayKey) : null
+  const dayLabel = dayDate
+    ? dayDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    : ''
+
+  function backToCalendar() {
+    if (!dayDate) return navigate('/calendar')
+    navigate('/calendar', { state: { year: dayDate.getFullYear(), month: dayDate.getMonth() } })
+  }
 
   const piecesByStage = useMemo(
     () => STAGES.reduce((acc, stage) => {
@@ -318,52 +373,72 @@ export default function Board({ user }) {
             </button>
           </div>
         </div>
-        <div className="flex items-baseline justify-between pb-3">
-          <h1 className="font-display italic text-4xl text-ink">Potheads.</h1>
-          {!dayFilter && (
-            <div className="relative flex items-center">
-              <select
-                value={viewMode}
-                onChange={e => setViewMode(e.target.value)}
-                className="appearance-none text-xs uppercase tracking-widest font-semibold text-clay bg-transparent border-none cursor-pointer pr-4 focus:outline-none"
+        <div className={`flex justify-between ${dayKey ? 'items-center pb-2' : 'items-baseline pb-3'}`}>
+          {dayKey ? (
+            <>
+              <button
+                onClick={backToCalendar}
+                className="flex items-center gap-1 text-xs uppercase tracking-widest text-clay font-semibold cursor-pointer hover:text-clay-dark"
               >
-                <option value="stage">Stage</option>
-                <option value="clay_body">Clay Body</option>
-                <option value="glaze">Glaze</option>
-              </select>
-              <svg className="pointer-events-none absolute right-0 text-clay" width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-                <path d="M0 3l5 5 5-5H0z" />
-              </svg>
-            </div>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+                Calendar
+              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => prevDayKey && setDayKey(prevDayKey)}
+                  disabled={!prevDayKey}
+                  aria-label="Previous active day"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-muted hover:bg-clay-tint hover:text-ink-soft cursor-pointer disabled:opacity-30 disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-muted"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+                </button>
+                <span className="font-display italic text-xl text-ink text-center min-w-[7.5rem]">{dayLabel}</span>
+                <button
+                  onClick={() => nextDayKey && setDayKey(nextDayKey)}
+                  disabled={!nextDayKey}
+                  aria-label="Next active day"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-muted hover:bg-clay-tint hover:text-ink-soft cursor-pointer disabled:opacity-30 disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-muted"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <h1 className="font-display italic text-4xl text-ink">Potheads.</h1>
+              <div className="relative flex items-center">
+                <select
+                  value={viewMode}
+                  onChange={e => setViewMode(e.target.value)}
+                  className="appearance-none text-xs uppercase tracking-widest font-semibold text-clay bg-transparent border-none cursor-pointer pr-4 focus:outline-none"
+                >
+                  <option value="stage">Stage</option>
+                  <option value="clay_body">Clay Body</option>
+                  <option value="glaze">Glaze</option>
+                </select>
+                <svg className="pointer-events-none absolute right-0 text-clay" width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                  <path d="M0 3l5 5 5-5H0z" />
+                </svg>
+              </div>
+            </>
           )}
         </div>
-      </header>
-
-      {dayFilter && (
-        <div className="px-5 compact:px-4 py-2.5 bg-clay-tint border-b border-line/70">
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-widest text-clay font-semibold">
-              Activity on {dayFilter.label} · {dayPieceCount} {dayPieceCount === 1 ? 'piece' : 'pieces'}
+        {dayKey && (
+          <div className="flex items-center gap-x-3 gap-y-1 flex-wrap pb-3">
+            <span className="text-xs uppercase tracking-widest text-muted">
+              {dayPieceCount} {dayPieceCount === 1 ? 'piece' : 'pieces'}
             </span>
-            <button
-              onClick={() => navigate('/board', { replace: true })}
-              className="text-xs uppercase tracking-widest text-clay font-semibold cursor-pointer hover:text-clay-dark"
-            >
-              Clear
-            </button>
+            {dayActionGroups.map(({ stage, label, color, pieces: gp }) => (
+              <span key={stage} className="flex items-center gap-1 text-[11px] text-muted">
+                <span className="w-2 h-2 rounded-full" style={{ background: color }} />
+                {label} {gp.length}
+              </span>
+            ))}
           </div>
-          {dayActionGroups.length > 0 && (
-            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5">
-              {dayActionGroups.map(({ stage, label, color, pieces: gp }) => (
-                <span key={stage} className="flex items-center gap-1 text-[11px] text-muted">
-                  <span className="w-2 h-2 rounded-full" style={{ background: color }} />
-                  {label} {gp.length}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+        )}
+      </header>
 
       {/* Main */}
       <main className="flex-1 overflow-y-auto px-4 compact:px-3 py-4 pb-24">
@@ -375,7 +450,7 @@ export default function Board({ user }) {
         {error && (
           <p className="text-red-600 text-sm text-center py-4">{error}</p>
         )}
-        {!loading && !error && pieces.length === 0 && (
+        {!loading && !error && !dayKey && pieces.length === 0 && (
           <div className="flex flex-col items-center pt-12 px-8 text-center">
             <div className="relative w-56 h-40 opacity-70">
               <img
@@ -412,7 +487,12 @@ export default function Board({ user }) {
             </button>
           </div>
         )}
-        {!loading && !error && dayFilter && dayActionGroups.map(({ stage, label, color, pieces: groupPieces }) => (
+        {!loading && !error && dayKey && !stageEventsLoaded && (
+          <div className="flex justify-center py-12">
+            <div className="w-8 h-8 border-4 border-clay border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
+        {!loading && !error && dayKey && stageEventsLoaded && dayActionGroups.map(({ stage, label, color, pieces: groupPieces }) => (
           <div key={stage} className="mb-8">
             <div className="flex items-baseline justify-between mb-3 border-b border-line pb-2">
               <h2 className="flex items-center gap-2 font-display italic text-2xl text-ink">
@@ -423,12 +503,12 @@ export default function Board({ user }) {
             </div>
             <div className="grid grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
               {groupPieces.map((piece) => (
-                <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} actionStage={stage} />
+                <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
               ))}
             </div>
           </div>
         ))}
-        {!loading && !error && !dayFilter && pieces.length > 0 && viewMode === 'stage' && STAGES.map((stage) => (
+        {!loading && !error && !dayKey && pieces.length > 0 && viewMode === 'stage' && STAGES.map((stage) => (
           <StageColumn
             key={stage}
             stage={stage}
@@ -440,7 +520,7 @@ export default function Board({ user }) {
             onToggleSelect={toggleSelect}
           />
         ))}
-{!loading && !error && !dayFilter && pieces.length > 0 && viewMode === 'clay_body' && clayBodyGroups.map(({ key, label, pieces: groupPieces }) => (
+{!loading && !error && !dayKey && pieces.length > 0 && viewMode === 'clay_body' && clayBodyGroups.map(({ key, label, pieces: groupPieces }) => (
           <div key={key} className="mb-8">
             <div className="flex items-baseline justify-between mb-3 border-b border-line pb-2">
               <h2 className="font-display italic text-2xl text-ink capitalize">{label}</h2>
@@ -453,7 +533,7 @@ export default function Board({ user }) {
             </div>
           </div>
         ))}
-        {!loading && !error && !dayFilter && pieces.length > 0 && viewMode === 'glaze' && glazeGroups.map(({ key, label, pieces: groupPieces }) => (
+        {!loading && !error && !dayKey && pieces.length > 0 && viewMode === 'glaze' && glazeGroups.map(({ key, label, pieces: groupPieces }) => (
           <div key={key} className="mb-8">
             <div className="flex items-baseline justify-between mb-3 border-b border-line pb-2">
               <h2 className="font-display italic text-2xl text-ink capitalize">{label}</h2>
