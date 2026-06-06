@@ -122,6 +122,7 @@ scripts/
 | `potheads_last_clay_body` | string | Pre-populates clay body field in AddPiece with last used value |
 | `potheads_tag_colors` | object | `{ [tagName]: "#hex" }` — custom color per tag name, used by TagChip |
 | `potheads_recent_tag_colors` | array | Last 8 colors used in Add Tag modal (most recent first) |
+| `potheads_signed_urls` | object | `{ [storagePath]: { url, expiresAt } }` — persisted signed-URL cache so PWA reloads reuse still-valid URLs instead of re-signing (see `src/lib/photos.js`) |
 
 ## Design Tokens (Tailwind v4 @theme)
 Defined in `src/index.css`. Use these class names:

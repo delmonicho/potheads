@@ -2,7 +2,7 @@ import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import { STAGES, STAGE_LABELS, nextStage, advanceStage, getStageEvents, updatePiece, getPieceIds, getPiecesByIds, upsertStageNote } from '../lib/pieces.js'
-import { getPhotosForPiece, getPhotosForPieces, uploadPhoto, getPhotoUrl, updatePhotoStage, deletePhoto } from '../lib/photos.js'
+import { getPhotosForPiece, getPhotosForPieces, uploadPhoto, getPhotoUrls, updatePhotoStage, deletePhoto } from '../lib/photos.js'
 import { getTagsForPiece, getOrCreateTag, addTagToPiece, removeTagFromPiece, getUserTags, updateTagColor, renameTag, deleteTag, countPiecesForTag, PRESET_TAGS } from '../lib/tags.js'
 import TagChip from '../components/TagChip.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
@@ -175,10 +175,8 @@ export default function PieceDetail({ user }) {
       setStageEvents(eventsData)
       setPieceIds(ids)
 
-      // Resolve signed URLs for all photos
-      const urls = await Promise.all(
-        sortedPhotos.map((p) => getPhotoUrl(p.storage_path).catch(() => null))
-      )
+      // Resolve signed URLs for all photos in one batched Storage request
+      const urls = await getPhotoUrls(sortedPhotos.map(p => p.storage_path)).catch(() => [])
       setPhotoUrls(urls)
       setHeroIndex(0)
 
@@ -200,23 +198,24 @@ export default function PieceDetail({ user }) {
           getPiecesByIds(adjacentIds),
           getPhotosForPieces(adjacentIds),
         ]).then(async ([piecesMap, photosMap]) => {
-          const buildPreview = async (pid) => {
+          // Sign both adjacent thumbnails in one batched Storage request
+          const firstPhotoPath = (pid) => {
+            const photoList = pid ? (photosMap.get(pid) || []) : []
+            return photoList[0]?.storage_path || null
+          }
+          const previewPaths = [firstPhotoPath(prevId), firstPhotoPath(nextId)]
+          const [prevUrl, nextUrl] = await getPhotoUrls(previewPaths).catch(() => [])
+
+          const buildPreview = (pid, thumbUrl) => {
             if (!pid) return null
             const p = piecesMap.get(pid)
             if (!p) return null
-            const photoList = photosMap.get(pid) || []
-            const firstPhoto = photoList[0]
-            let thumbUrl = null
-            if (firstPhoto) {
-              try { thumbUrl = await getPhotoUrl(firstPhoto.storage_path) } catch { }
-            }
-            return { id: pid, name: p.name, clayBody: p.clay_body, thumbUrl }
+            return { id: pid, name: p.name, clayBody: p.clay_body, thumbUrl: thumbUrl || null }
           }
-          const [prevPreview, nextPreview] = await Promise.all([
-            buildPreview(prevId),
-            buildPreview(nextId),
-          ])
-          setAdjacentPreviews({ prev: prevPreview, next: nextPreview })
+          setAdjacentPreviews({
+            prev: buildPreview(prevId, prevUrl),
+            next: buildPreview(nextId, nextUrl),
+          })
         }).catch(() => { /* preview is non-critical */ })
       } else {
         setAdjacentPreviews({ prev: null, next: null })
