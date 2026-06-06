@@ -19,7 +19,9 @@ Upload, fetch, signed URL generation, and deletion for the `photos` bucket.
 
 **`deletePhoto(photoId, storagePath)`** — hard delete. DB row first (source of truth), then storage object. If storage removal fails the row is already gone — orphan is logged via `console.warn` and the user is unblocked. Also clears the `urlCache` entry for that path.
 
-**Signed URL cache** — `getPhotoUrl(path)` maintains a module-level `Map` keyed by storage path. URLs are cached for 55 minutes (5 min buffer before the 1-hour Supabase expiry). This eliminates redundant signed URL API calls when the same photo is rendered multiple times (e.g., Board → PieceDetail navigation).
+**Signed URL cache** — keyed by storage path, persisted to `localStorage` under `potheads_signed_urls`. URLs are signed for 24h (`SIGNED_URL_TTL_SECONDS`) and cached until 5 min before expiry. Persisting across reloads matters: each signed URL is one Storage API request, and a home-screen PWA relaunches constantly — without persistence every reload re-signs every visible photo. `loadUrlCache()` rehydrates (dropping expired entries) on module load; `persistUrlCache()` writes back, debounced 500ms. `deletePhoto` evicts and re-persists.
+
+**Batch signing — use `getPhotoUrls(paths)`, not `getPhotoUrl` in a loop.** `getPhotoUrls` serves cache hits with zero network and signs the remaining misses in a **single** `createSignedUrls` request, returning URLs aligned to input order (null per failed path). This is the main lever on Storage request volume — N per-photo `createSignedUrl` calls collapse to 1. `getPhotoUrl(path)` is a thin singular wrapper over it (used only by the unused `PhotoTimeline`). All page call sites (Board, Graveyard, PieceDetail) use the batch form.
 
 **Batch fetch** — `getPhotosForPieces(pieceIds)` fetches all photos for a list of piece IDs in a single query and returns a `Map<pieceId, Photo[]>` (photos ordered by `taken_at DESC`). Use this instead of calling `getPhotosForPiece` in a loop.
 
@@ -51,4 +53,4 @@ Exports:
 Board.jsx fetches pieces, then calls `getPhotosForPieces` and `getTagsForPieces` in parallel. Total: 3 Supabase queries regardless of piece count. Do not regress this by fetching photos/tags per-piece.
 
 ### Signed URL deduplication
-The URL cache in `photos.js` is module-scoped — it persists across React renders and page navigations within a session. A photo's signed URL is only regenerated after 55 minutes or on page reload.
+The URL cache in `photos.js` is persisted to `localStorage` (`potheads_signed_urls`), so it survives renders, navigations, **and full page reloads** within the 24h URL validity. Combined with `getPhotoUrls` batch signing, a board load costs 1 Storage request for the misses (often 0 after the first session). Do not regress to per-photo `getPhotoUrl` in a loop — that re-introduces N Storage requests per load.

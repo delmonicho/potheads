@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import { getPieces, getStageEventsForUser, STAGES, STAGE_ACTIONS, STAGE_COLORS } from '../lib/pieces.js'
 import { buildActivityByDay, parseDayKey } from '../lib/calendar.js'
-import { getPhotosForPieces, getPhotoUrl } from '../lib/photos.js'
+import { getPhotosForPieces, getPhotoUrls } from '../lib/photos.js'
 import { getTagsForPieces, getOrCreateTag, addTagToPiece, getUserTags, PRESET_TAGS } from '../lib/tags.js'
 import StageColumn, { PieceCard } from '../components/StageColumn.jsx'
 import AddPiece from '../components/AddPiece.jsx'
@@ -128,10 +128,8 @@ export default function Board({ user }) {
         }
       }
 
-      // Fetch all thumbnail URLs in parallel (cached after first load)
-      const urlResults = await Promise.all(
-        thumbEntries.map(({ path }) => getPhotoUrl(path).catch(() => null))
-      )
+      // Sign all thumbnail URLs in one batched Storage request (cached after first load)
+      const urlResults = await getPhotoUrls(thumbEntries.map(e => e.path)).catch(() => [])
       const newThumbUrls = {}
       thumbEntries.forEach(({ pieceId }, i) => { newThumbUrls[pieceId] = urlResults[i] })
       setThumbUrls(newThumbUrls)

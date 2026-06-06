@@ -7,8 +7,46 @@ const COMPRESSION_OPTIONS = {
   useWebWorker: true,
 }
 
-// Module-level signed URL cache — avoids regenerating URLs within their 1-hour validity
-const urlCache = new Map() // path → { url, expiresAt }
+// Signed URL cache — persisted to localStorage so reloads (frequent in a PWA
+// relaunched from the home screen) reuse still-valid URLs instead of re-signing
+// every visible photo from scratch. Each signed URL is a single Storage API
+// request, so without this the request volume scales with photos × reloads.
+const URL_CACHE_KEY = 'potheads_signed_urls'
+const SIGNED_URL_TTL_SECONDS = 24 * 60 * 60 // 24h; URLs live only in this private browser
+const CACHE_BUFFER_MS = 5 * 60 * 1000       // re-sign 5 min before real expiry (clock skew)
+
+// path → { url, expiresAt }
+const urlCache = loadUrlCache()
+
+function loadUrlCache() {
+  const map = new Map()
+  try {
+    const raw = localStorage.getItem(URL_CACHE_KEY)
+    if (raw) {
+      const now = Date.now()
+      for (const [path, entry] of Object.entries(JSON.parse(raw))) {
+        if (entry && entry.expiresAt > now) map.set(path, entry)
+      }
+    }
+  } catch { /* corrupt/unavailable storage — start empty */ }
+  return map
+}
+
+let persistTimer = null
+function persistUrlCache() {
+  if (persistTimer) return // debounce bursts of writes into one
+  persistTimer = setTimeout(() => {
+    persistTimer = null
+    try {
+      const now = Date.now()
+      const obj = {}
+      for (const [path, entry] of urlCache) {
+        if (entry.expiresAt > now) obj[path] = entry
+      }
+      localStorage.setItem(URL_CACHE_KEY, JSON.stringify(obj))
+    } catch { /* quota/unavailable — cache stays in-memory only */ }
+  }, 500)
+}
 
 function isHeicFile(file) {
   const name = file.name.toLowerCase()
@@ -96,17 +134,49 @@ export async function getPhotosForPieces(pieceIds) {
   }, new Map())
 }
 
+// Batch-sign a list of storage paths, serving cache hits without any network
+// call and signing the remaining misses in a SINGLE Storage request via
+// createSignedUrls. Returns URLs aligned to the input order (null per path that
+// failed). Prefer this over getPhotoUrl in a loop — it collapses N requests to 1.
+export async function getPhotoUrls(paths) {
+  const now = Date.now()
+  const result = new Array(paths.length).fill(null)
+  const missing = []
+  const missingIdx = []
+
+  paths.forEach((path, i) => {
+    const cached = path && urlCache.get(path)
+    if (cached && cached.expiresAt > now) {
+      result[i] = cached.url
+    } else if (path) {
+      missing.push(path)
+      missingIdx.push(i)
+    }
+  })
+
+  if (missing.length) {
+    const { data, error } = await supabase.storage
+      .from('photos')
+      .createSignedUrls(missing, SIGNED_URL_TTL_SECONDS)
+    if (error) throw error
+
+    const expiresAt = now + SIGNED_URL_TTL_SECONDS * 1000 - CACHE_BUFFER_MS
+    const byPath = new Map(data.map((d) => [d.path, d]))
+    missing.forEach((path, j) => {
+      const entry = byPath.get(path)
+      const url = entry && !entry.error ? entry.signedUrl : null
+      if (url) urlCache.set(path, { url, expiresAt })
+      result[missingIdx[j]] = url
+    })
+    persistUrlCache()
+  }
+
+  return result
+}
+
 export async function getPhotoUrl(path) {
-  const cached = urlCache.get(path)
-  if (cached && cached.expiresAt > Date.now()) return cached.url
-
-  const { data, error } = await supabase.storage
-    .from('photos')
-    .createSignedUrl(path, 3600)
-
-  if (error) throw error
-  urlCache.set(path, { url: data.signedUrl, expiresAt: Date.now() + 55 * 60 * 1000 })
-  return data.signedUrl
+  const [url] = await getPhotoUrls([path])
+  return url
 }
 
 export async function updatePhotoStage(photoId, stage) {
@@ -132,5 +202,6 @@ export async function deletePhoto(photoId, storagePath) {
       .remove([storagePath])
     if (stErr) console.warn('Storage delete failed (orphan left):', stErr.message)
     urlCache.delete(storagePath)
+    persistUrlCache()
   }
 }

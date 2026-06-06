@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getPieces, deletePiece, STAGES } from '../lib/pieces.js'
-import { getPhotosForPieces, getPhotoUrl } from '../lib/photos.js'
+import { getPhotosForPieces, getPhotoUrls } from '../lib/photos.js'
 import { getTagsForPieces } from '../lib/tags.js'
 import PotteryPlaceholder from '../components/PotteryPlaceholder.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
@@ -67,9 +67,7 @@ export default function Graveyard({ user }) {
           if (thumb) thumbEntries.push({ pieceId: piece.id, path: thumb.storage_path })
         }
       }
-      const urlResults = await Promise.all(
-        thumbEntries.map(({ path }) => getPhotoUrl(path).catch(() => null))
-      )
+      const urlResults = await getPhotoUrls(thumbEntries.map(e => e.path)).catch(() => [])
       const newThumbUrls = {}
       thumbEntries.forEach(({ pieceId }, i) => { newThumbUrls[pieceId] = urlResults[i] })
       setThumbUrls(newThumbUrls)
