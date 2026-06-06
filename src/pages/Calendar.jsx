@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { getPieces, getStageEventsForUser, STAGE_LABELS, STAGE_COLORS } from '../lib/pieces.js'
 import { buildActivityByDay, dayKey } from '../lib/calendar.js'
 import PageHeader from '../components/PageHeader.jsx'
@@ -27,14 +27,16 @@ function MonthArrow({ dir, onClick }) {
 
 export default function Calendar({ user }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [pieces, setPieces] = useState([])
   const [stageEvents, setStageEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   const today = new Date()
-  const [viewYear, setViewYear] = useState(today.getFullYear())
-  const [viewMonth, setViewMonth] = useState(today.getMonth())
+  // Returning from a day page restores the month that day belongs to.
+  const [viewYear, setViewYear] = useState(location.state?.year ?? today.getFullYear())
+  const [viewMonth, setViewMonth] = useState(location.state?.month ?? today.getMonth())
 
   const fetchAll = useCallback(async () => {
     try {
@@ -79,15 +81,9 @@ export default function Calendar({ user }) {
     const key = dayKey(date)
     const entry = activityByDay.get(key)
     if (!entry || entry.pieceIds.size === 0) return
-    const label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    // Serialize pieceActions (Map<id, Set>) to plain JSON for router state so the
-    // Board can group the day by action. pieceIds is derivable from its keys.
-    const actions = Object.fromEntries(
-      [...entry.pieceActions].map(([id, set]) => [id, [...set]]),
-    )
-    navigate('/board', {
-      state: { dayFilter: { key, label, actions } },
-    })
+    // Board recomputes the day's activity itself (so it can step between days),
+    // so we only need to hand it the selected day key.
+    navigate('/board', { state: { dayKey: key } })
   }
 
   return (

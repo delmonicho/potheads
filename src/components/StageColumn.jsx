@@ -1,9 +1,9 @@
 import { memo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { STAGE_LABELS, STAGE_ACTIONS, STAGE_COLORS } from '../lib/pieces.js'
+import { STAGE_LABELS } from '../lib/pieces.js'
 import PotteryPlaceholder from './PotteryPlaceholder.jsx'
 
-export const PieceCard = memo(function PieceCard({ piece, thumbUrl, formTag, selectMode, selected, onToggleSelect, actionStage }) {
+export const PieceCard = memo(function PieceCard({ piece, thumbUrl, formTag, selectMode, selected, onToggleSelect }) {
   const navigate = useNavigate()
   const [imgLoaded, setImgLoaded] = useState(false)
 
@@ -31,19 +31,6 @@ export const PieceCard = memo(function PieceCard({ piece, thumbUrl, formTag, sel
           />
         ) : (
           <PotteryPlaceholder formTag={formTag} />
-        )}
-
-        {/* Action badge — only in calendar day view */}
-        {actionStage && (
-          <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/55 rounded-full pl-1.5 pr-2 py-0.5">
-            <span
-              className="w-2 h-2 rounded-full flex-shrink-0"
-              style={{ background: STAGE_COLORS[actionStage] }}
-            />
-            <span className="text-[10px] font-semibold text-white leading-none tracking-wide">
-              {STAGE_ACTIONS[actionStage]}
-            </span>
-          </div>
         )}
       </div>
 

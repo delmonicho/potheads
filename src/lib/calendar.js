@@ -12,6 +12,12 @@ export function dayKey(date) {
   return `${y}-${m}-${day}`
 }
 
+// Inverse of dayKey: a YYYY-MM-DD string → local Date at midnight.
+export function parseDayKey(key) {
+  const [y, m, d] = key.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
 function emptyStageCounts() {
   return { drying: 0, bisque_ready: 0, glazed: 0, finished: 0 }
 }
