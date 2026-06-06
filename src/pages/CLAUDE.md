@@ -20,7 +20,13 @@ Single piece view. Manages hero photo carousel, stage timeline, tag editing, pho
 
 **Tag colors** — uses `useTagColors()` from `src/lib/useTagColors.js`. Do not re-implement localStorage color logic inline; always use the hook.
 
-**`fetchAll()`** uses `Promise.all` for the four initial data fetches (piece, photos, tags, userTags). The piece number count query runs after.
+**`fetchAll()`** uses `Promise.all` for the five initial data fetches (piece, photos, tags, stageEvents, pieceIds). The piece number count query and the adjacent-piece swipe prefetch run after.
+
+**Lazily-loaded data — keep it off the initial load.** Two things the detail view needs only on interaction are deliberately *not* in `fetchAll`:
+- `getUserTags(user.id)` — powers only the "Edit details" tag editor. Fetched the first time `showTagSheet` opens (guarded by `userTagsLoadedRef`); it's user-scoped so it survives swipe navigation, and mutation handlers refresh it in place.
+- The clay-body catalog (`ClayBodyPicker`) — only the Edit-piece sheet uses it. The picker is passed `active={showEditPieceSheet}` so its two catalog queries fire only when that sheet is open (see `src/components/CLAUDE.md`).
+
+Do not move either back into `fetchAll` — that re-adds 3 queries to every piece view for data the user may never open.
 
 **Multiple refetches after mutations** — several handlers (handleAdvance, handleAddPhoto, handleChangePieceStage, handleEditStage, handleBulkDeletePhotos) call `await fetchAll()` after success. Signed URL caching in `photos.js` means repeated URL generation is cheap.
 

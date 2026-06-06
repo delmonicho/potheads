@@ -28,6 +28,11 @@ Generic reusable bottom modal. Accepts `open`, `onClose`, `title`, `children`, o
 ## AddPiece.jsx
 New piece flow. Uses a bottom sheet with camera-first input. Remembers last clay body in `potheads_last_clay_body` localStorage key.
 
+## ClayBodyPicker.jsx
+`<select>` of clay bodies (catalog + the user's previously-used + session-added), with an inline "+ Add new clay" custom-entry mode. Used by `AddPiece` and `PieceDetail`'s Edit-piece sheet.
+
+**`active` prop (default `true`) gates the two catalog queries** (`listClayBodies` + `getClayBodies`). `BottomSheet` keeps its children mounted while closed, so without this gate the picker fetches on every page that hosts the sheet, even when it's never opened. Callers pass `active={<sheetOpen>}` so the fetch fires only when the sheet is actually open.
+
 ## PotteryPlaceholder.jsx
 SVG fallback when a piece has no photos. Selects the illustration matching the `formTag` prop (bowl, mug, etc.), falling back to `vase.svg`.
 

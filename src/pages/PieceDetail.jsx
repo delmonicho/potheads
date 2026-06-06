@@ -153,11 +153,10 @@ export default function PieceDetail({ user }) {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [{ data: pieceData, error: pieceError }, photosData, tagsData, allUserTags, eventsData, ids] = await Promise.all([
+      const [{ data: pieceData, error: pieceError }, photosData, tagsData, eventsData, ids] = await Promise.all([
         supabase.from('pieces').select('*').eq('id', id).single(),
         getPhotosForPiece(id),
         getTagsForPiece(id),
-        getUserTags(user.id),
         getStageEvents(id),
         getPieceIds(user.id),
       ])
@@ -171,7 +170,6 @@ export default function PieceDetail({ user }) {
       setPiece(pieceData)
       setPhotos(sortedPhotos)
       setTags(tagsData)
-      setUserTags(allUserTags)
       setStageEvents(eventsData)
       setPieceIds(ids)
 
@@ -230,6 +228,24 @@ export default function PieceDetail({ user }) {
   useEffect(() => {
     fetchAll()
   }, [fetchAll])
+
+  // The user's full tag list powers only the "Edit details" editor, so fetch it
+  // lazily the first time that sheet opens rather than on every piece view. It's
+  // user-scoped (not piece-scoped), so it stays valid across swipe navigation;
+  // mutation handlers refresh it in place.
+  const userTagsLoadedRef = useRef(false)
+  useEffect(() => {
+    if (!showTagSheet || userTagsLoadedRef.current) return
+    let cancelled = false
+    getUserTags(user.id)
+      .then((t) => {
+        if (cancelled) return
+        setUserTags(t)
+        userTagsLoadedRef.current = true
+      })
+      .catch(() => { })
+    return () => { cancelled = true }
+  }, [showTagSheet, user.id])
 
   useEffect(() => {
     if (!userTags.length) return
@@ -1853,7 +1869,7 @@ export default function PieceDetail({ user }) {
           </div>
           <div>
             <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Clay body</label>
-            <ClayBodyPicker value={editClayBody} onChange={setEditClayBody} userId={user.id} />
+            <ClayBodyPicker value={editClayBody} onChange={setEditClayBody} userId={user.id} active={showEditPieceSheet} />
           </div>
           <div>
             <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Current stage</label>

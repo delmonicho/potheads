@@ -128,7 +128,7 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
         {/* Clay body */}
         <div>
           <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Clay Body</label>
-          <ClayBodyPicker value={clayBody} onChange={setClayBody} userId={user.id} />
+          <ClayBodyPicker value={clayBody} onChange={setClayBody} userId={user.id} active={open} />
         </div>
 
         {/* Stage selector */}

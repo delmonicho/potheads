@@ -4,7 +4,7 @@ import { getClayBodies } from '../lib/pieces.js'
 
 const ADD_SENTINEL = '__add__'
 
-export default function ClayBodyPicker({ value, onChange, userId }) {
+export default function ClayBodyPicker({ value, onChange, userId, active = true }) {
   const [catalogList, setCatalogList] = useState([])
   const [pastList, setPastList] = useState([])
   const [sessionAdded, setSessionAdded] = useState([])
@@ -12,7 +12,11 @@ export default function ClayBodyPicker({ value, onChange, userId }) {
   const [customDraft, setCustomDraft] = useState('')
   const inputRef = useRef(null)
 
+  // Defer the two catalog queries until the picker is actually in use. Callers
+  // render this inside a BottomSheet, which keeps children mounted while closed
+  // — without this gate the queries fire on every page that hosts the sheet.
   useEffect(() => {
+    if (!active) return
     let cancelled = false
     Promise.all([listClayBodies(), getClayBodies(userId)])
       .then(([catalog, past]) => {
@@ -22,7 +26,7 @@ export default function ClayBodyPicker({ value, onChange, userId }) {
       })
       .catch(() => { })
     return () => { cancelled = true }
-  }, [userId])
+  }, [userId, active])
 
   useEffect(() => {
     if (mode === 'custom') inputRef.current?.focus()
