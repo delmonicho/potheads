@@ -30,6 +30,10 @@ Do not move either back into `fetchAll` — that re-adds 3 queries to every piec
 
 **Multiple refetches after mutations** — several handlers (handleAdvance, handleAddPhoto, handleChangePieceStage, handleEditStage, handleBulkDeletePhotos) call `await fetchAll()` after success. Signed URL caching in `photos.js` means repeated URL generation is cheap.
 
+**Shared photo picker (`PhotoPickerField`)** — the camera-icon "Tap to add photos" dropzone + preview grid (with per-item `×` removal and a dashed "+" add-more tile) is a single helper component at the bottom of the file, used by **both** the Advance ("Move to Stage") sheet and the Edit Photos sheet. It's controlled (`files`/`previews` + `setFiles`/`setPreviews`), supports **multiple** photos, and creates object-URL previews without revoking them (matches prior behavior — don't add cleanup complexity). The Advance sheet uploads all picked files via `Promise.all` in `handleAdvance` and resets `advanceFiles`/`advancePreviews` on close. Do not reintroduce a raw `<input type="file">` in either sheet.
+
+**Auto-advance on stage-tagged photos** — tagging a photo with a stage *later* than the piece's `current_stage` advances the piece, so the user doesn't have to open the Advance modal. The shared guard is `stageOutranksCurrent(stage)` (compares `STAGE_RANK`). It fires in `handleAddPhoto` (adding via Edit Photos, once regardless of photo count) and `handleEditStage` (retagging a photo's stage in the lightbox), each calling `advanceStage(id, stage, null)` after the photo write and before `fetchAll()`. Only moves forward — tagging the current/earlier stage never changes `current_stage`. Note Edit Photos pre-selects `addPhotoStage = piece.current_stage`, so a plain add never auto-advances; only an explicitly-later chip does.
+
 **Edit Photos sheet** — pencil icon (bottom-right of hero photo) opens a sheet that does two things in one place:
 1. Existing photos in a 3-col grid; tap to multi-select; bulk delete via a stacked confirm sheet (`zClassName="z-[60]"`).
 2. Below that, the same multi-add upload flow as before (file picker, optional stage chip, optional note).

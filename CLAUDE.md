@@ -112,7 +112,7 @@ scripts/
 - Home screen: pieces grouped by stage (Drying / Bisque Ready / Glazed / Finished)
 - Lost pieces hidden from board, accessible via filter
 - Add piece flow: tap + → camera opens → photo taken → name + clay body → saved as Drying
-- Stage advance: tap piece → detail view → "Move to next stage" button with optional photo + note
+- Stage advance: tap piece → detail view → "Move to next stage" button with optional photo(s) + note. Also auto-advances: tagging a photo with a stage later than the current one (when adding via Edit Photos, or retagging a photo in the lightbox) moves the piece to that stage without opening the Advance modal.
 - Tags: chip UI, two categories (form: bowl/mug/vase etc, glaze: celadon/shino etc)
 - No bulk kiln actions needed — user does not manage kiln
 

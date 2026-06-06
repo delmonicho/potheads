@@ -31,7 +31,8 @@ export default function PieceDetail({ user }) {
 
   const [showAdvanceSheet, setShowAdvanceSheet] = useState(false)
   const [advanceNote, setAdvanceNote] = useState('')
-  const [advanceFile, setAdvanceFile] = useState(null)
+  const [advanceFiles, setAdvanceFiles] = useState([])
+  const [advancePreviews, setAdvancePreviews] = useState([])
   const [advancing, setAdvancing] = useState(false)
   const [stageEvents, setStageEvents] = useState([])
   const [advanceTargetStage, setAdvanceTargetStage] = useState(null)
@@ -256,17 +257,27 @@ export default function PieceDetail({ user }) {
     }
   }, [userTags])
 
+  // A photo's stage "outranks" the piece when it sits later in the workflow than
+  // the current stage — the trigger for auto-advancing the piece to that stage.
+  function stageOutranksCurrent(stage) {
+    if (!stage || !piece) return false
+    return (STAGE_RANK[stage] || 0) > (STAGE_RANK[piece.current_stage] || 0)
+  }
+
   async function handleAdvance() {
     if (!piece || !advanceTargetStage) return
     setAdvancing(true)
     try {
       await advanceStage(id, advanceTargetStage, advanceNote)
-      if (advanceFile) {
-        await uploadPhoto({ file: advanceFile, userId: user.id, pieceId: id, stage: advanceTargetStage })
+      if (advanceFiles.length) {
+        await Promise.all(advanceFiles.map(f =>
+          uploadPhoto({ file: f, userId: user.id, pieceId: id, stage: advanceTargetStage })
+        ))
       }
       setShowAdvanceSheet(false)
       setAdvanceNote('')
-      setAdvanceFile(null)
+      setAdvanceFiles([])
+      setAdvancePreviews([])
       setAdvanceTargetStage(null)
       await fetchAll()
     } catch (err) {
@@ -283,6 +294,11 @@ export default function PieceDetail({ user }) {
       await Promise.all(addPhotoFiles.map(f =>
         uploadPhoto({ file: f, userId: user.id, pieceId: id, stage: addPhotoStage || null, note: addPhotoNote || null })
       ))
+      // Tagging a photo with a stage past the current one moves the piece there,
+      // so the user doesn't have to open the Advance modal separately.
+      if (stageOutranksCurrent(addPhotoStage)) {
+        await advanceStage(id, addPhotoStage, null)
+      }
       setShowAddPhotoSheet(false)
       setAddPhotoFiles([])
       setAddPhotoPreviews([])
@@ -440,6 +456,10 @@ export default function PieceDetail({ user }) {
     setSavingStage(true)
     try {
       await updatePhotoStage(photoId, stage)
+      // Retagging a photo to a later stage advances the piece, same as adding one.
+      if (stageOutranksCurrent(stage)) {
+        await advanceStage(id, stage, null)
+      }
       setShowEditStageSheet(false)
       await fetchAll()
     } catch (err) {
@@ -1175,7 +1195,7 @@ export default function PieceDetail({ user }) {
       {/* Advance stage sheet */}
       <BottomSheet
         open={showAdvanceSheet}
-        onClose={() => { setShowAdvanceSheet(false); setAdvanceTargetStage(null) }}
+        onClose={() => { setShowAdvanceSheet(false); setAdvanceTargetStage(null); setAdvanceFiles([]); setAdvancePreviews([]) }}
         title="Move to Stage"
       >
         <div className="flex flex-col gap-4">
@@ -1215,11 +1235,11 @@ export default function PieceDetail({ user }) {
           </div>
           <div>
             <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Photo (optional)</label>
-            <input
-              type="file"
-              accept="image/*,image/heic,image/heif"
-              className="text-sm text-ink-soft"
-              onChange={(e) => setAdvanceFile(e.target.files[0] || null)}
+            <PhotoPickerField
+              files={advanceFiles}
+              previews={advancePreviews}
+              setFiles={setAdvanceFiles}
+              setPreviews={setAdvancePreviews}
             />
           </div>
           <button
@@ -1618,50 +1638,12 @@ export default function PieceDetail({ user }) {
 
           {/* Add new photos */}
           <p className="text-xs uppercase tracking-widest text-muted">Add new photos</p>
-          {addPhotoPreviews.length === 0 ? (
-            <label className="block w-full h-40 rounded-2xl overflow-hidden bg-surface-warm cursor-pointer hover:bg-surface-warm-hover transition-colors active:opacity-80 flex-shrink-0">
-              <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-muted">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                  <circle cx="12" cy="13" r="4" />
-                </svg>
-                <span className="text-sm">Tap to add photos</span>
-              </div>
-              <input type="file" accept="image/*,image/heic,image/heif" multiple className="hidden" onChange={(e) => {
-                const incoming = Array.from(e.target.files)
-                if (!incoming.length) return
-                setAddPhotoFiles(prev => [...prev, ...incoming])
-                setAddPhotoPreviews(prev => [...prev, ...incoming.map(f => URL.createObjectURL(f))])
-                e.target.value = ''
-              }} />
-            </label>
-          ) : (
-            <div className="grid grid-cols-3 gap-2">
-              {addPhotoPreviews.map((src, i) => (
-                <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-surface-warm">
-                  <img src={src} alt="" className="w-full h-full object-cover" />
-                  <button
-                    onClick={() => {
-                      setAddPhotoFiles(prev => prev.filter((_, j) => j !== i))
-                      setAddPhotoPreviews(prev => prev.filter((_, j) => j !== i))
-                    }}
-                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/50 flex items-center justify-center text-white text-sm leading-none cursor-pointer hover:bg-black/70"
-                    aria-label="Remove photo"
-                  >×</button>
-                </div>
-              ))}
-              <label className="aspect-square rounded-xl border-2 border-dashed border-line-strong flex items-center justify-center cursor-pointer hover:border-clay hover:bg-surface-warm transition-colors">
-                <span className="text-muted text-2xl leading-none">+</span>
-                <input type="file" accept="image/*,image/heic,image/heif" multiple className="hidden" onChange={(e) => {
-                  const incoming = Array.from(e.target.files)
-                  if (!incoming.length) return
-                  setAddPhotoFiles(prev => [...prev, ...incoming])
-                  setAddPhotoPreviews(prev => [...prev, ...incoming.map(f => URL.createObjectURL(f))])
-                  e.target.value = ''
-                }} />
-              </label>
-            </div>
-          )}
+          <PhotoPickerField
+            files={addPhotoFiles}
+            previews={addPhotoPreviews}
+            setFiles={setAddPhotoFiles}
+            setPreviews={setAddPhotoPreviews}
+          />
 
           <div>
             <p className="text-xs uppercase tracking-widest text-muted mb-1.5">Tag with stage (optional)</p>
@@ -1958,6 +1940,57 @@ export default function PieceDetail({ user }) {
         </div>
       </BottomSheet>
     </>
+  )
+}
+
+// Shared photo upload affordance for both the Advance and Edit Photos sheets.
+// Empty state is a tappable camera card; once files are picked it shows a
+// preview grid with per-item removal plus a dashed "+" tile to add more.
+function PhotoPickerField({ files, previews, setFiles, setPreviews }) {
+  function addFiles(e) {
+    const incoming = Array.from(e.target.files)
+    if (!incoming.length) return
+    setFiles(prev => [...prev, ...incoming])
+    setPreviews(prev => [...prev, ...incoming.map(f => URL.createObjectURL(f))])
+    e.target.value = ''
+  }
+  function removeAt(i) {
+    setFiles(prev => prev.filter((_, j) => j !== i))
+    setPreviews(prev => prev.filter((_, j) => j !== i))
+  }
+
+  if (previews.length === 0) {
+    return (
+      <label className="block w-full h-40 rounded-2xl overflow-hidden bg-surface-warm cursor-pointer hover:bg-surface-warm-hover transition-colors active:opacity-80 flex-shrink-0">
+        <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-muted">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+            <circle cx="12" cy="13" r="4" />
+          </svg>
+          <span className="text-sm">Tap to add photos</span>
+        </div>
+        <input type="file" accept="image/*,image/heic,image/heif" multiple className="hidden" onChange={addFiles} />
+      </label>
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {previews.map((src, i) => (
+        <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-surface-warm">
+          <img src={src} alt="" className="w-full h-full object-cover" />
+          <button
+            onClick={() => removeAt(i)}
+            className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/50 flex items-center justify-center text-white text-sm leading-none cursor-pointer hover:bg-black/70"
+            aria-label="Remove photo"
+          >×</button>
+        </div>
+      ))}
+      <label className="aspect-square rounded-xl border-2 border-dashed border-line-strong flex items-center justify-center cursor-pointer hover:border-clay hover:bg-surface-warm transition-colors">
+        <span className="text-muted text-2xl leading-none">+</span>
+        <input type="file" accept="image/*,image/heic,image/heif" multiple className="hidden" onChange={addFiles} />
+      </label>
+    </div>
   )
 }
 
