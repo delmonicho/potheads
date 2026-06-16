@@ -1164,11 +1164,14 @@ export default function PieceDetail({ user }) {
               <PotteryPlaceholder formTag={tags.find((t) => t.category === 'form')?.name} className="rounded-none" />
             )}
 
-            {/* Back button */}
+            {/* Back button — larger (44px) circle with an extended invisible hit
+              area (before:-inset-2) so a near-miss lands on Back instead of
+              opening the photo lightbox. Fixed dark icon: the pill is always
+              white, so text-ink would be light-on-light in dark mode. */}
             <button
               onClick={(e) => { e.stopPropagation(); navigate('/board') }}
               style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}
-              className="absolute left-4 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center text-ink text-2xl leading-none cursor-pointer hover:bg-white"
+              className="absolute left-4 w-11 h-11 rounded-full bg-white/80 flex items-center justify-center text-stone-800 text-2xl leading-none cursor-pointer hover:bg-white before:absolute before:-inset-2 before:content-['']"
               aria-label="Back"
             >
               ‹
@@ -1299,7 +1302,7 @@ export default function PieceDetail({ user }) {
                             {status !== 'pending' && (
                               <button
                                 onClick={(e) => { e.stopPropagation(); openNoteSheet(stage) }}
-                                className="text-stone-300 hover:text-ink-soft cursor-pointer transition-colors"
+                                className="text-line-strong hover:text-ink-soft cursor-pointer transition-colors"
                                 aria-label="Edit note"
                               >
                                 <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -1315,7 +1318,7 @@ export default function PieceDetail({ user }) {
                             )}
                           </p>
                           {stageTimestamp(stage) && (
-                            <p className="text-xs text-stone-300 mt-0.5">{fmtDate(stageTimestamp(stage))}</p>
+                            <p className="text-xs text-muted mt-0.5">{fmtDate(stageTimestamp(stage))}</p>
                           )}
                           {status !== 'pending' && eventByStage[stage]?.notes && (
                             <button

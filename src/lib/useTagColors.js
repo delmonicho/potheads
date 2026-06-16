@@ -26,6 +26,53 @@ export function detectColor(name) {
   return null
 }
 
+function hexToRgb(hex) {
+  const h = (hex || '').replace('#', '')
+  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h
+  const int = parseInt(full, 16)
+  if (Number.isNaN(int) || full.length !== 6) return { r: 0, g: 0, b: 0 }
+  return { r: (int >> 16) & 255, g: (int >> 8) & 255, b: int & 255 }
+}
+
+function rgbToHex(r, g, b) {
+  return '#' + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')
+}
+
+// WCAG relative luminance (0 = black, 1 = white).
+export function luminance(hex) {
+  const { r, g, b } = hexToRgb(hex)
+  const lin = [r, g, b].map((v) => {
+    const c = v / 255
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+  })
+  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+}
+
+// Black or white ink that reads against a solid fill of `hex`.
+export function readableTextColor(hex) {
+  return luminance(hex) > 0.55 ? '#1c1917' : '#ffffff'
+}
+
+function mix(hex, target, amt) {
+  const a = hexToRgb(hex)
+  const b = hexToRgb(target)
+  return rgbToHex(a.r + (b.r - a.r) * amt, a.g + (b.g - a.g) * amt, a.b + (b.b - a.b) * amt)
+}
+
+export function isDarkMode() {
+  return typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+}
+
+// Nudge a chip color so an outlined chip's text/border stays legible against the
+// current theme surface: lighten very dark colors in dark mode, darken very
+// light colors in light mode. Returns the color unchanged when already legible.
+export function contrastColor(hex, dark = isDarkMode()) {
+  const L = luminance(hex)
+  if (dark && L < 0.22) return mix(hex, '#ffffff', 0.55)
+  if (!dark && L > 0.72) return mix(hex, '#1c1917', 0.5)
+  return hex
+}
+
 export function useTagColors() {
   const [tagColors, setTagColors] = useState(() => {
     try { return JSON.parse(localStorage.getItem('potheads_tag_colors') || '{}') } catch { return {} }
