@@ -37,12 +37,15 @@ Built for iPhone (add to home screen). Private by default — each user sees onl
 Nine tables total.
 
 User-scoped (RLS to auth.uid()): pieces, stage_events, photos, tags, piece_tags, user_clay_favorites, user_glaze_favorites
-Public-readable reference (RLS open SELECT, mutations service-role only): clay_bodies, glazes
+Public-readable reference (RLS open SELECT, mutations service-role only): clay_bodies
+Mixed reference — `glazes`: seed rows have `user_id = null` (global, public-readable, service-role only); custom rows are user-scoped (each user reads global + their own, and may insert/update/delete only their own). Added in `003_user_glazes.sql`.
 
 Stage enum: drying | bisque_ready | glazed | finished | lost
 Storage bucket: "photos" (private), path pattern: {user_id}/{piece_id}/{filename}
 
-Migration files live in `supabase/migrations/`. Catalog migration: `002_catalog_tables.sql`.
+Glazes on a piece are stored as `glaze`-category tags (name-based link). Every glaze the user selects lives in the `glazes` catalog (seed or their own custom row), so a case-insensitive name match (`matchGlaze` in `catalog.js`) resolves a glaze tag → its catalog entry. Custom glazes typed in-app are created as user-scoped catalog rows; renaming one cascades to its glaze tags.
+
+Migration files live in `supabase/migrations/`. Catalog migrations: `002_catalog_tables.sql`, `003_user_glazes.sql` (user-scoped custom glazes — apply in the Supabase SQL editor).
 Seed JSON in `supabase/seed/`. Seeded via `npm run seed:catalog` (requires `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`).
 
 ## Pottery Workflow
@@ -156,13 +159,13 @@ Defined in `src/index.css`. Use these class names:
 - **Search** — stub the search icon only, do not implement search logic
 
 ## Current App State
-Last updated: 2026-05-05
+Last updated: 2026-06-16
 
 | File | Status | Notes |
 |------|--------|-------|
 | src/pages/Login.jsx | Complete | Google OAuth UI, error + loading states |
 | src/pages/Board.jsx | Complete | Stage columns, multi-select, bulk delete, bulk tag edit |
-| src/pages/PieceDetail.jsx | Complete | Hero photo carousel, lightbox, stage timeline, tag management, advance stage |
+| src/pages/PieceDetail.jsx | Complete | Hero carousel, lightbox, stage timeline, advance stage; dedicated Glaze section (catalog search/select + custom, tap chip → editable GlazeDetail) separate from form/custom tags |
 | src/components/StageColumn.jsx | Complete | Piece card grid per stage, thumbUrl/formTag passed as props (no per-card fetches), React.memo |
 | src/components/AddPiece.jsx | Complete | New piece bottom sheet, stage selector, form tag, clay body memory |
 | src/components/BottomSheet.jsx | Complete | Generic reusable bottom modal |
@@ -181,8 +184,9 @@ Last updated: 2026-05-05
 | vercel.json | Complete | Auth callback rewrite rule |
 | .npmrc | Complete | legacy-peer-deps=true |
 | src/pages/Catalog.jsx | Complete | Clay/glaze tabs, search, filter chips, optimistic favorite toggle, BottomSheet detail |
-| src/lib/catalog.js | Complete | listClayBodies, listGlazes, listClay/GlazeFavorites, toggleClay/GlazeFavorite |
-| src/components/catalog/* | Complete | ClayCard, GlazeCard, ClayDetail, GlazeDetail, HeartButton, SwatchInfo |
+| src/lib/catalog.js | Complete | listClayBodies, listGlazes, listClay/GlazeFavorites, toggleClay/GlazeFavorite; buildGlazeIndex/matchGlaze (name→glaze); createGlaze/updateGlaze (user-scoped custom glazes) |
+| src/components/catalog/* | Complete | ClayCard, GlazeCard, ClayDetail, GlazeDetail (read + edit mode for own custom glazes), HeartButton, SwatchInfo |
 | supabase/migrations/002_catalog_tables.sql | Complete | clay_bodies, glazes, user_*_favorites tables + RLS |
+| supabase/migrations/003_user_glazes.sql | Complete | adds `glazes.user_id` + RLS for user-scoped custom glazes (apply via Supabase SQL editor) |
 | supabase/seed/*.json | Complete | 28 clay bodies, 27 glazes from TPS 9th St |
 | scripts/seed-catalog.mjs | Complete | Idempotent upsert on slug; needs SUPABASE_SERVICE_ROLE_KEY |

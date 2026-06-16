@@ -1,14 +1,16 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import { STAGES, STAGE_LABELS, nextStage, advanceStage, getStageEvents, updatePiece, getPieceIds, getPiecesByIds, upsertStageNote } from '../lib/pieces.js'
 import { getPhotosForPiece, getPhotosForPieces, uploadPhoto, getPhotoUrls, updatePhotoStage, deletePhoto } from '../lib/photos.js'
 import { getTagsForPiece, getOrCreateTag, addTagToPiece, removeTagFromPiece, getUserTags, updateTagColor, renameTag, deleteTag, countPiecesForTag, PRESET_TAGS } from '../lib/tags.js'
+import { listGlazes, listGlazeFavorites, toggleGlazeFavorite, createGlaze, updateGlaze, buildGlazeIndex, matchGlaze } from '../lib/catalog.js'
 import TagChip from '../components/TagChip.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
 import PotteryPlaceholder from '../components/PotteryPlaceholder.jsx'
 import ClayBodyPicker from '../components/ClayBodyPicker.jsx'
-import { useTagColors, detectColor } from '../lib/useTagColors.js'
+import GlazeDetail from '../components/catalog/GlazeDetail.jsx'
+import { useTagColors, detectColor, CATEGORY_DEFAULTS } from '../lib/useTagColors.js'
 
 const STAGE_RANK = { finished: 4, glazed: 3, bisque_ready: 2, drying: 1 }
 
@@ -52,6 +54,18 @@ export default function PieceDetail({ user }) {
   const [deletingPhotos, setDeletingPhotos] = useState(false)
 
   const [userTags, setUserTags] = useState([])
+
+  // Glaze catalog (lazy) — powers the catalog picker + tappable glaze detail.
+  const [glazeCatalog, setGlazeCatalog] = useState([])
+  const [glazeFaves, setGlazeFaves] = useState(new Set())
+  const [selectedGlaze, setSelectedGlaze] = useState(null)
+  const [glazeQuery, setGlazeQuery] = useState('')
+  const [addingGlaze, setAddingGlaze] = useState(false)
+  const [glazeSaving, setGlazeSaving] = useState(false)
+  const [glazeSaveError, setGlazeSaveError] = useState(null)
+  const glazeIndex = useMemo(() => buildGlazeIndex(glazeCatalog), [glazeCatalog])
+  const glazeTags = useMemo(() => tags.filter(t => t.category === 'glaze'), [tags])
+  const otherTags = useMemo(() => tags.filter(t => t.category !== 'glaze'), [tags])
 
   // Add tag modal
   const [showAddTagSheet, setShowAddTagSheet] = useState(false)
@@ -256,6 +270,121 @@ export default function PieceDetail({ user }) {
       }
     }
   }, [userTags])
+
+  // Glaze catalog is lazy — never in fetchAll. It loads when the user opens the
+  // Edit-details sheet OR when the piece already has glaze tags (so the Glaze
+  // section can resolve names → catalog entries and become tappable). On first
+  // load, any of the user's glaze tags that don't match the catalog are
+  // back-filled as user-scoped custom glazes (requires migration 003).
+  const glazeCatalogLoadedRef = useRef(false)
+  const loadGlazeCatalog = useCallback(async () => {
+    if (glazeCatalogLoadedRef.current) return
+    glazeCatalogLoadedRef.current = true
+    try {
+      const [glazes, faves, ut] = await Promise.all([
+        listGlazes(),
+        listGlazeFavorites(user.id),
+        getUserTags(user.id),
+      ])
+      setGlazeFaves(faves)
+      setUserTags(ut)
+      userTagsLoadedRef.current = true
+
+      const index = buildGlazeIndex(glazes)
+      const unmatched = ut.filter(t => t.category === 'glaze' && !matchGlaze(index, t.name))
+      if (unmatched.length) {
+        await Promise.all(unmatched.map(t =>
+          createGlaze(user.id, {
+            name: t.name,
+            hex_swatch: t.color || tagColors[t.name] || CATEGORY_DEFAULTS.glaze,
+          }).catch(() => null)
+        ))
+        setGlazeCatalog(await listGlazes())
+      } else {
+        setGlazeCatalog(glazes)
+      }
+    } catch {
+      glazeCatalogLoadedRef.current = false // allow a later retry
+    }
+  }, [user.id, tagColors])
+
+  useEffect(() => {
+    if (showTagSheet || tags.some(t => t.category === 'glaze')) loadGlazeCatalog()
+  }, [showTagSheet, tags, loadGlazeCatalog])
+
+  // Optimistic glaze favorite toggle (mirrors Catalog.jsx).
+  async function handleToggleGlaze(glazeId, on) {
+    setGlazeFaves(prev => {
+      const next = new Set(prev)
+      on ? next.add(glazeId) : next.delete(glazeId)
+      return next
+    })
+    try {
+      await toggleGlazeFavorite(user.id, glazeId, on)
+    } catch (err) {
+      setGlazeFaves(prev => {
+        const next = new Set(prev)
+        on ? next.delete(glazeId) : next.add(glazeId)
+        return next
+      })
+      setError(err.message)
+    }
+  }
+
+  // "Add as custom" — creates a real (editable) catalog glaze, then selects it.
+  async function handleAddCustomGlaze(rawName) {
+    const trimmed = rawName.trim()
+    if (!trimmed || addingGlaze) return
+    setAddingGlaze(true)
+    try {
+      const hex = detectColor(trimmed) || CATEGORY_DEFAULTS.glaze
+      await createGlaze(user.id, { name: trimmed, hex_swatch: hex })
+      setGlazeCatalog(await listGlazes())
+      saveTagColor(trimmed.toLowerCase(), hex)
+      await handleTagToggle(trimmed.toLowerCase(), 'glaze', hex)
+      setGlazeQuery('')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setAddingGlaze(false)
+    }
+  }
+
+  // Save edits to a custom glaze; if renamed, cascade-rename its glaze tags so
+  // the piece↔glaze (name-based) link stays intact.
+  async function handleSaveGlaze(fields) {
+    if (!selectedGlaze) return
+    setGlazeSaving(true)
+    setGlazeSaveError(null)
+    try {
+      const oldName = (selectedGlaze.name || '').toLowerCase()
+      const newName = fields.name.trim().toLowerCase()
+      const updated = await updateGlaze(selectedGlaze.id, fields)
+      if (newName !== oldName) {
+        const priorTags = await getUserTags(user.id)
+        await Promise.all(
+          priorTags
+            .filter(t => t.category === 'glaze' && t.name === oldName)
+            .map(t => renameTag(t.id, newName).catch(() => null))
+        )
+        saveTagColor(newName, fields.hex_swatch)
+      }
+      const [glazes, refreshedTags, ut] = await Promise.all([
+        listGlazes(),
+        getTagsForPiece(id),
+        getUserTags(user.id),
+      ])
+      setGlazeCatalog(glazes)
+      setTags(refreshedTags)
+      setUserTags(ut)
+      setSelectedGlaze(updated)
+    } catch (err) {
+      setGlazeSaveError(err.message)
+      throw err
+    } finally {
+      setGlazeSaving(false)
+    }
+  }
 
   // A photo's stage "outranks" the piece when it sits later in the workflow than
   // the current stage — the trigger for auto-advancing the piece to that stage.
@@ -1168,7 +1297,35 @@ export default function PieceDetail({ user }) {
               </div>
             </div>
 
-            {/* Tags */}
+            {/* Glaze — its own category, sourced from the catalog. Tap to view detail. */}
+            <div className="px-5 py-4 border-t border-line">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs uppercase tracking-widest text-muted">Glaze</p>
+                <button onClick={() => setShowTagSheet(true)} className="text-clay text-sm font-medium cursor-pointer hover:text-clay-dark">
+                  Edit
+                </button>
+              </div>
+              {glazeTags.length === 0 ? (
+                <p className="text-muted text-sm">No glaze yet</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {glazeTags.map((tag) => {
+                    const g = matchGlaze(glazeIndex, tag.name)
+                    return (
+                      <TagChip
+                        key={tag.id}
+                        tag={{ id: tag.id, name: g?.name || tag.name, category: 'glaze' }}
+                        selected
+                        color={g?.hex_swatch || tag.color || tagColors[tag.name] || CATEGORY_DEFAULTS.glaze}
+                        onToggle={g ? () => setSelectedGlaze(g) : undefined}
+                      />
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Details — form & custom tags */}
             <div className="px-5 py-4 pb-6 border-t border-line">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs uppercase tracking-widest text-muted">Details</p>
@@ -1176,11 +1333,11 @@ export default function PieceDetail({ user }) {
                   Edit
                 </button>
               </div>
-              {tags.length === 0 ? (
+              {otherTags.length === 0 ? (
                 <p className="text-muted text-sm">No details yet</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  {tags.map((tag) => (
+                  {otherTags.map((tag) => (
                     <TagChip key={tag.id} tag={tag} selected color={tag.color || tagColors[tag.name]} />
                   ))}
                 </div>
@@ -1255,7 +1412,7 @@ export default function PieceDetail({ user }) {
       {/* Tag sheet */}
       <BottomSheet
         open={showTagSheet}
-        onClose={() => { setShowTagSheet(false); setTagSearch({ form: '', glaze: '' }); setManageMode(false) }}
+        onClose={() => { setShowTagSheet(false); setTagSearch({ form: '', glaze: '' }); setManageMode(false); setGlazeQuery('') }}
         title="Edit details"
       >
         <div className="flex flex-col gap-5">
@@ -1270,7 +1427,7 @@ export default function PieceDetail({ user }) {
               {manageMode ? 'Done' : 'Manage'}
             </button>
           </div>
-          {Object.entries(PRESET_TAGS).map(([category, presetNames], categoryIdx) => {
+          {Object.entries(PRESET_TAGS).filter(([category]) => category !== 'glaze').map(([category, presetNames], categoryIdx) => {
             const customNames = userTags
               .filter(t => t.category === category && !presetNames.includes(t.name))
               .map(t => t.name)
@@ -1338,10 +1495,107 @@ export default function PieceDetail({ user }) {
               </div>
             )
           })}
+          {/* Glaze — catalog search & select (+ add custom) */}
+          <div className="pt-4 border-t border-line">
+            <p className="text-xs uppercase tracking-widest text-muted">Glaze</p>
+            <p className="mt-1 text-[11px] text-muted/80 mb-2">Search & select from your catalog</p>
+
+            {glazeTags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {glazeTags.map((tag) => {
+                  const g = matchGlaze(glazeIndex, tag.name)
+                  return (
+                    <TagChip
+                      key={tag.id}
+                      tag={{ id: tag.id, name: g?.name || tag.name, category: 'glaze' }}
+                      selected
+                      color={g?.hex_swatch || tag.color || tagColors[tag.name] || CATEGORY_DEFAULTS.glaze}
+                      onRemove={() => handleTagToggle(tag.name, 'glaze')}
+                    />
+                  )
+                })}
+              </div>
+            )}
+
+            <input
+              type="search"
+              value={glazeQuery}
+              onChange={(e) => setGlazeQuery(e.target.value)}
+              placeholder="Search glazes…"
+              className="w-full mb-2 px-3 py-2 text-sm rounded-xl bg-surface-warm border border-line focus:border-clay/60 focus:outline-none"
+            />
+
+            {(() => {
+              const selectedNames = new Set(glazeTags.map(t => t.name))
+              const q = glazeQuery.trim().toLowerCase()
+              const results = glazeCatalog
+                .filter(g => !selectedNames.has((g.name || '').toLowerCase()))
+                .filter(g => !q || `${g.name} ${g.family || ''}`.toLowerCase().includes(q))
+                .slice(0, 50)
+              const exactMatch =
+                glazeCatalog.some(g => (g.name || '').toLowerCase() === q) || selectedNames.has(q)
+              const canAddCustom = q.length > 0 && !exactMatch
+
+              return (
+                <div className="flex flex-col gap-1 max-h-64 overflow-y-auto">
+                  {results.map((g) => (
+                    <button
+                      key={g.id}
+                      onClick={() => handleTagToggle((g.name || '').toLowerCase(), 'glaze', g.hex_swatch)}
+                      className="flex items-center gap-3 px-2 py-2 rounded-xl text-left cursor-pointer hover:bg-surface-warm-hover"
+                    >
+                      <span
+                        className="w-6 h-6 rounded-full border border-line shrink-0"
+                        style={{ backgroundColor: g.hex_swatch || '#d4c5b0' }}
+                      />
+                      <span className="flex-1 min-w-0 truncate">
+                        <span className="text-sm text-ink">{g.name}</span>
+                        {g.family && <span className="text-[11px] text-muted ml-2">{g.family}</span>}
+                      </span>
+                      {g.user_id && (
+                        <span className="text-[10px] uppercase tracking-wider text-clay">custom</span>
+                      )}
+                    </button>
+                  ))}
+                  {canAddCustom && (
+                    <button
+                      onClick={() => handleAddCustomGlaze(glazeQuery)}
+                      disabled={addingGlaze}
+                      className="flex items-center gap-2 px-2 py-2 rounded-xl text-left text-sm font-medium text-clay cursor-pointer hover:bg-surface-warm-hover disabled:opacity-50"
+                    >
+                      {addingGlaze ? 'Adding…' : `+ Add "${glazeQuery.trim()}" as custom glaze`}
+                    </button>
+                  )}
+                  {results.length === 0 && !canAddCustom && (
+                    <p className="text-muted text-xs py-1">No matches.</p>
+                  )}
+                </div>
+              )
+            })()}
+          </div>
+
           <p className="text-muted text-xs text-center min-h-[1rem]">
             {togglingTag ? 'Saving…' : ' '}
           </p>
         </div>
+      </BottomSheet>
+
+      {/* Glaze detail (opened from the read-only Glaze section) */}
+      <BottomSheet
+        open={!!selectedGlaze}
+        onClose={() => { setSelectedGlaze(null); setGlazeSaveError(null) }}
+        title={selectedGlaze?.name}
+      >
+        <GlazeDetail
+          key={selectedGlaze?.id || 'none'}
+          glaze={selectedGlaze}
+          favorite={selectedGlaze ? glazeFaves.has(selectedGlaze.id) : false}
+          onToggleFavorite={handleToggleGlaze}
+          editable={!!selectedGlaze?.user_id && selectedGlaze.user_id === user.id}
+          onSave={handleSaveGlaze}
+          saving={glazeSaving}
+          saveError={glazeSaveError}
+        />
       </BottomSheet>
 
       {/* Add tag sheet */}
