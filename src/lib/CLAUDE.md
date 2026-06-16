@@ -36,8 +36,10 @@ Reference catalogs (clay bodies + glazes) and per-user favorites.
 - `listClayBodies()` / `listGlazes()` — public-readable, returns full rows ordered by name.
 - `listClayFavorites(userId)` / `listGlazeFavorites(userId)` — returns a `Set<id>` for O(1) membership checks in render.
 - `toggleClayFavorite(userId, id, on)` / `toggleGlazeFavorite(userId, id, on)` — insert ignores 23505 duplicate-key, delete by composite match.
+- `buildGlazeIndex(glazes)` → `Map<lowerName, glaze>` and `matchGlaze(index, tagName)` — pure helpers (no DB) that resolve a glaze tag name → its catalog row, case-insensitively. Duplicate names tie-break by `slug`. This is how name-based glaze tags link to the catalog.
+- `createGlaze(userId, fields)` / `updateGlaze(glazeId, fields)` — create/edit a **user-scoped** custom glaze (`user_id = userId`, auto-generated unique slug). Requires migration `003`. Editable fields: name, finish, family, base_color, hex_swatch, food_safe, notes.
 
-The `clay_bodies` and `glazes` tables are public-readable; mutations are service-role only (no UI for editing). Seed via `npm run seed:catalog`.
+`clay_bodies` is public-readable, mutations service-role only. `glazes` is public-readable for seed rows (`user_id null`); each user can also read + write their own custom rows (RLS, migration `003`). Seed via `npm run seed:catalog` (inserts global rows with `user_id null`).
 
 ### useTagColors.js
 Custom React hook and shared constants for tag color management.

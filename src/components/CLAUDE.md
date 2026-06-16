@@ -46,6 +46,8 @@ Grid cards (square swatch + name + meta + heart). Both wrapped in `React.memo` s
 ### ClayDetail.jsx / GlazeDetail.jsx
 Renders inside a `BottomSheet` body. Use the local `<Field>` helper which silently hides null/empty fields — keeps detail dense without empty rows.
 
+`GlazeDetail` also has an **edit mode** for user-owned custom glazes: pass `editable` (true only when `glaze.user_id === user.id`), `onSave(fields)`, `saving`, and `saveError`. When editable it shows an "Edit glaze" button that swaps the read-only body for an inline form (name, swatch color, finish, family, base color, food-safe, notes). Callers should `key={glaze.id}` the component so its internal `editing`/form state resets when a different glaze opens (BottomSheet keeps children mounted). `PieceDetail.jsx` passes `editable`; `Catalog.jsx` currently renders it read-only.
+
 ### HeartButton.jsx
 Outlined when `favorite=false`, filled brown (`#78350f`) when true. `onClick` calls `e.stopPropagation()` so it works inside clickable card containers. `React.memo` because cards re-render only when their favorite flag flips.
 
