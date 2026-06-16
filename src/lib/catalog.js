@@ -38,6 +38,25 @@ export function matchGlaze(index, tagName) {
   return index.get(tagName.trim().toLowerCase()) || null
 }
 
+// Case-insensitive name → clay body lookup, mirroring buildGlazeIndex/matchGlaze.
+// Lets a piece's free-text clay_body resolve to its catalog row for the detail view.
+export function buildClayIndex(clays) {
+  const sorted = [...(clays || [])].sort((a, b) =>
+    (a.slug || '').localeCompare(b.slug || '')
+  )
+  const map = new Map()
+  for (const c of sorted) {
+    const key = (c.name || '').trim().toLowerCase()
+    if (key && !map.has(key)) map.set(key, c)
+  }
+  return map
+}
+
+export function matchClay(index, name) {
+  if (!index || !name) return null
+  return index.get(name.trim().toLowerCase()) || null
+}
+
 const GLAZE_EDITABLE_FIELDS = ['name', 'finish', 'family', 'base_color', 'hex_swatch', 'food_safe', 'notes']
 
 function slugifyGlaze(name) {

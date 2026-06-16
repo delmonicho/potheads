@@ -15,6 +15,8 @@ This is **intentionally** a top-down data flow — `PieceCard` renders only from
 
 **`piecesByStage`** is memoized with `useMemo([pieces])` — recalculates only when the pieces array changes.
 
+**View modes** — the header `<select>` groups the board by `stage` (default), `clay_body`, `glaze`, or `form`. `clayBodyGroups` / `glazeGroups` / `formGroups` are all `useMemo`s derived from the already-fetched `pieces` + `allTagsByPiece` (no extra queries). `formGroups` buckets by the piece's `form`-category tag (excluding `lost`), `__none` → "No form", sorted last.
+
 ## PieceDetail.jsx
 Single piece view. Manages hero photo carousel, stage timeline, tag editing, photo upload, lightbox.
 
@@ -28,7 +30,11 @@ Single piece view. Manages hero photo carousel, stage timeline, tag editing, pho
 
 Do not move either back into `fetchAll` — that re-adds 3 queries to every piece view for data the user may never open.
 
-**Glaze is its own section, catalog-backed.** The read-only "Details" block is split into a dedicated **Glaze** section (glaze-category tags) and a **Details** section (form/other tags). Glaze chips resolve to catalog rows via `matchGlaze(glazeIndex, tag.name)`; a matched chip is tappable and opens an (editable, if owned) `GlazeDetail` `BottomSheet`. In the Edit-details sheet, the glaze category is **not** a free-text tag editor — it's a catalog search/select (selected chips + result rows + "Add '…' as custom"). Form tags keep the original preset+custom editor.
+**Glaze is its own section, catalog-backed.** The read-only "Details" block is split into a dedicated **Clay Body** section, a **Glaze** section (glaze-category tags), and a **Details** section (form/other tags). Glaze chips resolve to catalog rows via `matchGlaze(glazeIndex, tag.name)`; a matched chip is tappable and opens an (editable, if owned) `GlazeDetail` `BottomSheet`. In the Edit-details sheet, the glaze category is **not** a free-text tag editor — it's a catalog search/select (selected chips + result rows + "Add '…' as custom"). Form tags keep the original preset+custom editor.
+
+**Clay Body section mirrors Glaze, but read-only.** A `clay_body` (free-text on the piece) resolves to its catalog row via `matchClay(clayIndex, piece.clay_body)`; a matched chip is tappable and opens a read-only `ClayDetail` sheet (clay bodies are a public catalog — no user-custom clay, so no edit mode). The section's **Edit** button reuses `openEditPiece` (the `ClayBodyPicker` in the Edit-piece sheet stays the single place clay is changed). The clay catalog + favorites lazy-load via a ref-guarded `loadClayCatalog` the moment the piece has a `clay_body` — never in `fetchAll`.
+
+**Shared `GlazePicker`** — the glaze catalog search/select (selected chips + search + result rows + "Add as custom") is a single helper component at the bottom of the file, used by **both** the Edit-details sheet and the **Advance** sheet. The Advance sheet renders it only when the target stage is **Glazed or Finished** (glaze is recorded at those stages); selecting/adding writes the glaze tag immediately via `handleTagToggle`, so chips persist whether or not the advance is confirmed. The lazy `loadGlazeCatalog` trigger also fires when the Advance sheet opens on a glazed/finished target.
 
 **Lazy glaze catalog (`loadGlazeCatalog`, ref-guarded).** Fetches `listGlazes` + `listGlazeFavorites` + `getUserTags` once, triggered when the Edit-details sheet opens **or** the piece has glaze tags (so chips can resolve) — never in `fetchAll`. On first load it **back-fills**: any of the user's glaze tags with no catalog match are created as user-scoped custom glazes (`createGlaze`), then the catalog is re-listed. Selecting a catalog glaze stores a lowercased glaze tag named after it (color = `hex_swatch`); "Add as custom" creates a real editable catalog row first. Editing a custom glaze's name cascade-renames its glaze tags (`handleSaveGlaze`).
 

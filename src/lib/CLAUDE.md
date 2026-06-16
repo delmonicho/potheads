@@ -37,6 +37,7 @@ Reference catalogs (clay bodies + glazes) and per-user favorites.
 - `listClayFavorites(userId)` / `listGlazeFavorites(userId)` — returns a `Set<id>` for O(1) membership checks in render.
 - `toggleClayFavorite(userId, id, on)` / `toggleGlazeFavorite(userId, id, on)` — insert ignores 23505 duplicate-key, delete by composite match.
 - `buildGlazeIndex(glazes)` → `Map<lowerName, glaze>` and `matchGlaze(index, tagName)` — pure helpers (no DB) that resolve a glaze tag name → its catalog row, case-insensitively. Duplicate names tie-break by `slug`. This is how name-based glaze tags link to the catalog.
+- `buildClayIndex(clays)` → `Map<lowerName, clay>` and `matchClay(index, name)` — the clay equivalent of the glaze pair. Resolves a piece's free-text `clay_body` → its `clay_bodies` catalog row so PieceDetail can show a swatch-colored chip + read-only `ClayDetail`.
 - `createGlaze(userId, fields)` / `updateGlaze(glazeId, fields)` — create/edit a **user-scoped** custom glaze (`user_id = userId`, auto-generated unique slug). Requires migration `003`. Editable fields: name, finish, family, base_color, hex_swatch, food_safe, notes.
 
 `clay_bodies` is public-readable, mutations service-role only. `glazes` is public-readable for seed rows (`user_id null`); each user can also read + write their own custom rows (RLS, migration `003`). Seed via `npm run seed:catalog` (inserts global rows with `user_id null`).

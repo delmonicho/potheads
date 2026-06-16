@@ -164,8 +164,8 @@ Last updated: 2026-06-16
 | File | Status | Notes |
 |------|--------|-------|
 | src/pages/Login.jsx | Complete | Google OAuth UI, error + loading states |
-| src/pages/Board.jsx | Complete | Stage columns, multi-select, bulk delete, bulk tag edit |
-| src/pages/PieceDetail.jsx | Complete | Hero carousel, lightbox, stage timeline, advance stage; dedicated Glaze section (catalog search/select + custom, tap chip → editable GlazeDetail) separate from form/custom tags |
+| src/pages/Board.jsx | Complete | Stage columns, multi-select, bulk delete, bulk tag edit; group-by view: stage / clay body / glaze / form |
+| src/pages/PieceDetail.jsx | Complete | Hero carousel, lightbox, stage timeline, advance stage (glaze picker shown when target is Glazed/Finished); dedicated Clay Body section (tap chip → read-only ClayDetail) + Glaze section (catalog search/select + custom, tap chip → editable GlazeDetail) separate from form/custom tags |
 | src/components/StageColumn.jsx | Complete | Piece card grid per stage, thumbUrl/formTag passed as props (no per-card fetches), React.memo |
 | src/components/AddPiece.jsx | Complete | New piece bottom sheet, stage selector, form tag, clay body memory |
 | src/components/BottomSheet.jsx | Complete | Generic reusable bottom modal |
@@ -184,7 +184,7 @@ Last updated: 2026-06-16
 | vercel.json | Complete | Auth callback rewrite rule |
 | .npmrc | Complete | legacy-peer-deps=true |
 | src/pages/Catalog.jsx | Complete | Clay/glaze tabs, search, filter chips, optimistic favorite toggle, BottomSheet detail |
-| src/lib/catalog.js | Complete | listClayBodies, listGlazes, listClay/GlazeFavorites, toggleClay/GlazeFavorite; buildGlazeIndex/matchGlaze (name→glaze); createGlaze/updateGlaze (user-scoped custom glazes) |
+| src/lib/catalog.js | Complete | listClayBodies, listGlazes, listClay/GlazeFavorites, toggleClay/GlazeFavorite; buildGlazeIndex/matchGlaze (name→glaze) + buildClayIndex/matchClay (name→clay); createGlaze/updateGlaze (user-scoped custom glazes) |
 | src/components/catalog/* | Complete | ClayCard, GlazeCard, ClayDetail, GlazeDetail (read + edit mode for own custom glazes), HeartButton, SwatchInfo |
 | supabase/migrations/002_catalog_tables.sql | Complete | clay_bodies, glazes, user_*_favorites tables + RLS |
 | supabase/migrations/003_user_glazes.sql | Complete | adds `glazes.user_id` + RLS for user-scoped custom glazes (apply via Supabase SQL editor) |
