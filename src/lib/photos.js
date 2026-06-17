@@ -1,5 +1,6 @@
 import imageCompression from 'browser-image-compression'
 import { supabase } from './supabase.js'
+import { recordCache } from './diagnostics.js'
 
 const COMPRESSION_OPTIONS = {
   maxWidthOrHeight: 1600,
@@ -148,7 +149,9 @@ export async function getPhotoUrls(paths) {
     const cached = path && urlCache.get(path)
     if (cached && cached.expiresAt > now) {
       result[i] = cached.url
+      recordCache('signedUrls', { hit: true })
     } else if (path) {
+      recordCache('signedUrls', { hit: false })
       missing.push(path)
       missingIdx.push(i)
     }
@@ -204,4 +207,19 @@ export async function deletePhoto(photoId, storagePath) {
     urlCache.delete(storagePath)
     persistUrlCache()
   }
+}
+
+// Diagnostics helpers for the /dev page.
+export function getUrlCacheStats() {
+  const now = Date.now()
+  let fresh = 0
+  for (const entry of urlCache.values()) {
+    if (entry.expiresAt > now) fresh += 1
+  }
+  return { entries: urlCache.size, fresh }
+}
+
+export function clearUrlCache() {
+  urlCache.clear()
+  try { localStorage.removeItem(URL_CACHE_KEY) } catch { /* ignore */ }
 }

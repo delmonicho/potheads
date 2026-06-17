@@ -30,7 +30,8 @@ Built for iPhone (add to home screen). Private by default — each user sees onl
 - `redirectTo` is hard-coded to `https://pot-heads.studio/auth/callback` in `src/lib/supabase.js`
 - Vercel proxies `/auth/callback` → `https://kkagpnsekzsupwswnryo.supabase.co/auth/v1/callback` via rewrite in `vercel.json`
 - Post-login redirect lands on `/board` — handled by `onAuthStateChange` in `App.jsx`
-- Routes: `/` redirects to `/board`, `/board`, `/piece/:id`, `/graveyard`, `/catalog` (redirects to `/catalog/clay`), `/catalog/:tab` where `tab` ∈ {`clay`, `glazes`}
+- Routes: `/` redirects to `/board`, `/board`, `/piece/:id`, `/graveyard`, `/catalog` (redirects to `/catalog/clay`), `/catalog/:tab` where `tab` ∈ {`clay`, `glazes`}, `/dev` (owner-only diagnostics — non-owners redirect to `/board`)
+- `/dev` is gated to `DEV_OWNER_EMAIL` (`src/lib/diagnostics.js`, default `nicho.delmo@gmail.com`, overridable via `VITE_DEV_OWNER_EMAIL`). It's reachable in production via the URL or the "Developer diagnostics" link in the Board profile sheet (shown only to the owner).
 - All routes are auth-gated. The catalog uses Supabase RLS open SELECT, but the app's `App.jsx` redirects unauthenticated users to `Login`, so anonymous catalog browsing is not exposed (matches the private-by-default app design).
 
 ## Database Schema
@@ -78,18 +79,20 @@ See subdirectory CLAUDE.md files for detailed conventions:
 
 src/
   lib/
-    supabase.js        — supabase client
+    supabase.js        — supabase client (wraps fetch to feed request telemetry to diagnostics.js)
+    diagnostics.js     — in-memory client-side observability (request log/aggregates, cache hit stats); DEV_OWNER_EMAIL gate
     pieces.js          — all pieces CRUD; advanceStage uses Promise.all
     photos.js          — upload, batch fetch (getPhotosForPieces), signed URL cache
     tags.js            — tags CRUD, batch fetch (getTagsForPieces)
     useTagColors.js    — useTagColors hook, CATEGORY_DEFAULTS, detectColor
-    catalog.js         — clay_bodies + glazes list, favorites toggle (user_clay_favorites, user_glaze_favorites)
+    catalog.js         — clay_bodies + glazes list (24h TTL cache), favorites toggle (user_clay_favorites, user_glaze_favorites)
   pages/
     Login.jsx          — Google OAuth sign in
     Board.jsx          — home, pieces grouped by stage; batch-fetches photos+tags in 3 total queries
     PieceDetail.jsx    — photo carousel, lightbox, stage timeline, tag management
     Graveyard.jsx      — lost pieces, hard delete
     Catalog.jsx        — clay/glaze browsable catalog with filters + favorites
+    Dev.jsx            — owner-only (/dev) diagnostics: Supabase request stats, cache stats, localStorage footprint, links to native metrics
   components/
     AddPiece.jsx           — camera-first new piece flow
     StageColumn.jsx        — stage group + PieceCard grid; props-only, no internal fetching
@@ -126,6 +129,7 @@ scripts/
 | `potheads_tag_colors` | object | `{ [tagName]: "#hex" }` — custom color per tag name, used by TagChip |
 | `potheads_recent_tag_colors` | array | Last 8 colors used in Add Tag modal (most recent first) |
 | `potheads_signed_urls` | object | `{ [storagePath]: { url, expiresAt } }` — persisted signed-URL cache so PWA reloads reuse still-valid URLs instead of re-signing (see `src/lib/photos.js`) |
+| `potheads_catalog_cache` | object | `{ clay: { rows, expiresAt }, glaze: { [userId]: { rows, expiresAt } } }` — persisted reference-catalog cache (24h TTL) so clay/glaze catalogs aren't re-fetched on every Catalog mount or PieceDetail glaze load (see `src/lib/catalog.js`) |
 
 ## Design Tokens (Tailwind v4 @theme)
 Defined in `src/index.css`. Use these class names:
@@ -159,7 +163,7 @@ Defined in `src/index.css`. Use these class names:
 - **Search** — stub the search icon only, do not implement search logic
 
 ## Current App State
-Last updated: 2026-06-16
+Last updated: 2026-06-17
 
 | File | Status | Notes |
 |------|--------|-------|
@@ -177,14 +181,16 @@ Last updated: 2026-06-16
 | src/lib/photos.js | Complete | Compressed upload, signed URLs (cached), batch fetch, stage tagging |
 | src/lib/tags.js | Complete | Preset + custom tags, CRUD, batch fetch |
 | src/lib/useTagColors.js | Complete | Tag color hook shared by PieceDetail + TagChip |
-| src/App.jsx | Complete | Router + auth guard |
+| src/App.jsx | Complete | Router + auth guard; owner-gated `/dev` route |
 | src/main.jsx | Complete | React 19 entry point |
+| src/lib/diagnostics.js | Complete | Client-side request/cache telemetry store + DEV_OWNER_EMAIL gate |
+| src/pages/Dev.jsx | Complete | Owner-only `/dev` diagnostics: request stats, cache stats, localStorage footprint, clear-cache actions, native-metrics links |
 | public/placeholders/*.svg | Complete | 8 form illustrations (bowl, mug, cup, vase, plate, pitcher, teapot, planter) |
 | public/icon-192.png, icon-512.png | Complete | PWA icons |
 | vercel.json | Complete | Auth callback rewrite rule |
 | .npmrc | Complete | legacy-peer-deps=true |
 | src/pages/Catalog.jsx | Complete | Clay/glaze tabs, search, filter chips, optimistic favorite toggle, BottomSheet detail |
-| src/lib/catalog.js | Complete | listClayBodies, listGlazes, listClay/GlazeFavorites, toggleClay/GlazeFavorite; buildGlazeIndex/matchGlaze (name→glaze) + buildClayIndex/matchClay (name→clay); createGlaze/updateGlaze (user-scoped custom glazes) |
+| src/lib/catalog.js | Complete | listClayBodies, listGlazes(userId) — both 24h TTL-cached (potheads_catalog_cache); listClay/GlazeFavorites, toggleClay/GlazeFavorite; buildGlazeIndex/matchGlaze (name→glaze) + buildClayIndex/matchClay (name→clay); createGlaze/updateGlaze (user-scoped custom glazes, bust glaze cache) |
 | src/components/catalog/* | Complete | ClayCard, GlazeCard, ClayDetail, GlazeDetail (read + edit mode for own custom glazes), HeartButton, SwatchInfo |
 | supabase/migrations/002_catalog_tables.sql | Complete | clay_bodies, glazes, user_*_favorites tables + RLS |
 | supabase/migrations/003_user_glazes.sql | Complete | adds `glazes.user_id` + RLS for user-scoped custom glazes (apply via Supabase SQL editor) |
