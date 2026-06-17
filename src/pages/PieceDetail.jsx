@@ -1470,6 +1470,15 @@ export default function PieceDetail({ user }) {
             </div>
           )}
           <div>
+            <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Photo (optional)</label>
+            <PhotoPickerField
+              files={advanceFiles}
+              previews={advancePreviews}
+              setFiles={setAdvanceFiles}
+              setPreviews={setAdvancePreviews}
+            />
+          </div>
+          <div>
             <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Note (optional)</label>
             <textarea
               className="w-full border border-line rounded-xl px-3 py-2 text-sm text-ink bg-surface-warm resize-none"
@@ -1479,22 +1488,15 @@ export default function PieceDetail({ user }) {
               onChange={(e) => setAdvanceNote(e.target.value)}
             />
           </div>
-          <div>
-            <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Photo (optional)</label>
-            <PhotoPickerField
-              files={advanceFiles}
-              previews={advancePreviews}
-              setFiles={setAdvanceFiles}
-              setPreviews={setAdvancePreviews}
-            />
+          <div className="sticky bottom-0 -mx-4 px-4 pt-3 pb-safe bg-surface-raised border-t border-line">
+            <button
+              onClick={handleAdvance}
+              disabled={advancing || !advanceTargetStage}
+              className="w-full bg-clay text-white font-semibold py-3 rounded-2xl active:bg-clay-dark disabled:opacity-50 cursor-pointer hover:bg-clay-dark"
+            >
+              {advancing ? 'Saving…' : `Confirm${advanceTargetStage ? ` move to ${STAGE_LABELS[advanceTargetStage]}` : ''}`}
+            </button>
           </div>
-          <button
-            onClick={handleAdvance}
-            disabled={advancing || !advanceTargetStage}
-            className="w-full bg-clay text-white font-semibold py-3 rounded-2xl active:bg-clay-dark disabled:opacity-50 cursor-pointer hover:bg-clay-dark"
-          >
-            {advancing ? 'Saving…' : `Confirm${advanceTargetStage ? ` move to ${STAGE_LABELS[advanceTargetStage]}` : ''}`}
-          </button>
         </div>
       </BottomSheet>
 
