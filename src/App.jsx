@@ -8,7 +8,7 @@ import Graveyard from './pages/Graveyard.jsx'
 import Catalog from './pages/Catalog.jsx'
 import Calendar from './pages/Calendar.jsx'
 import Dev from './pages/Dev.jsx'
-import { DEV_OWNER_EMAIL } from './lib/diagnostics.js'
+import { isDevOwner } from './lib/diagnostics.js'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -50,7 +50,7 @@ export default function App() {
       <Route path="/catalog/:tab" element={<Catalog user={user} />} />
       <Route
         path="/dev"
-        element={user.email === DEV_OWNER_EMAIL ? <Dev user={user} /> : <Navigate to="/board" replace />}
+        element={isDevOwner(user.email) ? <Dev user={user} /> : <Navigate to="/board" replace />}
       />
     </Routes>
   )

@@ -31,7 +31,7 @@ Built for iPhone (add to home screen). Private by default — each user sees onl
 - Vercel proxies `/auth/callback` → `https://kkagpnsekzsupwswnryo.supabase.co/auth/v1/callback` via rewrite in `vercel.json`
 - Post-login redirect lands on `/board` — handled by `onAuthStateChange` in `App.jsx`
 - Routes: `/` redirects to `/board`, `/board`, `/piece/:id`, `/graveyard`, `/catalog` (redirects to `/catalog/clay`), `/catalog/:tab` where `tab` ∈ {`clay`, `glazes`}, `/dev` (owner-only diagnostics — non-owners redirect to `/board`)
-- `/dev` is gated to `DEV_OWNER_EMAIL` (`src/lib/diagnostics.js`, default `nicho.delmo@gmail.com`, overridable via `VITE_DEV_OWNER_EMAIL`). It's reachable in production via the URL or the "Developer diagnostics" link in the Board profile sheet (shown only to the owner).
+- `/dev` is gated to the owner allowlist `DEV_OWNER_EMAILS` via `isDevOwner(email)` (`src/lib/diagnostics.js`, default `nicho.delmo@gmail.com` + `ndelmoral13@gmail.com`, overridable via comma-separated `VITE_DEV_OWNER_EMAIL`). It's reachable in production via the URL or the "Developer diagnostics" link in the Board profile sheet (shown only to owners).
 - All routes are auth-gated. The catalog uses Supabase RLS open SELECT, but the app's `App.jsx` redirects unauthenticated users to `Login`, so anonymous catalog browsing is not exposed (matches the private-by-default app design).
 
 ## Database Schema

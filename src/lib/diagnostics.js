@@ -9,8 +9,24 @@
 // so instrumentation can never break an actual request or the app.
 
 // Owner gate for the /dev page — kept here so it's importable without pulling in UI.
-export const DEV_OWNER_EMAIL =
-  import.meta.env.VITE_DEV_OWNER_EMAIL || 'nicho.delmo@gmail.com'
+// Multiple owners are supported: VITE_DEV_OWNER_EMAIL may be a comma-separated list.
+const DEFAULT_DEV_OWNER_EMAILS = ['nicho.delmo@gmail.com', 'ndelmoral13@gmail.com']
+
+export const DEV_OWNER_EMAILS = (
+  import.meta.env.VITE_DEV_OWNER_EMAIL
+    ? import.meta.env.VITE_DEV_OWNER_EMAIL.split(',')
+    : DEFAULT_DEV_OWNER_EMAILS
+)
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean)
+
+// Back-compat: the first owner is still exported as the singular DEV_OWNER_EMAIL.
+export const DEV_OWNER_EMAIL = DEV_OWNER_EMAILS[0]
+
+// Owner check — case-insensitive, tolerant of falsy emails.
+export function isDevOwner(email) {
+  return !!email && DEV_OWNER_EMAILS.includes(email.toLowerCase())
+}
 
 const MAX_EVENTS = 200
 
