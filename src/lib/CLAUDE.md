@@ -17,7 +17,7 @@ Dependency-free, in-memory client-side observability for a single SPA session. H
 - `recordRequest(evt)` — called by the supabase.js fetch wrapper.
 - `recordCache(name, { hit })` — called by the signed-URL cache (`photos.js`, name `signedUrls`) and the catalog cache (`catalog.js`, name `catalog`). A cache **hit is the absence of a request**, so hit-rate is the real signal that caching is paying off.
 - `getSnapshot()` / `subscribe(fn)` / `reset()` — read by the `/dev` page.
-- `DEV_OWNER_EMAIL` — owner gate for `/dev`, here so it's importable without UI. Default `nicho.delmo@gmail.com`, override via `VITE_DEV_OWNER_EMAIL`.
+- `DEV_OWNER_EMAILS` / `isDevOwner(email)` — owner allowlist + case-insensitive check for `/dev`, here so it's importable without UI. Default owners `nicho.delmo@gmail.com` + `ndelmoral13@gmail.com`, override via comma-separated `VITE_DEV_OWNER_EMAIL`. `DEV_OWNER_EMAIL` (singular, = first owner) is still exported for back-compat.
 
 ### pieces.js
 CRUD for the `pieces` table.

@@ -10,7 +10,7 @@ import AddPiece from '../components/AddPiece.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
 import SegmentedControl from '../components/SegmentedControl.jsx'
 import { getTheme, setTheme, getDensity, setDensity } from '../lib/prefs.js'
-import { DEV_OWNER_EMAIL } from '../lib/diagnostics.js'
+import { isDevOwner } from '../lib/diagnostics.js'
 
 function BookIcon() {
   return (
@@ -662,7 +662,7 @@ export default function Board({ user }) {
             />
           </div>
 
-          {user.email === DEV_OWNER_EMAIL && (
+          {isDevOwner(user.email) && (
             <button
               onClick={() => { setShowProfile(false); navigate('/dev') }}
               className="text-left text-sm text-muted cursor-pointer hover:text-ink-soft"
