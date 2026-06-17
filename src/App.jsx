@@ -7,6 +7,8 @@ import PieceDetail from './pages/PieceDetail.jsx'
 import Graveyard from './pages/Graveyard.jsx'
 import Catalog from './pages/Catalog.jsx'
 import Calendar from './pages/Calendar.jsx'
+import Dev from './pages/Dev.jsx'
+import { DEV_OWNER_EMAIL } from './lib/diagnostics.js'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -46,6 +48,10 @@ export default function App() {
       <Route path="/calendar" element={<Calendar user={user} />} />
       <Route path="/catalog" element={<Navigate to="/catalog/clay" replace />} />
       <Route path="/catalog/:tab" element={<Catalog user={user} />} />
+      <Route
+        path="/dev"
+        element={user.email === DEV_OWNER_EMAIL ? <Dev user={user} /> : <Navigate to="/board" replace />}
+      />
     </Routes>
   )
 }

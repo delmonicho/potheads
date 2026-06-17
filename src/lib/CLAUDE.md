@@ -10,6 +10,15 @@
 ### supabase.js
 Single Supabase client instance. `redirectTo` is hard-coded to the production URL — intentional, see root CLAUDE.md Auth section.
 
+The client is created with a custom `global.fetch` that times **every** Supabase request (REST/Storage/Auth) and reports `{ label, method, durationMs, status, ok }` to `diagnostics.js`. The wrapper is transparent — it returns the original `Response` and re-throws on failure, never altering behavior. Labels are derived from the URL path: `/rest/v1/<table>` → `rest:<table>`, storage → `storage:sign`/`storage:object`, auth → `auth`.
+
+### diagnostics.js
+Dependency-free, in-memory client-side observability for a single SPA session. Holds a ring buffer (last ~200) of request events plus per-label aggregates (count/errors/avg/p95/max) and per-cache hit/miss counters. All writes are wrapped in try/catch so instrumentation can never break a request.
+- `recordRequest(evt)` — called by the supabase.js fetch wrapper.
+- `recordCache(name, { hit })` — called by the signed-URL cache (`photos.js`, name `signedUrls`) and the catalog cache (`catalog.js`, name `catalog`). A cache **hit is the absence of a request**, so hit-rate is the real signal that caching is paying off.
+- `getSnapshot()` / `subscribe(fn)` / `reset()` — read by the `/dev` page.
+- `DEV_OWNER_EMAIL` — owner gate for `/dev`, here so it's importable without UI. Default `nicho.delmo@gmail.com`, override via `VITE_DEV_OWNER_EMAIL`.
+
 ### pieces.js
 CRUD for the `pieces` table.
 - `advanceStage(pieceId, stage, notes)` — runs the piece update and stage_event insert in **parallel** via `Promise.all`. Both writes are independent so there's no reason to sequence them.
@@ -33,7 +42,7 @@ Tag CRUD and piece↔tag association.
 ### catalog.js
 Reference catalogs (clay bodies + glazes) and per-user favorites.
 
-- `listClayBodies()` / `listGlazes()` — public-readable, returns full rows ordered by name.
+- `listClayBodies()` / `listGlazes(userId)` — public-readable, returns full rows ordered by name. **TTL-cached (24h)** in module memory + `localStorage` (`potheads_catalog_cache`) so this near-static reference data isn't re-fetched on every Catalog mount / PieceDetail glaze load. `clay_bodies` is fully global so it caches under one key; `glazes` includes the user's own custom rows (RLS), so its cache is **keyed by `userId`** (pass it from call sites) and **invalidated** by `createGlaze`/`updateGlaze`. Cache hits/misses report to `diagnostics.js` (name `catalog`). Helpers: `clearCatalogCache()`, `getCatalogCacheStats()`. Favorites are **not** cached (user state, single cheap query).
 - `listClayFavorites(userId)` / `listGlazeFavorites(userId)` — returns a `Set<id>` for O(1) membership checks in render.
 - `toggleClayFavorite(userId, id, on)` / `toggleGlazeFavorite(userId, id, on)` — insert ignores 23505 duplicate-key, delete by composite match.
 - `buildGlazeIndex(glazes)` → `Map<lowerName, glaze>` and `matchGlaze(index, tagName)` — pure helpers (no DB) that resolve a glaze tag name → its catalog row, case-insensitively. Duplicate names tie-break by `slug`. This is how name-based glaze tags link to the catalog.

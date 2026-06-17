@@ -1,21 +1,107 @@
 import { supabase } from './supabase.js'
+import { recordCache } from './diagnostics.js'
+
+// Reference-catalog cache. clay_bodies is fully global/static; glazes is global
+// seed rows + the signed-in user's own custom rows (RLS), so the glaze cache is
+// keyed by user id and invalidated on createGlaze/updateGlaze. Persisted to
+// localStorage so the catalog survives reloads of this home-screen PWA — this
+// data essentially never changes, so re-fetching it on every Catalog mount and
+// every PieceDetail glaze load is pure waste.
+// Shape: { clay: { rows, expiresAt }, glaze: { [userId]: { rows, expiresAt } } }
+const CATALOG_CACHE_KEY = 'potheads_catalog_cache'
+const CATALOG_TTL_MS = 24 * 60 * 60 * 1000 // 24h
+
+const catalogCache = loadCatalogCache()
+
+function loadCatalogCache() {
+  const base = { clay: null, glaze: {} }
+  try {
+    const raw = localStorage.getItem(CATALOG_CACHE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === 'object') {
+        base.clay = parsed.clay || null
+        base.glaze = parsed.glaze || {}
+      }
+    }
+  } catch { /* corrupt/unavailable storage — start empty */ }
+  return base
+}
+
+let persistTimer = null
+function persistCatalogCache() {
+  if (persistTimer) return // debounce bursts into one write
+  persistTimer = setTimeout(() => {
+    persistTimer = null
+    try {
+      localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(catalogCache))
+    } catch { /* quota/unavailable — cache stays in-memory only */ }
+  }, 500)
+}
+
+function freshEntry(entry) {
+  return entry && entry.expiresAt > Date.now() ? entry.rows : null
+}
 
 export async function listClayBodies() {
+  const cached = freshEntry(catalogCache.clay)
+  if (cached) {
+    recordCache('catalog', { hit: true })
+    return cached
+  }
+  recordCache('catalog', { hit: false })
   const { data, error } = await supabase
     .from('clay_bodies')
     .select('*')
     .order('name', { ascending: true })
   if (error) throw error
+  catalogCache.clay = { rows: data, expiresAt: Date.now() + CATALOG_TTL_MS }
+  persistCatalogCache()
   return data
 }
 
-export async function listGlazes() {
+// userId keys the cache so one browser shared by multiple accounts never serves
+// another user's custom glazes. Falls back to 'anon' when unknown (still correct —
+// it just caches the global-only result under its own key).
+export async function listGlazes(userId) {
+  const key = userId || 'anon'
+  const cached = freshEntry(catalogCache.glaze[key])
+  if (cached) {
+    recordCache('catalog', { hit: true })
+    return cached
+  }
+  recordCache('catalog', { hit: false })
   const { data, error } = await supabase
     .from('glazes')
     .select('*')
     .order('name', { ascending: true })
   if (error) throw error
+  catalogCache.glaze[key] = { rows: data, expiresAt: Date.now() + CATALOG_TTL_MS }
+  persistCatalogCache()
   return data
+}
+
+// Drop cached glaze rows after a custom-glaze write so the next list refetches.
+function invalidateGlazeCache() {
+  catalogCache.glaze = {}
+  persistCatalogCache()
+}
+
+export function clearCatalogCache() {
+  catalogCache.clay = null
+  catalogCache.glaze = {}
+  try { localStorage.removeItem(CATALOG_CACHE_KEY) } catch { /* ignore */ }
+}
+
+export function getCatalogCacheStats() {
+  const clayFresh = !!freshEntry(catalogCache.clay)
+  const glazeKeys = Object.keys(catalogCache.glaze).filter((k) => freshEntry(catalogCache.glaze[k]))
+  return {
+    clayCached: clayFresh,
+    clayRows: clayFresh ? catalogCache.clay.rows.length : 0,
+    glazeUsers: glazeKeys.length,
+    glazeRows: glazeKeys.reduce((n, k) => n + catalogCache.glaze[k].rows.length, 0),
+  }
 }
 
 // Case-insensitive name → glaze lookup so free-text glaze tags (stored
@@ -82,6 +168,7 @@ export async function createGlaze(userId, fields) {
     .select()
     .single()
   if (error) throw error
+  invalidateGlazeCache()
   return data
 }
 
@@ -98,6 +185,7 @@ export async function updateGlaze(glazeId, fields) {
     .select()
     .single()
   if (error) throw error
+  invalidateGlazeCache()
   return data
 }
 

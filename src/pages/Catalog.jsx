@@ -67,7 +67,7 @@ export default function Catalog({ user }) {
       setLoading(true)
       const [cb, gz, cf, gf] = await Promise.all([
         listClayBodies(),
-        listGlazes(),
+        listGlazes(user.id),
         listClayFavorites(user.id),
         listGlazeFavorites(user.id),
       ])

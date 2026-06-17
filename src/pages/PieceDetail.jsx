@@ -290,7 +290,7 @@ export default function PieceDetail({ user }) {
     glazeCatalogLoadedRef.current = true
     try {
       const [glazes, faves, ut] = await Promise.all([
-        listGlazes(),
+        listGlazes(user.id),
         listGlazeFavorites(user.id),
         getUserTags(user.id),
       ])
@@ -307,7 +307,7 @@ export default function PieceDetail({ user }) {
             hex_swatch: t.color || tagColors[t.name] || CATEGORY_DEFAULTS.glaze,
           }).catch(() => null)
         ))
-        setGlazeCatalog(await listGlazes())
+        setGlazeCatalog(await listGlazes(user.id))
       } else {
         setGlazeCatalog(glazes)
       }
@@ -390,7 +390,7 @@ export default function PieceDetail({ user }) {
     try {
       const hex = detectColor(trimmed) || CATEGORY_DEFAULTS.glaze
       await createGlaze(user.id, { name: trimmed, hex_swatch: hex })
-      setGlazeCatalog(await listGlazes())
+      setGlazeCatalog(await listGlazes(user.id))
       saveTagColor(trimmed.toLowerCase(), hex)
       await handleTagToggle(trimmed.toLowerCase(), 'glaze', hex)
       setGlazeQuery('')
@@ -421,7 +421,7 @@ export default function PieceDetail({ user }) {
         saveTagColor(newName, fields.hex_swatch)
       }
       const [glazes, refreshedTags, ut] = await Promise.all([
-        listGlazes(),
+        listGlazes(user.id),
         getTagsForPiece(id),
         getUserTags(user.id),
       ])
