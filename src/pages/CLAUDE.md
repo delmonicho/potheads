@@ -53,6 +53,16 @@ Selection state (`selectedPhotoIds: Set`) is page-scoped and cleared whenever th
 ## Graveyard.jsx
 Shows pieces tagged "lost" (or with `lost=true` boolean for legacy pieces). Each piece card has a "Delete forever" button that hard-deletes via `deletePiece`. Accessible via the broken vase icon in the Board header.
 
+## PortfolioCurate.jsx (`/portfolio`, owner-only)
+Private curate view for the user's public portfolio. First run renders an inline `CreatePortfolio` (validated vanity slug, auto-suggested from name). Once a portfolio exists: a `PortfolioSettings` card (publish/unpublish, copy/open share link, edit title/studio/statement) plus a candidate grid of the user's pieces.
+
+**Data fetch** mirrors Board's 3-query pattern: `getPieces` + `getPortfolioItems` in parallel, then `getPhotosForPieces` + `getTagsForPieces`. Thumbnails use the same latest-stage selection as Board. Tags are fetched **only** to build the denormalized label snapshot (`buildItemSnapshot`) at showcase time — the public page never reads them.
+
+**Toggle showcase** is optimistic: tapping a card upserts/flips the `portfolio_items` row (`showcasePiece` / `setItemShowcased`) and updates the local `items` Map; on error it resyncs via `load()`. Reorder, per-item label editing, layout switch, and preview-as-visitor are Phase 2 — keep them out of here for now.
+
+## PublicPortfolio.jsx (`/p/:slug`, public, no-auth)
+Renders entirely from `getPublicPortfolio(slug)` (anon RLS). States: spinner → not-found (no published match) → error → gallery. Editorial single-column: header (title/studio/statement) then one `<article>` per item (hero image + thumbnail strip + `MuseumLabel`). A local `Lightbox` (full-screen, keyboard + prev/next, no pinch-zoom yet) opens on image tap. Sets `document.title` for humans; crawler OG tags arrive via SSR in Phase 3. **This page must never read private tables** — all label data comes from the denormalized `portfolio_items` fields.
+
 ## Login.jsx
 Google OAuth entry point. No complex state — just `loading` and `error`.
 
