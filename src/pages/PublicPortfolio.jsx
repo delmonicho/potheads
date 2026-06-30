@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { getPublicPortfolio } from '../lib/portfolio.js'
-import MuseumLabel from '../components/portfolio/MuseumLabel.jsx'
+import EditorialLayout from '../components/portfolio/EditorialLayout.jsx'
+import MasonryLayout from '../components/portfolio/MasonryLayout.jsx'
 
 // Public, no-auth portfolio page (/p/:slug). Renders only what RLS returns: a
-// published portfolio, its showcased items, and their photos. Editorial
-// single-column layout (masonry + process strip land in Phase 2).
+// published portfolio, its showcased items, and their photos. Layout is
+// owner-chosen (editorial single-column or masonry).
 export default function PublicPortfolio() {
   const { slug } = useParams()
   const [data, setData] = useState(null)
@@ -36,6 +37,10 @@ export default function PublicPortfolio() {
     return () => { document.title = 'Potheads' }
   }, [data])
 
+  const openLightbox = useCallback((item, index) => {
+    setLightbox({ photos: item.photos, index })
+  }, [])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-surface">
@@ -64,6 +69,7 @@ export default function PublicPortfolio() {
   }
 
   const { portfolio, items } = data
+  const Layout = portfolio.layout === 'masonry' ? MasonryLayout : EditorialLayout
 
   return (
     <div className="min-h-screen bg-surface">
@@ -84,11 +90,7 @@ export default function PublicPortfolio() {
         {items.length === 0 ? (
           <p className="text-center text-sm text-muted py-12">No pieces yet.</p>
         ) : (
-          <div className="flex flex-col gap-16">
-            {items.map((item) => (
-              <PortfolioPiece key={item.id} item={item} onOpen={(index) => setLightbox({ photos: item.photos, index })} />
-            ))}
-          </div>
+          <Layout items={items} onOpen={openLightbox} />
         )}
 
         <footer className="pt-16 text-center">
@@ -97,57 +99,9 @@ export default function PublicPortfolio() {
       </div>
 
       {lightbox && (
-        <Lightbox
-          photos={lightbox.photos}
-          index={lightbox.index}
-          onClose={() => setLightbox(null)}
-        />
+        <Lightbox photos={lightbox.photos} index={lightbox.index} onClose={() => setLightbox(null)} />
       )}
     </div>
-  )
-}
-
-function PortfolioPiece({ item, onOpen }) {
-  const photos = item.photos || []
-  const hero = photos[0]
-
-  return (
-    <article className="flex flex-col gap-4">
-      {hero?.url ? (
-        <button
-          onClick={() => onOpen(0)}
-          className="block w-full overflow-hidden rounded-2xl bg-tan cursor-pointer hover:opacity-95 transition-opacity"
-          aria-label={`View ${item.title || 'piece'}`}
-        >
-          <img
-            src={hero.url}
-            alt={item.title || ''}
-            loading="lazy"
-            className="w-full max-h-[70vh] object-contain bg-tan"
-          />
-        </button>
-      ) : (
-        <div className="w-full aspect-square rounded-2xl bg-tan" />
-      )}
-
-      {/* Thumbnail strip for additional photos */}
-      {photos.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto">
-          {photos.map((p, i) => (
-            <button
-              key={p.id}
-              onClick={() => onOpen(i)}
-              className="shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-tan cursor-pointer hover:opacity-80 transition-opacity"
-              aria-label={`View photo ${i + 1}`}
-            >
-              {p.url && <img src={p.url} alt="" loading="lazy" className="w-full h-full object-cover" />}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <MuseumLabel item={item} />
-    </article>
   )
 }
 

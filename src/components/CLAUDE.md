@@ -35,6 +35,15 @@ Public-portfolio components.
 ### MuseumLabel.jsx
 Museum-style caption for one portfolio piece. Reads **only** the denormalized `portfolio_item` fields (title, year, form, clay_body, glazes `[{name,hex}]`, firing, dimensions, status) — never piece/tag data. Empty fields are hidden. Status renders as a pill (Available highlighted; Sold/NFS muted).
 
+### PortfolioItemEditor.jsx
+BottomSheet form for the curated label overrides of one showcased item (title, year, form, clay_body, glazes as comma-separated text, firing, dimensions, status segmented buttons, show-process toggle). Controlled by the caller's `onSave(fields)` / `saving` / `error`; key it `key={item.id}` so form state resets per item. Glaze hex is preserved by name when re-saving; new glaze names get `null` hex.
+
+### EditorialLayout.jsx / MasonryLayout.jsx
+The two public-page gallery layouts, chosen by `portfolio.layout`. Both take `items` + `onOpen(item, index)` (opens the page's shared lightbox). Editorial is single-column (hero + thumbnail strip + full `MuseumLabel` + `ProcessStrip`); masonry is 2-col `columns-2` with natural-ratio images and a compact caption.
+
+### ProcessStrip.jsx
+Collapsible "How it was made" reveal under an editorial item. Builds one thumbnail per stage (drying→finished) from the item's already-public `photos` (`photos.stage`); renders nothing unless 2+ stages have photos. Tapping a step calls `onOpenPhoto(indexInItemPhotos)`.
+
 ## AddPiece.jsx
 New piece flow. Uses a bottom sheet with camera-first input. Remembers last clay body in `potheads_last_clay_body` localStorage key.
 

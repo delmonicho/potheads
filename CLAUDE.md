@@ -179,11 +179,11 @@ Last updated: 2026-06-30
 | File | Status | Notes |
 |------|--------|-------|
 | src/pages/Login.jsx | Complete | Google OAuth UI, error + loading states |
-| src/pages/PortfolioCurate.jsx | Phase 1 | Create portfolio (validated slug), toggle showcased pieces, edit title/statement/identity, publish/unpublish, copy/open share link. Reorder, per-item label editor, layout switch, preview = Phase 2 |
-| src/pages/PublicPortfolio.jsx | Phase 1 | Public no-auth /p/:slug — editorial single-column, museum labels, multi-photo lightbox. Masonry, process strip, OG/SSR, QR/share, view counter = later phases |
+| src/pages/PortfolioCurate.jsx | Phase 2 | Create portfolio (validated slug), toggle showcased pieces, **drag-reorder showcased list**, **per-item label editor**, **layout switch (editorial/masonry)**, **preview-as-visitor**, edit title/statement/identity, publish/unpublish, copy/open share link. OG/SSR, QR/share, view counter = later phases |
+| src/pages/PublicPortfolio.jsx | Phase 2 | Public no-auth /p/:slug — editorial **or masonry** layout, museum labels, multi-photo lightbox, **collapsible process strip** from stage photos. OG/SSR, QR/share, view counter = later phases |
 | src/components/RequireAuth.jsx | Complete | Auth gate wrapper for private routes |
-| src/components/portfolio/MuseumLabel.jsx | Complete | Museum caption from denormalized portfolio_item fields |
-| src/lib/portfolio.js | Phase 1 | getMyPortfolio/createPortfolio/updatePortfolio, getPortfolioItems, showcasePiece/setItemShowcased, buildItemSnapshot, slugify/validateSlug, getPublicPortfolio |
+| src/components/portfolio/* | Phase 2 | MuseumLabel, PortfolioItemEditor (label sheet), EditorialLayout, MasonryLayout, ProcessStrip |
+| src/lib/portfolio.js | Phase 2 | getMyPortfolio/createPortfolio/updatePortfolio, getPortfolioItems, showcasePiece/setItemShowcased, updatePortfolioItem, reorderItems, buildItemSnapshot, slugify/validateSlug, getPublicPortfolio |
 | supabase/migrations/004_portfolios.sql | Phase 1 | portfolios + portfolio_items tables; owner + public-read RLS; storage.objects anon policy |
 | src/pages/Board.jsx | Complete | Stage columns, multi-select, bulk delete, bulk tag edit; group-by view: stage / clay body / glaze / form |
 | src/pages/PieceDetail.jsx | Complete | Hero carousel, lightbox, stage timeline, advance stage (glaze picker shown when target is Glazed/Finished); dedicated Clay Body section (tap chip → read-only ClayDetail) + Glaze section (catalog search/select + custom, tap chip → editable GlazeDetail) separate from form/custom tags |

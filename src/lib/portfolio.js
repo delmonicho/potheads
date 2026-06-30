@@ -145,6 +145,36 @@ export async function setItemShowcased(portfolioId, pieceId, showcased) {
   if (error) throw error
 }
 
+const ITEM_EDITABLE_FIELDS = ['title', 'year', 'form', 'clay_body', 'glazes', 'firing', 'dimensions', 'status', 'show_process']
+
+// Edit the curated label fields of a showcased item (the museum-label overrides).
+export async function updatePortfolioItem(itemId, fields) {
+  const patch = {}
+  for (const k of ITEM_EDITABLE_FIELDS) {
+    if (fields[k] !== undefined) patch[k] = fields[k]
+  }
+  if (Object.keys(patch).length === 0) return
+  const { data, error } = await supabase
+    .from('portfolio_items')
+    .update(patch)
+    .eq('id', itemId)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+// Persist a new showcased order. `orderedItemIds` is the item ids in display
+// order; position is rewritten to the array index. The writes are independent,
+// so they fan out in parallel.
+export async function reorderItems(orderedItemIds) {
+  await Promise.all(
+    orderedItemIds.map((id, i) =>
+      supabase.from('portfolio_items').update({ position: i }).eq('id', id)
+    )
+  )
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Public read — used by the no-auth /p/{slug} page. The same anon supabase
 // client is used; RLS returns only a published portfolio + its showcased items +

@@ -59,6 +59,7 @@ Public-portfolio data layer (tables `portfolios`, `portfolio_items`; migration `
 - `buildItemSnapshot(piece, tags)` — **pure** (no DB). Derives the denormalized curated labels (title, form, clay_body, glazes `[{name, hex}]` from glaze tags' stored color, status default `nfs`). This is what keeps the public page off the private `pieces`/`tags` tables — labels are snapshotted at showcase time.
 - `getPortfolioItems(portfolioId)` — owner view (showcased + not), ordered by `position`.
 - `showcasePiece(portfolioId, piece, snapshot, position)` — upsert (`onConflict: portfolio_id,piece_id`) with `showcased: true`. `setItemShowcased(portfolioId, pieceId, bool)` flips visibility but keeps the row so labels survive a re-showcase.
+- `updatePortfolioItem(itemId, fields)` — edit the curated label overrides (title, year, form, clay_body, glazes, firing, dimensions, status, show_process). `reorderItems(orderedItemIds)` — rewrite `position` to the array index (parallel updates).
 - `getPublicPortfolio(slug)` — the **anon read path**. Returns `{ portfolio, items }` (each item carries a hero-first `photos: [{...photo, url}]`) or `null` when no published portfolio matches (RLS returns nothing for anon on unpublished). Reuses `getPhotosForPieces` + a single batched `getPhotoUrls` for all showcased photos; sorts photos finished→drying like PieceDetail. Works for the owner previewing their own draft (owner RLS) and for anon on published (public RLS) with no code branch.
 
 ### useTagColors.js

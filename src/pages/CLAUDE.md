@@ -58,10 +58,14 @@ Private curate view for the user's public portfolio. First run renders an inline
 
 **Data fetch** mirrors Board's 3-query pattern: `getPieces` + `getPortfolioItems` in parallel, then `getPhotosForPieces` + `getTagsForPieces`. Thumbnails use the same latest-stage selection as Board. Tags are fetched **only** to build the denormalized label snapshot (`buildItemSnapshot`) at showcase time — the public page never reads them.
 
-**Toggle showcase** is optimistic: tapping a card upserts/flips the `portfolio_items` row (`showcasePiece` / `setItemShowcased`) and updates the local `items` Map; on error it resyncs via `load()`. Reorder, per-item label editing, layout switch, and preview-as-visitor are Phase 2 — keep them out of here for now.
+**Toggle showcase** is optimistic: tapping a grid card upserts/flips the `portfolio_items` row (`showcasePiece` / `setItemShowcased`) and updates the local `items` Map + `order` array; on error it resyncs via `load()`.
+
+**Showcased list (`ShowcasedList`)** — ordered, drag-reorderable rows above the grid. Drag uses **pointer events** (touch + mouse): the handle calls `setPointerCapture`, `pointerMove` computes the insertion index from sibling row midpoints and updates a `preview` order (live reflow, no DB write), `pointerUp` commits via `reorderItems`. The handle has `touch-none` so dragging doesn't scroll the page. Tapping a row opens the label editor; the × unshowcases.
+
+**Per-item label editor** — `components/portfolio/PortfolioItemEditor` (BottomSheet), keyed `key={item.id}` so its form state resets per item. Saves via `updatePortfolioItem`. **Layout switch** + **Preview** live in `PortfolioSettings`: layout uses the shared `SegmentedControl` (saved through `updatePortfolio`); Preview is an `<a target="_blank">` to `/p/{slug}` — the owner sees their own draft because owner RLS returns it regardless of `published`.
 
 ## PublicPortfolio.jsx (`/p/:slug`, public, no-auth)
-Renders entirely from `getPublicPortfolio(slug)` (anon RLS). States: spinner → not-found (no published match) → error → gallery. Editorial single-column: header (title/studio/statement) then one `<article>` per item (hero image + thumbnail strip + `MuseumLabel`). A local `Lightbox` (full-screen, keyboard + prev/next, no pinch-zoom yet) opens on image tap. Sets `document.title` for humans; crawler OG tags arrive via SSR in Phase 3. **This page must never read private tables** — all label data comes from the denormalized `portfolio_items` fields.
+Renders entirely from `getPublicPortfolio(slug)` (anon RLS). States: spinner → not-found (no published match) → error → gallery. Header (title/studio/statement), then the owner-chosen layout: `EditorialLayout` (single-column hero + thumbnail strip + full `MuseumLabel` + collapsible `ProcessStrip`) or `MasonryLayout` (2-col, natural-ratio images + compact caption). A shared `Lightbox` (full-screen, keyboard + prev/next, no pinch-zoom yet) opens on image tap via `onOpen(item, index)`. Sets `document.title` for humans; crawler OG tags arrive via SSR in Phase 3. **This page must never read private tables** — all label data comes from the denormalized `portfolio_items` fields; the process strip uses the already-public `photos.stage`.
 
 ## Login.jsx
 Google OAuth entry point. No complex state — just `loading` and `error`.
