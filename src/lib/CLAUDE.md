@@ -51,6 +51,16 @@ Reference catalogs (clay bodies + glazes) and per-user favorites.
 
 `clay_bodies` is public-readable, mutations service-role only. `glazes` is public-readable for seed rows (`user_id null`); each user can also read + write their own custom rows (RLS, migration `003`). Seed via `npm run seed:catalog` (inserts global rows with `user_id null`).
 
+### portfolio.js
+Public-portfolio data layer (tables `portfolios`, `portfolio_items`; migration `004`).
+
+- `getMyPortfolio(userId)` / `createPortfolio(userId, {slug, title})` / `updatePortfolio(id, fields)` — one portfolio per user in v1. Create/update surface `23505` as a friendly "link is already taken" error.
+- `slugify(input)` / `validateSlug(slug)` — vanity-slug helpers. `validateSlug` returns an error string or `null`; enforces format (lowercase + digits + dashes, 3–40 chars) and a `RESERVED_SLUGS` blocklist (app routes + profanity). Collisions are caught at insert via the unique constraint.
+- `buildItemSnapshot(piece, tags)` — **pure** (no DB). Derives the denormalized curated labels (title, form, clay_body, glazes `[{name, hex}]` from glaze tags' stored color, status default `nfs`). This is what keeps the public page off the private `pieces`/`tags` tables — labels are snapshotted at showcase time.
+- `getPortfolioItems(portfolioId)` — owner view (showcased + not), ordered by `position`.
+- `showcasePiece(portfolioId, piece, snapshot, position)` — upsert (`onConflict: portfolio_id,piece_id`) with `showcased: true`. `setItemShowcased(portfolioId, pieceId, bool)` flips visibility but keeps the row so labels survive a re-showcase.
+- `getPublicPortfolio(slug)` — the **anon read path**. Returns `{ portfolio, items }` (each item carries a hero-first `photos: [{...photo, url}]`) or `null` when no published portfolio matches (RLS returns nothing for anon on unpublished). Reuses `getPhotosForPieces` + a single batched `getPhotoUrls` for all showcased photos; sorts photos finished→drying like PieceDetail. Works for the owner previewing their own draft (owner RLS) and for anon on published (public RLS) with no code branch.
+
 ### useTagColors.js
 Custom React hook and shared constants for tag color management.
 

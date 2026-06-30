@@ -662,6 +662,13 @@ export default function Board({ user }) {
             />
           </div>
 
+          <button
+            onClick={() => { setShowProfile(false); navigate('/portfolio') }}
+            className="text-left text-sm text-muted cursor-pointer hover:text-ink-soft"
+          >
+            Public portfolio
+          </button>
+
           {isDevOwner(user.email) && (
             <button
               onClick={() => { setShowProfile(false); navigate('/dev') }}

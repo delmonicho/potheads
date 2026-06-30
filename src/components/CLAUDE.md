@@ -22,8 +22,18 @@ Props:
 - `onToggle` — optional, makes chip interactive
 - `onRemove` — optional, adds × button
 
+## RequireAuth.jsx
+Auth gate wrapper for **private** routes. Props: `user`, `loading`, `children`. Renders a spinner while the session resolves, `Login` when there's no user, otherwise the children. `App.jsx` wraps every route in this **except** the public `/p/:slug`. Reproduces the pre-portfolio inline gate — do not re-add a gate inside `App`'s body.
+
 ## BottomSheet.jsx
 Generic reusable bottom modal. Accepts `open`, `onClose`, `title`, `children`, optional `zClassName` for z-index override (used when stacking sheets, e.g., Add Tag over Edit Tags).
+
+## portfolio/
+
+Public-portfolio components.
+
+### MuseumLabel.jsx
+Museum-style caption for one portfolio piece. Reads **only** the denormalized `portfolio_item` fields (title, year, form, clay_body, glazes `[{name,hex}]`, firing, dimensions, status) — never piece/tag data. Empty fields are hidden. Status renders as a pill (Available highlighted; Sold/NFS muted).
 
 ## AddPiece.jsx
 New piece flow. Uses a bottom sheet with camera-first input. Remembers last clay body in `potheads_last_clay_body` localStorage key.

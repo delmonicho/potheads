@@ -30,23 +30,29 @@ Built for iPhone (add to home screen). Private by default — each user sees onl
 - `redirectTo` is hard-coded to `https://pot-heads.studio/auth/callback` in `src/lib/supabase.js`
 - Vercel proxies `/auth/callback` → `https://kkagpnsekzsupwswnryo.supabase.co/auth/v1/callback` via rewrite in `vercel.json`
 - Post-login redirect lands on `/board` — handled by `onAuthStateChange` in `App.jsx`
-- Routes: `/` redirects to `/board`, `/board`, `/piece/:id`, `/graveyard`, `/catalog` (redirects to `/catalog/clay`), `/catalog/:tab` where `tab` ∈ {`clay`, `glazes`}, `/dev` (owner-only diagnostics — non-owners redirect to `/board`)
+- Routes: `/` redirects to `/board`, `/board`, `/piece/:id`, `/graveyard`, `/calendar`, `/catalog` (redirects to `/catalog/clay`), `/catalog/:tab` where `tab` ∈ {`clay`, `glazes`}, `/portfolio` (owner's private portfolio curate view), `/dev` (owner-only diagnostics — non-owners redirect to `/board`), and the **public, no-auth** `/p/:slug` (shareable portfolio page)
 - `/dev` is gated to the owner allowlist `DEV_OWNER_EMAILS` via `isDevOwner(email)` (`src/lib/diagnostics.js`, default `nicho.delmo@gmail.com` + `ndelmoral13@gmail.com`, overridable via comma-separated `VITE_DEV_OWNER_EMAIL`). It's reachable in production via the URL or the "Developer diagnostics" link in the Board profile sheet (shown only to owners).
-- All routes are auth-gated. The catalog uses Supabase RLS open SELECT, but the app's `App.jsx` redirects unauthenticated users to `Login`, so anonymous catalog browsing is not exposed (matches the private-by-default app design).
+- **Auth gating lives in `App.jsx` via `RequireAuth`** (`src/components/RequireAuth.jsx`): every route is wrapped in `RequireAuth` (spinner while the session resolves → `Login` when there's no user → the page) **except `/p/:slug`**, which renders for anonymous visitors. The public portfolio reads via the same `supabase` client as the `anon` role, scoped by RLS (see Public Portfolio). The catalog uses Supabase RLS open SELECT but stays behind the gate, so anonymous catalog browsing is not exposed (matches the private-by-default design).
 
 ## Database Schema
-Nine tables total.
+Eleven tables total.
 
 User-scoped (RLS to auth.uid()): pieces, stage_events, photos, tags, piece_tags, user_clay_favorites, user_glaze_favorites
 Public-readable reference (RLS open SELECT, mutations service-role only): clay_bodies
 Mixed reference — `glazes`: seed rows have `user_id = null` (global, public-readable, service-role only); custom rows are user-scoped (each user reads global + their own, and may insert/update/delete only their own). Added in `003_user_glazes.sql`.
+Portfolio (owner-scoped writes + **public read of published rows**): portfolios, portfolio_items. Added in `004_portfolios.sql`.
 
 Stage enum: drying | bisque_ready | glazed | finished | lost
 Storage bucket: "photos" (private), path pattern: {user_id}/{piece_id}/{filename}
 
+### Public Portfolio (RLS boundary — privacy-critical)
+`portfolios` (one per user in v1; schema supports many) holds a vanity `slug`, `title`/`statement`/`studio_identity`, `layout`, `published`, `preview_token`, `view_count`. `portfolio_items` link a portfolio to a piece with `showcased`, `position`, and **denormalized curated labels** (`title`, `year`, `form`, `clay_body`, `glazes` jsonb `[{name,hex}]`, `firing`, `dimensions`, `status`). Labels are snapshotted from the piece at showcase time (`buildItemSnapshot`) so **the public read path never touches the private `pieces`/`tags` tables** — the only private table exposed to anon is `photos`, and only for showcased pieces of a published portfolio.
+
+RLS (`004_portfolios.sql`): owners get `for all` on their own rows; **anon + authenticated** get `select` on `portfolios` where `published`, on `portfolio_items` where `showcased` AND parent published, on `photos` rows whose piece is showcased+published, and on `storage.objects` photo files for those pieces (path-matched via `split_part(name,'/',2)` = piece_id). Public-read policies are granted to both `anon` and `authenticated` so a signed-in visitor sees others' published portfolios too; owner drafts stay private. Never widen these predicates beyond `published AND showcased`.
+
 Glazes on a piece are stored as `glaze`-category tags (name-based link). Every glaze the user selects lives in the `glazes` catalog (seed or their own custom row), so a case-insensitive name match (`matchGlaze` in `catalog.js`) resolves a glaze tag → its catalog entry. Custom glazes typed in-app are created as user-scoped catalog rows; renaming one cascades to its glaze tags.
 
-Migration files live in `supabase/migrations/`. Catalog migrations: `002_catalog_tables.sql`, `003_user_glazes.sql` (user-scoped custom glazes — apply in the Supabase SQL editor).
+Migration files live in `supabase/migrations/`. Catalog migrations: `002_catalog_tables.sql`, `003_user_glazes.sql` (user-scoped custom glazes). Portfolio migration: `004_portfolios.sql` (portfolios/portfolio_items + public-read RLS, incl. a `storage.objects` policy). **Apply all of these manually in the Supabase SQL editor** — the core `pieces`/`photos`/`tags` tables were created via the dashboard and are not tracked in git.
 Seed JSON in `supabase/seed/`. Seeded via `npm run seed:catalog` (requires `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`).
 
 ## Pottery Workflow
@@ -86,16 +92,20 @@ src/
     tags.js            — tags CRUD, batch fetch (getTagsForPieces)
     useTagColors.js    — useTagColors hook, CATEGORY_DEFAULTS, detectColor
     catalog.js         — clay_bodies + glazes list (24h TTL cache), favorites toggle (user_clay_favorites, user_glaze_favorites)
+    portfolio.js       — portfolios/portfolio_items CRUD; slug validation; buildItemSnapshot; getPublicPortfolio (anon read)
   pages/
     Login.jsx          — Google OAuth sign in
     Board.jsx          — home, pieces grouped by stage; batch-fetches photos+tags in 3 total queries
     PieceDetail.jsx    — photo carousel, lightbox, stage timeline, tag management
     Graveyard.jsx      — lost pieces, hard delete
     Catalog.jsx        — clay/glaze browsable catalog with filters + favorites
+    PortfolioCurate.jsx — owner-only (/portfolio): create portfolio, toggle showcased pieces, edit details, publish/unpublish, share link
+    PublicPortfolio.jsx — public, no-auth (/p/:slug): editorial single-column gallery with museum labels + lightbox
     Dev.jsx            — owner-only (/dev) diagnostics: Supabase request stats, cache stats, localStorage footprint, links to native metrics
   components/
     AddPiece.jsx           — camera-first new piece flow
     StageColumn.jsx        — stage group + PieceCard grid; props-only, no internal fetching
+    RequireAuth.jsx        — auth gate wrapper for private routes (spinner → Login → page)
     PhotoTimeline.jsx      — UNUSED — superseded by PieceDetail inline photo handling
     TagChip.jsx            — colored tag pill (React.memo)
     BottomSheet.jsx        — reusable mobile sheet for modals
@@ -105,11 +115,13 @@ src/
       ClayDetail.jsx, GlazeDetail.jsx — detail body for BottomSheet
       HeartButton.jsx                  — outlined/filled favorite toggle
       SwatchInfo.jsx                   — info icon explaining hex_swatch is approximate
-  App.jsx              — router + auth gate
+    portfolio/
+      MuseumLabel.jsx                  — museum-style caption from denormalized portfolio_item fields
+  App.jsx              — router; RequireAuth-gated private routes + public /p/:slug
   main.jsx             — entry point
 
 supabase/
-  migrations/          — SQL migrations applied via Supabase SQL editor (002_catalog_tables.sql)
+  migrations/          — SQL migrations applied via Supabase SQL editor (002_catalog_tables.sql, 003_user_glazes.sql, 004_portfolios.sql)
   seed/                — JSON seed data for reference catalogs (clay_bodies.json, glazes.json)
 scripts/
   seed-catalog.mjs     — Node ESM seed runner; loads .env.local via `node --env-file`
@@ -157,17 +169,22 @@ Defined in `src/index.css`. Use these class names:
 ## Explicitly Parked — Do Not Build These
 - **Kiln batch mode** — user does not manage the kiln; never add bulk kiln actions
 - **Analytics or drying time tracking** — no timers, no stage duration metrics
-- **Shared studio / multi-user piece viewing** — app is strictly private per user
-- **Marketplace or public portfolio** — `public` boolean on pieces is reserved for this later; do not wire it up yet
+- **Shared studio / multi-user piece viewing** — app is strictly private per user (note: the *public portfolio* feature is a deliberate, RLS-enforced exception — only explicitly showcased pieces of a published portfolio are world-readable; the private board is unchanged)
 - **Push notifications**
 - **Search** — stub the search icon only, do not implement search logic
 
 ## Current App State
-Last updated: 2026-06-17
+Last updated: 2026-06-30
 
 | File | Status | Notes |
 |------|--------|-------|
 | src/pages/Login.jsx | Complete | Google OAuth UI, error + loading states |
+| src/pages/PortfolioCurate.jsx | Phase 1 | Create portfolio (validated slug), toggle showcased pieces, edit title/statement/identity, publish/unpublish, copy/open share link. Reorder, per-item label editor, layout switch, preview = Phase 2 |
+| src/pages/PublicPortfolio.jsx | Phase 1 | Public no-auth /p/:slug — editorial single-column, museum labels, multi-photo lightbox. Masonry, process strip, OG/SSR, QR/share, view counter = later phases |
+| src/components/RequireAuth.jsx | Complete | Auth gate wrapper for private routes |
+| src/components/portfolio/MuseumLabel.jsx | Complete | Museum caption from denormalized portfolio_item fields |
+| src/lib/portfolio.js | Phase 1 | getMyPortfolio/createPortfolio/updatePortfolio, getPortfolioItems, showcasePiece/setItemShowcased, buildItemSnapshot, slugify/validateSlug, getPublicPortfolio |
+| supabase/migrations/004_portfolios.sql | Phase 1 | portfolios + portfolio_items tables; owner + public-read RLS; storage.objects anon policy |
 | src/pages/Board.jsx | Complete | Stage columns, multi-select, bulk delete, bulk tag edit; group-by view: stage / clay body / glaze / form |
 | src/pages/PieceDetail.jsx | Complete | Hero carousel, lightbox, stage timeline, advance stage (glaze picker shown when target is Glazed/Finished); dedicated Clay Body section (tap chip → read-only ClayDetail) + Glaze section (catalog search/select + custom, tap chip → editable GlazeDetail) separate from form/custom tags |
 | src/components/StageColumn.jsx | Complete | Piece card grid per stage, thumbUrl/formTag passed as props (no per-card fetches), React.memo |
