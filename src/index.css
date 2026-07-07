@@ -19,6 +19,7 @@
   --color-line: #e7e0d6;
   --color-line-strong: #d4c5b0;
   --color-clay-tint: rgba(120, 53, 15, 0.08);
+  --color-gold: #b8860b;
   --font-display: 'Playfair Display', Georgia, serif;
 }
 
@@ -45,6 +46,7 @@
   --color-muted: #a89a8a;
   --color-tan: #5a4a3a;
   --color-clay-tint: rgba(168, 108, 42, 0.14);
+  --color-gold: #e3b34a;
   color-scheme: dark;
 }
 

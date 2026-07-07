@@ -6,7 +6,7 @@ Home screen. Pieces grouped by stage in columns.
 **Data fetching pattern — do not change without understanding this:**
 1. `fetchAll()` fetches pieces via `getPieces(userId)`.
 2. Then fires `getPhotosForPieces(pieceIds)` and `getTagsForPieces(pieceIds)` in **parallel**.
-3. Derives `thumbUrls: { [pieceId]: signedUrl }` and `formTags: { [pieceId]: tagName }` from the batch results.
+3. Derives `thumbUrls: { [pieceId]: signedUrl }`, `formTags: { [pieceId]: tagName }`, and `glazeTags: { [pieceId]: {name, color} }` from the batch results — all three come from the same `tagsByPiece` fetch, no extra query (glaze tags already carry `color` per `src/lib/tags.js`'s select).
 4. Passes these down to `StageColumn` → `PieceCard` as props.
 
 This is **intentionally** a top-down data flow — `PieceCard` renders only from props, it does not fetch. Do not add fetching inside `StageColumn` or `PieceCard`.
