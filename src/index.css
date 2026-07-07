@@ -47,3 +47,11 @@
   --color-clay-tint: rgba(168, 108, 42, 0.14);
   color-scheme: dark;
 }
+
+/* Unlayered on purpose: iOS auto-zooms the viewport when a focused field's
+   font-size is under 16px, and a standalone PWA has no chrome to reset it.
+   Placing this outside @layer lets it win over Tailwind's text-sm/text-xs
+   utilities without !important (unlayered rules beat layered ones). */
+input, textarea, select {
+  font-size: 16px;
+}
