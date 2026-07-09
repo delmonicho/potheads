@@ -1,9 +1,18 @@
 import { memo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { STAGE_LABELS } from '../lib/pieces.js'
+import { STAGE_LABELS, STAGE_COLORS } from '../lib/pieces.js'
+import { CATEGORY_DEFAULTS } from '../lib/useTagColors.js'
 import PotteryPlaceholder from './PotteryPlaceholder.jsx'
 
-export const PieceCard = memo(function PieceCard({ piece, thumbUrl, formTag, selectMode, selected, onToggleSelect }) {
+function SparkleIcon({ className = '', size = 13 }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" width={size} height={size} className={className} aria-hidden="true">
+      <path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8L12 2z" />
+    </svg>
+  )
+}
+
+export const PieceCard = memo(function PieceCard({ piece, thumbUrl, formTag, glazeTag, selectMode, selected, onToggleSelect }) {
   const navigate = useNavigate()
   const [imgLoaded, setImgLoaded] = useState(false)
 
@@ -15,9 +24,20 @@ export const PieceCard = memo(function PieceCard({ piece, thumbUrl, formTag, sel
     }
   }
 
+  // "Celebrated" = truly finished and still on the shelf (not lost) — a
+  // finished piece later tagged lost falls back to the plain stage tint.
+  const isCelebrated = piece.current_stage === 'finished' && !piece.lost
+  const stageColor = STAGE_COLORS[piece.current_stage] || STAGE_COLORS.drying
+  // Dynamic per-piece color, so this has to be an inline style — Tailwind's
+  // JIT scanner can't pick up a template-literal class name at build time.
+  const tintStyle = isCelebrated ? undefined : { backgroundColor: `${stageColor}26` }
+
   return (
     <div
-      className="flex flex-col rounded-2xl overflow-hidden bg-surface-raised border border-line shadow-sm hover:shadow-md transition-shadow active:opacity-90 cursor-pointer relative"
+      className={`flex flex-col rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow active:opacity-90 cursor-pointer relative border ${
+        isCelebrated ? 'border-gold bg-gold/12' : 'border-line'
+      }`}
+      style={tintStyle}
       onClick={handleTap}
     >
       {/* Square photo thumbnail */}
@@ -51,24 +71,40 @@ export const PieceCard = memo(function PieceCard({ piece, thumbUrl, formTag, sel
         </div>
       )}
 
+      {/* Finished badge — decorative, top-right so it never collides with the
+          top-left selection checkbox. */}
+      {isCelebrated && (
+        <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-gold flex items-center justify-center shadow-sm">
+          <SparkleIcon className="text-white" />
+        </div>
+      )}
+
       {/* Card footer */}
-      <div className="px-3 py-2.5 bg-surface-raised">
+      <div className="px-3 py-2.5">
         <p className="text-sm font-semibold text-ink truncate leading-snug">{piece.name}</p>
-        {formTag && (
-          <p className="text-[10px] uppercase tracking-widest text-muted mt-1 truncate">{formTag}</p>
+        {glazeTag && (
+          <p className="flex items-center gap-1.5 mt-1">
+            <span
+              className="w-2.5 h-2.5 rounded-full border border-line shrink-0"
+              style={{ backgroundColor: glazeTag.color || CATEGORY_DEFAULTS.glaze }}
+            />
+            <span className="text-[10px] uppercase tracking-widest text-muted truncate">{glazeTag.name}</span>
+          </p>
         )}
       </div>
     </div>
   )
 })
 
-export default memo(function StageColumn({ stage, pieces, thumbUrls, formTags, selectMode, selectedIds, onToggleSelect }) {
+export default memo(function StageColumn({ stage, pieces, thumbUrls, formTags, glazeTags, selectMode, selectedIds, onToggleSelect }) {
   if (!pieces || pieces.length === 0) return null
+  const isFinished = stage === 'finished'
 
   return (
     <div className="mb-8">
-      <div className="flex items-baseline justify-between mb-3 border-b border-line pb-2">
-        <h2 className="font-display italic text-2xl text-ink">
+      <div className={`flex items-baseline justify-between mb-3 pb-2 border-b ${isFinished ? 'border-gold/50' : 'border-line'}`}>
+        <h2 className="flex items-center gap-1.5 font-display italic text-2xl text-ink">
+          {isFinished && <SparkleIcon size={16} className="text-gold" />}
           {STAGE_LABELS[stage]}
         </h2>
         <span className="text-sm text-muted tabular-nums">
@@ -82,6 +118,7 @@ export default memo(function StageColumn({ stage, pieces, thumbUrls, formTags, s
             piece={piece}
             thumbUrl={thumbUrls?.[piece.id] ?? null}
             formTag={formTags?.[piece.id] ?? null}
+            glazeTag={glazeTags?.[piece.id] ?? null}
             selectMode={selectMode}
             selected={selectedIds?.has(piece.id) ?? false}
             onToggleSelect={onToggleSelect}

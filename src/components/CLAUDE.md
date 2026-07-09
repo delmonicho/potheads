@@ -3,10 +3,12 @@
 ## StageColumn.jsx
 Renders one stage group (header + piece card grid) on the Board.
 
-**Props:** `stage`, `pieces`, `thumbUrls`, `formTags`, `selectMode`, `selectedIds`, `onToggleSelect`
+**Props:** `stage`, `pieces`, `thumbUrls`, `formTags`, `glazeTags`, `selectMode`, `selectedIds`, `onToggleSelect`
 
-- `thumbUrls` and `formTags` are plain objects (`{ [pieceId]: value }`) pre-computed by Board.jsx.
+- `thumbUrls`, `formTags`, `glazeTags` are plain objects (`{ [pieceId]: value }`) pre-computed by Board.jsx. `glazeTags` values are `{ name, color }` (the piece's primary glaze-category tag).
 - `PieceCard` (internal) is wrapped in `React.memo` — re-renders only when its props change.
+- **`formTag` is display-only for `PotteryPlaceholder`'s illustration choice now** — it is no longer rendered as a caption on the card. The caption slot instead renders `glazeTag` as a small color dot + name (falls back to `CATEGORY_DEFAULTS.glaze` when the tag has no explicit `color`), since the glaze reads better on a shelf than the shape word does. Form stays available as a board filter/group-by (`viewMode === 'form'` in Board.jsx) — this only affects the passive card caption.
+- **Per-stage tint + "finished" gold treatment** — `PieceCard` tints its own background off `piece.current_stage` via `STAGE_COLORS` (`src/lib/pieces.js`), applied as an inline style (dynamic per-piece color, can't be a static Tailwind class). When `current_stage === 'finished' && !piece.lost`, the card instead gets a `border-gold`/`bg-gold/12` treatment plus a small gold sparkle badge (top-right, so it never collides with the top-left selection checkbox). `StageColumn`'s own header gets the matching gold underline + sparkle glyph only when `stage === 'finished'`.
 - `StageColumn` itself is also `React.memo` — only re-renders when its stage's pieces or the thumb/tag maps change.
 - **No fetching inside PieceCard.** All data comes from props. Do not add `useEffect` data fetching here.
 

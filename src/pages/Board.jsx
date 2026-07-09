@@ -74,6 +74,7 @@ export default function Board({ user }) {
   const [pieces, setPieces] = useState([])
   const [thumbUrls, setThumbUrls] = useState({})  // pieceId → signed URL
   const [formTags, setFormTags] = useState({})     // pieceId → form tag name
+  const [glazeTags, setGlazeTags] = useState({})   // pieceId → { name, color }
   const [allTagsByPiece, setAllTagsByPiece] = useState(new Map()) // pieceId → tags[]
   const [userTags, setUserTags] = useState([])
   const [loading, setLoading] = useState(true)
@@ -109,13 +110,17 @@ export default function Board({ user }) {
       ])
       setUserTags(allUserTags)
 
-      // Derive form tag name per piece
+      // Derive form tag name + primary glaze tag (name+color) per piece
       const newFormTags = {}
+      const newGlazeTags = {}
       for (const [pieceId, tags] of tagsByPiece) {
         const ft = tags.find(t => t.category === 'form')
         if (ft) newFormTags[pieceId] = ft.name
+        const gt = tags.find(t => t.category === 'glaze')
+        if (gt) newGlazeTags[pieceId] = { name: gt.name, color: gt.color }
       }
       setFormTags(newFormTags)
+      setGlazeTags(newGlazeTags)
       setAllTagsByPiece(tagsByPiece)
 
       // Determine thumbnail photo per piece (latest-stage photo)
@@ -522,7 +527,7 @@ export default function Board({ user }) {
             </div>
             <div className="grid grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
               {groupPieces.map((piece) => (
-                <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
+                <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} glazeTag={glazeTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
               ))}
             </div>
           </div>
@@ -534,6 +539,7 @@ export default function Board({ user }) {
             pieces={piecesByStage[stage]}
             thumbUrls={thumbUrls}
             formTags={formTags}
+            glazeTags={glazeTags}
             selectMode={selectMode}
             selectedIds={selectedIds}
             onToggleSelect={toggleSelect}
@@ -547,7 +553,7 @@ export default function Board({ user }) {
             </div>
             <div className="grid grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
               {groupPieces.map((piece) => (
-                <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
+                <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} glazeTag={glazeTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
               ))}
             </div>
           </div>
@@ -560,7 +566,7 @@ export default function Board({ user }) {
             </div>
             <div className="grid grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
               {groupPieces.map((piece) => (
-                <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
+                <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} glazeTag={glazeTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
               ))}
             </div>
           </div>
@@ -573,7 +579,7 @@ export default function Board({ user }) {
             </div>
             <div className="grid grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
               {groupPieces.map((piece) => (
-                <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
+                <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} glazeTag={glazeTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
               ))}
             </div>
           </div>
