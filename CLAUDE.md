@@ -142,6 +142,7 @@ scripts/
 | `potheads_recent_tag_colors` | array | Last 8 colors used in Add Tag modal (most recent first) |
 | `potheads_signed_urls` | object | `{ [storagePath]: { url, expiresAt } }` — persisted signed-URL cache so PWA reloads reuse still-valid URLs instead of re-signing (see `src/lib/photos.js`) |
 | `potheads_catalog_cache` | object | `{ clay: { rows, expiresAt }, glaze: { [userId]: { rows, expiresAt } } }` — persisted reference-catalog cache (24h TTL) so clay/glaze catalogs aren't re-fetched on every Catalog mount or PieceDetail glaze load (see `src/lib/catalog.js`) |
+| `potheads_collapsed_stages` | object | `{ [stage]: boolean }` — per-stage collapsed state for Board's stage columns, defaults to `{ finished: true }` (see `src/lib/prefs.js`) |
 
 ## Design Tokens (Tailwind v4 @theme)
 Defined in `src/index.css`. Use these class names:

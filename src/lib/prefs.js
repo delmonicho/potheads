@@ -1,5 +1,7 @@
 const THEME_KEY = 'potheads.prefs.theme'
 const DENSITY_KEY = 'potheads.prefs.density'
+const COLLAPSED_STAGES_KEY = 'potheads_collapsed_stages'
+const DEFAULT_COLLAPSED_STAGES = { finished: true }
 
 export const THEMES = ['light', 'dark', 'system']
 export const DENSITIES = ['comfortable', 'compact']
@@ -46,6 +48,23 @@ export function setDensity(density) {
   if (!DENSITIES.includes(density)) return
   window.localStorage.setItem(DENSITY_KEY, density)
   applyDensity(density)
+}
+
+export function getCollapsedStages() {
+  if (typeof window === 'undefined') return DEFAULT_COLLAPSED_STAGES
+  try {
+    const raw = window.localStorage.getItem(COLLAPSED_STAGES_KEY)
+    if (!raw) return DEFAULT_COLLAPSED_STAGES
+    return { ...DEFAULT_COLLAPSED_STAGES, ...JSON.parse(raw) }
+  } catch {
+    return DEFAULT_COLLAPSED_STAGES
+  }
+}
+
+export function setStageCollapsed(stage, collapsed) {
+  const next = { ...getCollapsedStages(), [stage]: collapsed }
+  window.localStorage.setItem(COLLAPSED_STAGES_KEY, JSON.stringify(next))
+  return next
 }
 
 export function bootPrefs() {

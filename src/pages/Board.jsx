@@ -9,7 +9,7 @@ import StageColumn, { PieceCard } from '../components/StageColumn.jsx'
 import AddPiece from '../components/AddPiece.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
 import SegmentedControl from '../components/SegmentedControl.jsx'
-import { getTheme, setTheme, getDensity, setDensity } from '../lib/prefs.js'
+import { getTheme, setTheme, getDensity, setDensity, getCollapsedStages, setStageCollapsed } from '../lib/prefs.js'
 import { isDevOwner } from '../lib/diagnostics.js'
 
 function BookIcon() {
@@ -95,20 +95,36 @@ export default function Board({ user }) {
   const handleThemeChange = (t) => { setThemeState(t); setTheme(t) }
   const handleDensityChange = (d) => { setDensityState(d); setDensity(d) }
 
+  const [collapsedStages, setCollapsedStages] = useState(getCollapsedStages)
+  const handleToggleStageCollapsed = (stage) => {
+    setCollapsedStages((prev) => {
+      const next = { ...prev, [stage]: !prev[stage] }
+      setStageCollapsed(stage, next[stage])
+      return next
+    })
+  }
+
   const fetchAll = useCallback(async () => {
     try {
       const data = await getPieces(user.id)
       setPieces(data)
 
-      if (data.length === 0) return
+      if (data.length === 0) {
+        setStageEvents([])
+        setStageEventsLoaded(true)
+        return
+      }
 
       const pieceIds = data.map(p => p.id)
-      const [photosByPiece, tagsByPiece, allUserTags] = await Promise.all([
+      const [photosByPiece, tagsByPiece, allUserTags, events] = await Promise.all([
         getPhotosForPieces(pieceIds),
         getTagsForPieces(pieceIds),
         getUserTags(user.id),
+        getStageEventsForUser(),
       ])
       setUserTags(allUserTags)
+      setStageEvents(events)
+      setStageEventsLoaded(true)
 
       // Derive form tag name + primary glaze tag (name+color) per piece
       const newFormTags = {}
@@ -149,17 +165,6 @@ export default function Board({ user }) {
   useEffect(() => {
     fetchAll()
   }, [fetchAll])
-
-  // Stage events power the per-day action grouping + day stepper; only needed in
-  // day mode, so fetch them lazily the first time a day is opened.
-  useEffect(() => {
-    if (dayKey && !stageEventsLoaded) {
-      getStageEventsForUser()
-        .then(setStageEvents)
-        .catch(() => setStageEvents([]))
-        .finally(() => setStageEventsLoaded(true))
-    }
-  }, [dayKey, stageEventsLoaded])
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -278,6 +283,25 @@ export default function Board({ user }) {
     }, {}),
     [activepieces]
   )
+
+  // Latest stage-event timestamp per piece, for the "advanced on <date>" label
+  // on board cards. Falls back to the piece's created_at when its current
+  // stage is the one it started in (advanceStage only writes a stage_events
+  // row on transitions, never for the initial stage).
+  const stageDates = useMemo(() => {
+    const eventsByPiece = new Map()
+    for (const ev of stageEvents) {
+      if (!eventsByPiece.has(ev.piece_id)) eventsByPiece.set(ev.piece_id, [])
+      eventsByPiece.get(ev.piece_id).push(ev)
+    }
+    const map = {}
+    for (const piece of pieces) {
+      const events = eventsByPiece.get(piece.id) || []
+      const match = events.find(ev => ev.stage === piece.current_stage)
+      map[piece.id] = match?.moved_at || piece.created_at || null
+    }
+    return map
+  }, [pieces, stageEvents])
 
   const clayBodyGroups = useMemo(() => {
     const groups = new Map()
@@ -540,9 +564,12 @@ export default function Board({ user }) {
             thumbUrls={thumbUrls}
             formTags={formTags}
             glazeTags={glazeTags}
+            stageDates={stageDates}
             selectMode={selectMode}
             selectedIds={selectedIds}
             onToggleSelect={toggleSelect}
+            collapsed={!!collapsedStages[stage]}
+            onToggleCollapsed={handleToggleStageCollapsed}
           />
         ))}
 {!loading && !error && !dayKey && pieces.length > 0 && viewMode === 'clay_body' && clayBodyGroups.map(({ key, label, pieces: groupPieces }) => (

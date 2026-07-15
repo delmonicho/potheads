@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
-import { STAGES, STAGE_LABELS, nextStage, advanceStage, getStageEvents, updatePiece, getPieceIds, getPiecesByIds, upsertStageNote } from '../lib/pieces.js'
+import { STAGES, STAGE_LABELS, nextStage, advanceStage, getStageEvents, updatePiece, getPieceIds, getPiecesByIds, upsertStageNote, fmtStageDate } from '../lib/pieces.js'
 import { getPhotosForPiece, getPhotosForPieces, uploadPhoto, getPhotoUrls, updatePhotoStage, deletePhoto } from '../lib/photos.js'
 import { getTagsForPiece, getOrCreateTag, addTagToPiece, removeTagFromPiece, getUserTags, updateTagColor, renameTag, deleteTag, countPiecesForTag, PRESET_TAGS } from '../lib/tags.js'
 import { listGlazes, listGlazeFavorites, toggleGlazeFavorite, createGlaze, updateGlaze, buildGlazeIndex, matchGlaze, listClayBodies, listClayFavorites, toggleClayFavorite, buildClayIndex, matchClay } from '../lib/catalog.js'
@@ -1049,11 +1049,6 @@ export default function PieceDetail({ user }) {
     return acc
   }, {})
 
-  function fmtDate(iso) {
-    if (!iso) return null
-    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  }
-
   function pickTimestamp(ev) {
     return ev?.moved_at || ev?.created_at || ev?.inserted_at || null
   }
@@ -1318,7 +1313,7 @@ export default function PieceDetail({ user }) {
                             )}
                           </p>
                           {stageTimestamp(stage) && (
-                            <p className="text-xs text-muted mt-0.5">{fmtDate(stageTimestamp(stage))}</p>
+                            <p className="text-xs text-muted mt-0.5">{fmtStageDate(stageTimestamp(stage))}</p>
                           )}
                           {status !== 'pending' && eventByStage[stage]?.notes && (
                             <button

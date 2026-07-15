@@ -33,6 +33,11 @@ export function nextStage(current) {
   return idx >= 0 && idx < STAGES.length - 1 ? STAGES[idx + 1] : null
 }
 
+export function fmtStageDate(iso) {
+  if (!iso) return null
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
 export async function getPieces(userId) {
   const { data, error } = await supabase
     .from('pieces')

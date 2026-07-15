@@ -5,15 +5,21 @@ Home screen. Pieces grouped by stage in columns.
 
 **Data fetching pattern — do not change without understanding this:**
 1. `fetchAll()` fetches pieces via `getPieces(userId)`.
-2. Then fires `getPhotosForPieces(pieceIds)` and `getTagsForPieces(pieceIds)` in **parallel**.
+2. Then fires `getPhotosForPieces(pieceIds)`, `getTagsForPieces(pieceIds)`, `getUserTags(userId)`, and `getStageEventsForUser()` in **parallel**.
 3. Derives `thumbUrls: { [pieceId]: signedUrl }`, `formTags: { [pieceId]: tagName }`, and `glazeTags: { [pieceId]: {name, color} }` from the batch results — all three come from the same `tagsByPiece` fetch, no extra query (glaze tags already carry `color` per `src/lib/tags.js`'s select).
 4. Passes these down to `StageColumn` → `PieceCard` as props.
 
 This is **intentionally** a top-down data flow — `PieceCard` renders only from props, it does not fetch. Do not add fetching inside `StageColumn` or `PieceCard`.
 
+**`stageEvents`/`stageEventsLoaded`** load eagerly in `fetchAll` now (not lazily on day-mode entry) since the main stage-column view needs them too — see below. `activityByDay`/`dayActionGroups` (day mode) just read the already-loaded state.
+
+**`stageDates`** is a `useMemo` (`{ [pieceId]: iso }`) built from `stageEvents` + `pieces`: for each piece, finds the `stage_events` row matching its `current_stage` and uses `moved_at`, falling back to `piece.created_at` when no such row exists (the piece's initial stage never gets a `stage_events` row — only `advanceStage` transitions write one). Passed to `StageColumn` as `stageDates`, which forwards each piece's value to `PieceCard` as `stageDate` — this powers the "advanced on `<date>`" label on the card (see `src/components/CLAUDE.md`). Only wired into the default `stage`-grouped view; the `clay_body`/`glaze`/`form` groupings and day mode render `PieceCard` directly without it.
+
 **Bulk operations** use `Promise.all` — `handleBulkDelete` and `handleBulkToggleTag` fan out to all selected piece IDs simultaneously.
 
 **`piecesByStage`** is memoized with `useMemo([pieces])` — recalculates only when the pieces array changes.
+
+**`collapsedStages`** — per-stage collapsed/expanded state for the default stage view, seeded from `getCollapsedStages()` (`src/lib/prefs.js`, localStorage `potheads_collapsed_stages`, defaults `{ finished: true }`). `handleToggleStageCollapsed(stage)` flips and persists it. Passed to `StageColumn` as `collapsed`/`onToggleCollapsed`.
 
 **View modes** — the header `<select>` groups the board by `stage` (default), `clay_body`, `glaze`, or `form`. `clayBodyGroups` / `glazeGroups` / `formGroups` are all `useMemo`s derived from the already-fetched `pieces` + `allTagsByPiece` (no extra queries). `formGroups` buckets by the piece's `form`-category tag (excluding `lost`), `__none` → "No form", sorted last.
 

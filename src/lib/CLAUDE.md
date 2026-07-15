@@ -71,8 +71,8 @@ Exports:
 
 ## Performance Patterns
 
-### Board load: 3 queries, not 2N
-Board.jsx fetches pieces, then calls `getPhotosForPieces` and `getTagsForPieces` in parallel. Total: 3 Supabase queries regardless of piece count. Do not regress this by fetching photos/tags per-piece.
+### Board load: 4 queries, not 2N
+Board.jsx fetches pieces, then calls `getPhotosForPieces`, `getTagsForPieces`, `getUserTags`, and `getStageEventsForUser` in parallel. Total: 4 Supabase queries regardless of piece count. `getStageEventsForUser` is unfiltered per-piece (RLS-scoped to the user) so it stays O(1) — it powers both the day-mode calendar view and the per-card "advanced on <date>" timestamp on the main stage-column board. Do not regress this by fetching photos/tags/events per-piece.
 
 ### Signed URL deduplication
 The URL cache in `photos.js` is persisted to `localStorage` (`potheads_signed_urls`), so it survives renders, navigations, **and full page reloads** within the 24h URL validity. Combined with `getPhotoUrls` batch signing, a board load costs 1 Storage request for the misses (often 0 after the first session). Do not regress to per-photo `getPhotoUrl` in a loop — that re-introduces N Storage requests per load.

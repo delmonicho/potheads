@@ -3,13 +3,15 @@
 ## StageColumn.jsx
 Renders one stage group (header + piece card grid) on the Board.
 
-**Props:** `stage`, `pieces`, `thumbUrls`, `formTags`, `glazeTags`, `selectMode`, `selectedIds`, `onToggleSelect`
+**Props:** `stage`, `pieces`, `thumbUrls`, `formTags`, `glazeTags`, `stageDates`, `selectMode`, `selectedIds`, `onToggleSelect`, `collapsed`, `onToggleCollapsed`
 
-- `thumbUrls`, `formTags`, `glazeTags` are plain objects (`{ [pieceId]: value }`) pre-computed by Board.jsx. `glazeTags` values are `{ name, color }` (the piece's primary glaze-category tag).
+- `thumbUrls`, `formTags`, `glazeTags`, `stageDates` are plain objects (`{ [pieceId]: value }`) pre-computed by Board.jsx. `glazeTags` values are `{ name, color }` (the piece's primary glaze-category tag); `stageDates` values are an ISO timestamp string (or `null`) — the piece's latest `stage_events.moved_at` for its *current* stage, falling back to `piece.created_at` when it never transitioned into that stage.
 - `PieceCard` (internal) is wrapped in `React.memo` — re-renders only when its props change.
 - **`formTag` is display-only for `PotteryPlaceholder`'s illustration choice now** — it is no longer rendered as a caption on the card. The caption slot instead renders `glazeTag` as a small color dot + name (falls back to `CATEGORY_DEFAULTS.glaze` when the tag has no explicit `color`), since the glaze reads better on a shelf than the shape word does. Form stays available as a board filter/group-by (`viewMode === 'form'` in Board.jsx) — this only affects the passive card caption.
+- **Stage-advance date on the card caption** — `PieceCard` computes `dateLabel = fmtStageDate(stageDate)` (`src/lib/pieces.js`) whenever `current_stage !== 'finished'`. If a `glazeTag` is present the date is appended after the glaze name on the same line (`· Jul 15`); otherwise it renders alone in the same small-caps `text-muted` style (this is the normal case for Drying/Bisque Ready, which don't carry a glaze tag). Finished cards never show a date — only the persisted glaze chip, if any, unchanged from before.
 - **Per-stage tint + "finished" gold treatment** — `PieceCard` tints its own background off `piece.current_stage` via `STAGE_COLORS` (`src/lib/pieces.js`), applied as an inline style (dynamic per-piece color, can't be a static Tailwind class). When `current_stage === 'finished' && !piece.lost`, the card instead gets a `border-gold`/`bg-gold/12` treatment plus a small gold sparkle badge (top-right, so it never collides with the top-left selection checkbox). `StageColumn`'s own header gets the matching gold underline + sparkle glyph only when `stage === 'finished'`.
 - `StageColumn` itself is also `React.memo` — only re-renders when its stage's pieces or the thumb/tag maps change.
+- **Collapsible sections** — the header (title + count) is a `<button>`; tapping it calls `onToggleCollapsed(stage)`. A chevron (rotates `-90deg` when `collapsed`) sits next to the count. When `collapsed`, the piece grid isn't rendered at all — no `PieceCard`/`<img>` mounts, so collapsed sections cost zero image loads until expanded. Collapse state itself lives in Board.jsx (`collapsedStages`, persisted via `src/lib/prefs.js`'s `getCollapsedStages`/`setStageCollapsed`, localStorage `potheads_collapsed_stages`, default `{ finished: true }`) — `StageColumn` is just a controlled view over it, so the same collapse affordance applies uniformly to every stage.
 - **No fetching inside PieceCard.** All data comes from props. Do not add `useEffect` data fetching here.
 
 ## TagChip.jsx
