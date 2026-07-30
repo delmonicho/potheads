@@ -1,7 +1,7 @@
 import { supabase } from './supabase.js'
 
 export const PRESET_TAGS = {
-  form: ['bowl', 'mug', 'cup', 'plate', 'vase', 'planter', 'pitcher', 'teapot', 'tile', 'lost'],
+  form: ['bowl', 'mug', 'cup', 'plate', 'vase', 'planter', 'pitcher', 'teapot', 'tile'],
   glaze: [],
 }
 

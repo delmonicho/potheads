@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { addPiece, STAGES, STAGE_LABELS } from '../lib/pieces.js'
+import { getCustomStages, createCustomStage } from '../lib/stages.js'
 import { uploadPhoto } from '../lib/photos.js'
 import { getOrCreateTag, addTagToPiece, PRESET_TAGS } from '../lib/tags.js'
 import BottomSheet from './BottomSheet.jsx'
@@ -17,6 +18,23 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
+  // Custom stages
+  const [customStages, setCustomStages] = useState([])
+  const [addingStage, setAddingStage] = useState(false)
+  const [newStageName, setNewStageName] = useState('')
+  const [savingStage, setSavingStage] = useState(false)
+  const [stageError, setStageError] = useState(null)
+  const newStageInputRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    getCustomStages(user.id).then(setCustomStages).catch(() => {})
+  }, [open, user.id])
+
+  useEffect(() => {
+    if (addingStage) newStageInputRef.current?.focus()
+  }, [addingStage])
+
   function reset() {
     setName('')
     setClayBody(localStorage.getItem('potheads_last_clay_body') || '')
@@ -25,6 +43,9 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
     setFiles([])
     setPreviews([])
     setError(null)
+    setAddingStage(false)
+    setNewStageName('')
+    setStageError(null)
   }
 
   function handleClose() {
@@ -43,6 +64,28 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
   function removePhoto(idx) {
     setFiles(prev => prev.filter((_, i) => i !== idx))
     setPreviews(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  async function handleCreateStage() {
+    if (!newStageName.trim()) return
+    setSavingStage(true)
+    setStageError(null)
+    try {
+      const created = await createCustomStage(user.id, newStageName)
+      setCustomStages(prev => [...prev, created])
+      setStage(created.name)
+      setAddingStage(false)
+      setNewStageName('')
+    } catch (err) {
+      setStageError(err.message)
+    } finally {
+      setSavingStage(false)
+    }
+  }
+
+  function handleNewStageKeyDown(e) {
+    if (e.key === 'Enter') handleCreateStage()
+    if (e.key === 'Escape') { setAddingStage(false); setNewStageName('') }
   }
 
   async function handleSave() {
@@ -147,7 +190,54 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
                 {STAGE_LABELS[s]}
               </button>
             ))}
+            {customStages.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => setStage(s.name)}
+                className={`px-4 py-1.5 rounded-full text-sm border transition-colors cursor-pointer ${stage === s.name
+                    ? 'bg-clay text-white border-clay hover:bg-clay-dark'
+                    : 'border-line-strong text-ink-soft bg-surface-warm hover:bg-surface-warm'
+                  }`}
+              >
+                {s.name}
+              </button>
+            ))}
+            {!addingStage && (
+              <button
+                onClick={() => { setAddingStage(true); setStageError(null) }}
+                className="px-4 py-1.5 rounded-full text-sm border border-dashed border-line-strong text-muted hover:border-clay hover:text-clay transition-colors cursor-pointer"
+              >
+                + Add stage
+              </button>
+            )}
           </div>
+          {addingStage && (
+            <div className="flex gap-2 mt-2">
+              <input
+                ref={newStageInputRef}
+                type="text"
+                value={newStageName}
+                onChange={e => setNewStageName(e.target.value)}
+                onKeyDown={handleNewStageKeyDown}
+                placeholder="Stage name"
+                className="flex-1 border border-line rounded-xl px-3 py-2 text-sm bg-surface-warm text-ink placeholder:text-muted"
+              />
+              <button
+                onClick={handleCreateStage}
+                disabled={savingStage || !newStageName.trim()}
+                className="px-3 py-2 rounded-xl bg-clay text-white text-sm cursor-pointer disabled:opacity-50 hover:bg-clay-dark"
+              >
+                {savingStage ? '…' : 'Add'}
+              </button>
+              <button
+                onClick={() => { setAddingStage(false); setNewStageName(''); setStageError(null) }}
+                className="px-3 py-2 rounded-xl border border-line text-sm text-muted cursor-pointer hover:bg-surface-warm"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+          {stageError && <p className="text-red-600 text-xs mt-1">{stageError}</p>}
         </div>
 
         {/* Form tags */}

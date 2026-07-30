@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
-import { getPieces, getStageEventsForUser, STAGES, STAGE_ACTIONS, STAGE_COLORS } from '../lib/pieces.js'
+import { getPieces, getStageEventsForUser, markLost, markGifted, STAGES, STAGE_ACTIONS, STAGE_COLORS } from '../lib/pieces.js'
+import { getCustomStages } from '../lib/stages.js'
 import { buildActivityByDay, parseDayKey } from '../lib/calendar.js'
 import { getPhotosForPieces, getPhotoUrls } from '../lib/photos.js'
 import { getTagsForPieces, getOrCreateTag, addTagToPiece, getUserTags, PRESET_TAGS } from '../lib/tags.js'
@@ -15,8 +16,20 @@ import { isDevOwner } from '../lib/diagnostics.js'
 function BookIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v16H6.5A2.5 2.5 0 0 0 4 20.5V4.5z" />
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M12 5v16" />
+      <path d="M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z" />
+    </svg>
+  )
+}
+
+function GiftIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 12 20 22 4 22 4 12" />
+      <rect x="2" y="7" width="20" height="5" />
+      <line x1="12" y1="22" x2="12" y2="7" />
+      <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
+      <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
     </svg>
   )
 }
@@ -24,9 +37,10 @@ function BookIcon() {
 function BrokenVaseIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 3h6" />
-      <path d="M10 3C8 5 7 7 7 10c0 4 2 7 5 8.5C15 17 17 14 17 10c0-3-1-5-3-7" />
-      <path d="M12 6l-1.5 3.5 2 1.5-1.5 4" />
+      {/* Left piece — outer left contour + rim + jagged break on right edge */}
+      <path d="M10 3 L8 7 L11 12 L8 17 L9 21 L7 21 Q4 16 4 12 Q4 6 8 3 Z" />
+      {/* Right piece shifted down+right — jagged break on left edge + outer right contour + rim */}
+      <path d="M13 4 L11 8 L14 13 L11 18 L12 22 L17 22 Q20 17 20 13 Q20 7 16 4 Z" />
     </svg>
   )
 }
@@ -88,6 +102,7 @@ export default function Board({ user }) {
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [showTagSheet, setShowTagSheet] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showGiftConfirm, setShowGiftConfirm] = useState(false)
   const [bulkSaving, setBulkSaving] = useState(false)
 
   const [theme, setThemeState] = useState(getTheme)
@@ -95,6 +110,12 @@ export default function Board({ user }) {
   const handleThemeChange = (t) => { setThemeState(t); setTheme(t) }
   const handleDensityChange = (d) => { setDensityState(d); setDensity(d) }
 
+  const [studioName, setStudioName] = useState(user.user_metadata?.studio_name || '')
+  const [editStudioName, setEditStudioName] = useState('')
+  const [savingStudioName, setSavingStudioName] = useState(false)
+  useEffect(() => { if (showProfile) setEditStudioName(studioName) }, [showProfile]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [customStages, setCustomStages] = useState([])
   const [collapsedStages, setCollapsedStages] = useState(getCollapsedStages)
   const handleToggleStageCollapsed = (stage) => {
     setCollapsedStages((prev) => {
@@ -116,12 +137,14 @@ export default function Board({ user }) {
       }
 
       const pieceIds = data.map(p => p.id)
-      const [photosByPiece, tagsByPiece, allUserTags, events] = await Promise.all([
+      const [photosByPiece, tagsByPiece, allUserTags, events, customStageRows] = await Promise.all([
         getPhotosForPieces(pieceIds),
         getTagsForPieces(pieceIds),
         getUserTags(user.id),
         getStageEventsForUser(),
+        getCustomStages(user.id),
       ])
+      setCustomStages(customStageRows)
       setUserTags(allUserTags)
       setStageEvents(events)
       setStageEventsLoaded(true)
@@ -170,6 +193,17 @@ export default function Board({ user }) {
     await supabase.auth.signOut()
   }
 
+  async function handleSaveStudioName() {
+    const name = editStudioName.trim()
+    setSavingStudioName(true)
+    try {
+      await supabase.auth.updateUser({ data: { studio_name: name || null } })
+      setStudioName(name)
+    } finally {
+      setSavingStudioName(false)
+    }
+  }
+
   function handlePieceAdded() {
     setShowAddPiece(false)
     fetchAll()
@@ -191,12 +225,23 @@ export default function Board({ user }) {
   async function handleBulkDelete() {
     setBulkSaving(true)
     try {
-      const tagId = await getOrCreateTag('lost', 'form', user.id)
-      await Promise.all([...selectedIds].map(id => addTagToPiece(id, tagId)))
+      await Promise.all([...selectedIds].map(id => markLost(id)))
       await fetchAll()
       exitSelectMode()
     } finally {
       setBulkSaving(false)
+    }
+  }
+
+  async function handleBulkGift() {
+    setBulkSaving(true)
+    try {
+      await Promise.all([...selectedIds].map(id => markGifted(id, true)))
+      await fetchAll()
+      exitSelectMode()
+    } finally {
+      setBulkSaving(false)
+      setShowGiftConfirm(false)
     }
   }
 
@@ -211,12 +256,7 @@ export default function Board({ user }) {
     exitSelectMode()
   }
 
-  const activepieces = useMemo(() => pieces.filter(p => {
-    if (p.lost) return false
-    const tags = allTagsByPiece.get(p.id) || []
-    if (tags.some(t => t.name === 'lost')) return false
-    return true
-  }), [pieces, allTagsByPiece])
+  const activepieces = useMemo(() => pieces.filter(p => !p.lost && !p.gifted), [pieces])
 
   const pieceById = useMemo(() => {
     const m = new Map()
@@ -276,12 +316,17 @@ export default function Board({ user }) {
     navigate('/calendar', { state: { year: dayDate.getFullYear(), month: dayDate.getMonth() } })
   }
 
+  const allStages = useMemo(
+    () => [...STAGES, ...customStages.map(s => s.name)],
+    [customStages]
+  )
+
   const piecesByStage = useMemo(
-    () => STAGES.reduce((acc, stage) => {
+    () => allStages.reduce((acc, stage) => {
       acc[stage] = activepieces.filter(p => p.current_stage === stage)
       return acc
     }, {}),
-    [activepieces]
+    [activepieces, allStages]
   )
 
   // Latest stage-event timestamp per piece, for the "advanced on <date>" label
@@ -371,7 +416,7 @@ export default function Board({ user }) {
       <header className="px-5 compact:px-4 pt-safe bg-surface sticky top-0 z-10 border-b border-line/70">
         <div className="flex items-center justify-between pt-3 pb-1">
           <p className="text-xs uppercase tracking-widest text-muted">
-            Studio · {activepieces.length} {activepieces.length === 1 ? 'piece' : 'pieces'}
+            {studioName || 'Studio'} · {activepieces.length} {activepieces.length === 1 ? 'piece' : 'pieces'}
           </p>
           <div className="flex items-center gap-3">
             {selectMode ? (
@@ -403,6 +448,13 @@ export default function Board({ user }) {
               aria-label="Catalog"
             >
               <BookIcon />
+            </button>
+            <button
+              onClick={() => navigate('/gifted')}
+              className="text-muted active:text-ink-soft cursor-pointer hover:text-ink-soft"
+              aria-label="Gifted"
+            >
+              <GiftIcon />
             </button>
             <button
               onClick={() => navigate('/graveyard')}
@@ -441,7 +493,7 @@ export default function Board({ user }) {
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
                 </button>
-                <span className="font-display italic text-xl text-ink text-center min-w-[7.5rem]">{dayLabel}</span>
+                <span className="font-display italic text-xl text-ink text-center min-w-30">{dayLabel}</span>
                 <button
                   onClick={() => nextDayKey && setDayKey(nextDayKey)}
                   disabled={!nextDayKey}
@@ -459,7 +511,7 @@ export default function Board({ user }) {
                 <select
                   value={viewMode}
                   onChange={e => setViewMode(e.target.value)}
-                  className="appearance-none text-xs uppercase tracking-widest font-semibold text-clay bg-transparent border-none cursor-pointer pr-4 focus:outline-none"
+                  className="appearance-none text-xs font-semibold text-clay bg-transparent border-none cursor-pointer pr-4 focus:outline-none"
                 >
                   <option value="stage">Stage</option>
                   <option value="clay_body">Clay Body</option>
@@ -556,7 +608,7 @@ export default function Board({ user }) {
             </div>
           </div>
         ))}
-        {!loading && !error && !dayKey && pieces.length > 0 && viewMode === 'stage' && STAGES.map((stage) => (
+        {!loading && !error && !dayKey && pieces.length > 0 && viewMode === 'stage' && allStages.map((stage) => (
           <StageColumn
             key={stage}
             stage={stage}
@@ -639,6 +691,13 @@ export default function Board({ user }) {
               Edit Tags
             </button>
             <button
+              onClick={() => setShowGiftConfirm(true)}
+              disabled={bulkSaving}
+              className="px-4 py-2 rounded-xl border border-line-strong text-sm text-ink font-medium active:bg-surface-warm-hover disabled:opacity-50 cursor-pointer hover:bg-surface-warm-hover"
+            >
+              Gift
+            </button>
+            <button
               onClick={() => setShowDeleteConfirm(true)}
               disabled={bulkSaving}
               className="px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-medium active:bg-red-600 disabled:opacity-50 cursor-pointer hover:bg-red-600"
@@ -666,6 +725,27 @@ export default function Board({ user }) {
           <div>
             <p className="text-sm text-ink font-medium">{user.user_metadata?.full_name || user.email}</p>
             <p className="text-xs text-muted">{user.email}</p>
+          </div>
+
+          <div>
+            <p className="text-xs uppercase tracking-widest text-muted mb-2">Studio name</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={editStudioName}
+                onChange={e => setEditStudioName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.target.blur(); handleSaveStudioName() } }}
+                placeholder="e.g. Muddy Hands Studio"
+                className="flex-1 border border-line rounded-xl px-3 py-2 text-sm bg-surface-warm text-ink placeholder:text-muted"
+              />
+              <button
+                onClick={handleSaveStudioName}
+                disabled={savingStudioName || editStudioName === studioName}
+                className="px-3 py-2 rounded-xl bg-clay text-white text-sm disabled:opacity-40 cursor-pointer hover:bg-clay-dark disabled:cursor-default"
+              >
+                {savingStudioName ? '…' : 'Save'}
+              </button>
+            </div>
           </div>
 
           <div>
@@ -762,6 +842,32 @@ export default function Board({ user }) {
             className="w-full bg-clay text-white font-semibold py-3.5 rounded-2xl active:bg-clay-dark mb-2 cursor-pointer hover:bg-clay-dark"
           >
             Done
+          </button>
+        </div>
+      </BottomSheet>
+
+      {/* Gift confirmation sheet */}
+      <BottomSheet
+        open={showGiftConfirm}
+        onClose={() => setShowGiftConfirm(false)}
+        title={`Mark ${selectedIds.size} ${selectedIds.size === 1 ? 'piece' : 'pieces'} as gifted?`}
+      >
+        <div className="flex flex-col gap-3 pb-2">
+          <p className="text-sm text-muted">
+            {selectedIds.size === 1 ? 'It' : 'They'} will be moved to your Gifted collection and hidden from the board.
+          </p>
+          <button
+            onClick={handleBulkGift}
+            disabled={bulkSaving}
+            className="w-full bg-clay text-white font-semibold py-3.5 rounded-2xl active:bg-clay-dark disabled:opacity-50 cursor-pointer hover:bg-clay-dark"
+          >
+            {bulkSaving ? 'Moving…' : 'Yes, mark as gifted'}
+          </button>
+          <button
+            onClick={() => setShowGiftConfirm(false)}
+            className="w-full bg-surface-warm text-ink-soft font-semibold py-3.5 rounded-2xl active:bg-surface-warm-hover cursor-pointer hover:bg-surface-warm-hover"
+          >
+            Cancel
           </button>
         </div>
       </BottomSheet>

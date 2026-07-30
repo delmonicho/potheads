@@ -199,6 +199,15 @@ export async function markLost(pieceId) {
   if (error) throw error
 }
 
+export async function markGifted(pieceId, gifted = true) {
+  const { error } = await supabase
+    .from('pieces')
+    .update({ gifted })
+    .eq('id', pieceId)
+
+  if (error) throw error
+}
+
 export async function deletePiece(pieceId) {
   const { error } = await supabase
     .from('pieces')

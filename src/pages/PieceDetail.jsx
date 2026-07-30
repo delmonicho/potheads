@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
-import { STAGES, STAGE_LABELS, nextStage, advanceStage, getStageEvents, updatePiece, getPieceIds, getPiecesByIds, upsertStageNote, fmtStageDate } from '../lib/pieces.js'
+import { STAGES, STAGE_LABELS, nextStage, advanceStage, markLost, markGifted, getStageEvents, updatePiece, getPieceIds, getPiecesByIds, upsertStageNote, fmtStageDate } from '../lib/pieces.js'
 import { getPhotosForPiece, getPhotosForPieces, uploadPhoto, getPhotoUrls, updatePhotoStage, deletePhoto } from '../lib/photos.js'
 import { getTagsForPiece, getOrCreateTag, addTagToPiece, removeTagFromPiece, getUserTags, updateTagColor, renameTag, deleteTag, countPiecesForTag, PRESET_TAGS } from '../lib/tags.js'
 import { listGlazes, listGlazeFavorites, toggleGlazeFavorite, createGlaze, updateGlaze, buildGlazeIndex, matchGlaze, listClayBodies, listClayFavorites, toggleClayFavorite, buildClayIndex, matchClay } from '../lib/catalog.js'
@@ -127,6 +127,12 @@ export default function PieceDetail({ user }) {
   const [editNotes, setEditNotes] = useState('')
   const [editCreatedAt, setEditCreatedAt] = useState('')
   const [savingPiece, setSavingPiece] = useState(false)
+
+  // Mark lost
+  const [showMarkLostConfirm, setShowMarkLostConfirm] = useState(false)
+  const [markingLost, setMarkingLost] = useState(false)
+  const [showMarkGiftedConfirm, setShowMarkGiftedConfirm] = useState(false)
+  const [markingGifted, setMarkingGifted] = useState(false)
 
   // Edit note sheet
   const [showNoteSheet, setShowNoteSheet] = useState(false)
@@ -865,6 +871,28 @@ export default function PieceDetail({ user }) {
     return new Date(val + 'T12:00:00').toISOString()
   }
 
+  async function handleMarkLost() {
+    setMarkingLost(true)
+    try {
+      await markLost(id)
+      navigate('/board')
+    } catch (err) {
+      setError(err.message)
+      setMarkingLost(false)
+    }
+  }
+
+  async function handleMarkGifted() {
+    setMarkingGifted(true)
+    try {
+      await markGifted(id, true)
+      navigate('/board')
+    } catch (err) {
+      setError(err.message)
+      setMarkingGifted(false)
+    }
+  }
+
   function openEditPiece() {
     if (!piece) return
     setEditName(piece.name || '')
@@ -1347,9 +1375,6 @@ export default function PieceDetail({ user }) {
             <div className="px-5 py-4 border-t border-line">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs uppercase tracking-widest text-muted">Clay Body</p>
-                <button onClick={openEditPiece} className="text-clay text-sm font-medium cursor-pointer hover:text-clay-dark">
-                  Edit
-                </button>
               </div>
               {!piece.clay_body ? (
                 <p className="text-muted text-sm">No clay body yet</p>
@@ -1393,13 +1418,10 @@ export default function PieceDetail({ user }) {
               )}
             </div>
 
-            {/* Details — form & custom tags */}
-            <div className="px-5 py-4 pb-6 border-t border-line">
+            {/* Form & custom tags */}
+            <div className="px-5 py-4 border-t border-line">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-xs uppercase tracking-widest text-muted">Details</p>
-                <button onClick={() => setShowTagSheet(true)} className="text-clay text-sm font-medium cursor-pointer hover:text-clay-dark">
-                  Edit
-                </button>
+                <p className="text-xs uppercase tracking-widest text-muted">Form</p>
               </div>
               {otherTags.length === 0 ? (
                 <p className="text-muted text-sm">No details yet</p>
@@ -1409,6 +1431,26 @@ export default function PieceDetail({ user }) {
                     <TagChip key={tag.id} tag={tag} selected color={tag.color || tagColors[tag.name]} />
                   ))}
                 </div>
+              )}
+            </div>
+
+            {/* Send to Reclaim / Gift */}
+            <div className="px-5 pt-6 pb-10 border-t border-line flex flex-col gap-3">
+              {!piece.gifted && (
+                <button
+                  onClick={() => setShowMarkGiftedConfirm(true)}
+                  className="w-full py-3 rounded-2xl border border-line text-muted text-sm font-medium cursor-pointer hover:border-stage-complete/50 hover:text-stage-complete transition-colors"
+                >
+                  Gift this piece
+                </button>
+              )}
+              {!piece.lost && (
+                <button
+                  onClick={() => setShowMarkLostConfirm(true)}
+                  className="w-full py-3 rounded-2xl border border-line text-muted text-sm font-medium cursor-pointer hover:border-red-300 hover:text-red-500 transition-colors"
+                >
+                  Send to Reclaim
+                </button>
               )}
             </div>
 
@@ -2228,6 +2270,58 @@ export default function PieceDetail({ user }) {
             className="w-full bg-clay text-white font-semibold py-3 rounded-2xl active:bg-clay-dark disabled:opacity-50 cursor-pointer hover:bg-clay-dark"
           >
             {savingNote ? 'Saving…' : 'Save note'}
+          </button>
+        </div>
+      </BottomSheet>
+
+      {/* Gift confirmation */}
+      <BottomSheet
+        open={showMarkGiftedConfirm}
+        onClose={() => setShowMarkGiftedConfirm(false)}
+        title="Gift this piece?"
+      >
+        <div className="flex flex-col gap-3 pb-2">
+          <p className="text-sm text-muted">
+            This piece will move to your Gifted collection and be hidden from the board.
+          </p>
+          <button
+            onClick={handleMarkGifted}
+            disabled={markingGifted}
+            className="w-full bg-clay text-white font-semibold py-3.5 rounded-2xl active:bg-clay-dark disabled:opacity-50 cursor-pointer hover:bg-clay-dark"
+          >
+            {markingGifted ? 'Moving…' : 'Gift this piece'}
+          </button>
+          <button
+            onClick={() => setShowMarkGiftedConfirm(false)}
+            className="w-full bg-surface-warm text-ink-soft font-semibold py-3.5 rounded-2xl active:bg-surface-warm-hover cursor-pointer hover:bg-surface-warm-hover"
+          >
+            Cancel
+          </button>
+        </div>
+      </BottomSheet>
+
+      {/* Send to Reclaim confirmation */}
+      <BottomSheet
+        open={showMarkLostConfirm}
+        onClose={() => setShowMarkLostConfirm(false)}
+        title="Send to Reclaim?"
+      >
+        <div className="flex flex-col gap-3 pb-2">
+          <p className="text-sm text-muted">
+            This piece will move to the Reclaim page. You can still view it and delete it from there.
+          </p>
+          <button
+            onClick={handleMarkLost}
+            disabled={markingLost}
+            className="w-full bg-clay text-white font-semibold py-3.5 rounded-2xl active:bg-clay-dark disabled:opacity-50 cursor-pointer hover:bg-clay-dark"
+          >
+            {markingLost ? 'Moving…' : 'Send to Reclaim'}
+          </button>
+          <button
+            onClick={() => setShowMarkLostConfirm(false)}
+            className="w-full bg-surface-warm text-ink-soft font-semibold py-3.5 rounded-2xl active:bg-surface-warm-hover cursor-pointer hover:bg-surface-warm-hover"
+          >
+            Cancel
           </button>
         </div>
       </BottomSheet>

@@ -4,6 +4,7 @@ import { supabase } from './lib/supabase.js'
 import Board from './pages/Board.jsx'
 import PieceDetail from './pages/PieceDetail.jsx'
 import Graveyard from './pages/Graveyard.jsx'
+import Gifted from './pages/Gifted.jsx'
 import Catalog from './pages/Catalog.jsx'
 import Calendar from './pages/Calendar.jsx'
 import Dev from './pages/Dev.jsx'
@@ -44,6 +45,7 @@ export default function App() {
       <Route path="/board" element={gated(<Board user={user} />)} />
       <Route path="/piece/:id" element={gated(<PieceDetail user={user} />)} />
       <Route path="/graveyard" element={gated(<Graveyard user={user} />)} />
+      <Route path="/gifted" element={gated(<Gifted user={user} />)} />
       <Route path="/calendar" element={gated(<Calendar user={user} />)} />
       <Route path="/catalog" element={gated(<Navigate to="/catalog/clay" replace />)} />
       <Route path="/catalog/:tab" element={gated(<Catalog user={user} />)} />

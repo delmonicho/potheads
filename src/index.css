@@ -50,6 +50,13 @@
   color-scheme: dark;
 }
 
+@keyframes star-glow {
+  0%, 100% { filter: drop-shadow(0 0 2px rgba(255,255,255,0.5)); transform: rotate(0deg); }
+  25%       { filter: drop-shadow(0 0 4px rgba(255,255,255,0.8)); transform: rotate(-15deg); }
+  50%       { filter: drop-shadow(0 0 6px rgba(255,255,255,1));   transform: rotate(0deg); }
+  75%       { filter: drop-shadow(0 0 4px rgba(255,255,255,0.8)); transform: rotate(15deg); }
+}
+
 /* Unlayered on purpose: iOS auto-zooms the viewport when a focused field's
    font-size is under 16px, and a standalone PWA has no chrome to reset it.
    Placing this outside @layer lets it win over Tailwind's text-sm/text-xs

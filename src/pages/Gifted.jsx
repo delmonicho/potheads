@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getPieces, deletePiece, STAGES } from '../lib/pieces.js'
+import { getPieces, markGifted, deletePiece, STAGES } from '../lib/pieces.js'
 import { getPhotosForPieces, getPhotoUrls } from '../lib/photos.js'
 import { getTagsForPieces } from '../lib/tags.js'
 import PotteryPlaceholder from '../components/PotteryPlaceholder.jsx'
@@ -20,7 +20,7 @@ function SelectIcon() {
   )
 }
 
-export default function Graveyard({ user }) {
+export default function Gifted({ user }) {
   const navigate = useNavigate()
   const [pieces, setPieces] = useState([])
   const [thumbUrls, setThumbUrls] = useState({})
@@ -29,32 +29,29 @@ export default function Graveyard({ user }) {
   const [error, setError] = useState(null)
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState(new Set())
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false)
+  const [bulkWorking, setBulkWorking] = useState(false)
 
   const fetchAll = useCallback(async () => {
     try {
       const all = await getPieces(user.id)
-      const pieceIds = all.map(p => p.id)
+      const giftedPieces = all.filter(p => p.gifted)
+      const pieceIds = giftedPieces.map(p => p.id)
 
       const [photosByPiece, tagsByPiece] = await Promise.all([
         getPhotosForPieces(pieceIds),
         getTagsForPieces(pieceIds),
       ])
 
-      const lostPieces = all.filter(p => p.lost)
-
-      // Derive form tags (exclude "lost" tag itself)
       const newFormTags = {}
       for (const [pieceId, tags] of tagsByPiece) {
-        const ft = tags.find(t => t.category === 'form' && t.name !== 'lost')
+        const ft = tags.find(t => t.category === 'form')
         if (ft) newFormTags[pieceId] = ft.name
       }
       setFormTags(newFormTags)
 
-      // Thumbnails
       const thumbEntries = []
-      for (const piece of lostPieces) {
+      for (const piece of giftedPieces) {
         const photos = photosByPiece.get(piece.id) || []
         if (photos.length > 0) {
           const latestStage = [...STAGES].reverse().find(s => photos.some(p => p.stage === s))
@@ -67,7 +64,7 @@ export default function Graveyard({ user }) {
       thumbEntries.forEach(({ pieceId }, i) => { newThumbUrls[pieceId] = urlResults[i] })
       setThumbUrls(newThumbUrls)
 
-      setPieces(lostPieces)
+      setPieces(giftedPieces)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -92,23 +89,24 @@ export default function Graveyard({ user }) {
     setSelectedIds(new Set())
   }
 
-  async function handleBulkDelete() {
-    setBulkDeleting(true)
+  async function handleBulkRestore() {
+    setBulkWorking(true)
     try {
-      await Promise.all([...selectedIds].map(id => deletePiece(id)))
+      await Promise.all([...selectedIds].map(id => markGifted(id, false)))
       setPieces(prev => prev.filter(p => !selectedIds.has(p.id)))
       exitSelectMode()
     } catch (err) {
       setError(err.message)
     } finally {
-      setBulkDeleting(false)
+      setBulkWorking(false)
+      setShowRestoreConfirm(false)
     }
   }
 
   return (
     <div className="flex flex-col min-h-screen bg-surface">
       <PageHeader
-        title="Reclaim."
+        title="Gifted."
         onBack={() => navigate('/board')}
         trailing={pieces.length > 0 && (
           selectMode ? (
@@ -139,7 +137,7 @@ export default function Graveyard({ user }) {
         {error && <p className="text-red-600 text-sm text-center py-4">{error}</p>}
         {!loading && !error && pieces.length === 0 && (
           <p className="text-center text-muted text-sm py-16 px-8">
-            Nothing to reclaim. Lost or broken pieces show up here so you can bring them back.
+            Pieces you've gifted show up here. Mark a piece as gifted from its detail view.
           </p>
         )}
         {!loading && !error && pieces.length > 0 && (
@@ -166,6 +164,16 @@ export default function Graveyard({ user }) {
                         </div>
                       </div>
                     )}
+                    {/* Gift ribbon badge */}
+                    <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-stage-complete flex items-center justify-center shadow-sm">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 12 20 22 4 22 4 12" />
+                        <rect x="2" y="7" width="20" height="5" />
+                        <line x1="12" y1="22" x2="12" y2="7" />
+                        <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
+                        <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+                      </svg>
+                    </div>
                   </button>
                   <p className="text-xs text-ink font-medium truncate px-0.5">{piece.name}</p>
                 </div>
@@ -175,7 +183,6 @@ export default function Graveyard({ user }) {
         )}
       </main>
 
-      {/* Bulk action bar */}
       {selectMode && selectedIds.size > 0 && (
         <div className="fixed bottom-0 inset-x-0 pb-safe bg-surface-raised border-t border-line px-4 pt-3">
           <div className="flex items-center gap-3 pb-3">
@@ -183,46 +190,34 @@ export default function Graveyard({ user }) {
               {selectedIds.size} {selectedIds.size === 1 ? 'piece' : 'pieces'} selected
             </span>
             <button
-              type="button"
-              disabled
-              title="Coming soon"
-              className="px-3 py-2 rounded-xl border border-clay/40 text-clay text-sm font-medium opacity-60 cursor-not-allowed"
+              onClick={() => setShowRestoreConfirm(true)}
+              disabled={bulkWorking}
+              className="px-4 py-2 rounded-xl bg-clay text-white text-sm font-medium active:bg-clay-dark disabled:opacity-50 cursor-pointer hover:bg-clay-dark"
             >
-              Restore
-            </button>
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              disabled={bulkDeleting}
-              className="px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-medium active:bg-red-600 disabled:opacity-50 cursor-pointer hover:bg-red-600"
-            >
-              Delete forever
+              Move back to board
             </button>
           </div>
         </div>
       )}
 
-      {/* Delete confirmation sheet */}
       <BottomSheet
-        open={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
-        title={`Delete ${selectedIds.size} ${selectedIds.size === 1 ? 'piece' : 'pieces'} forever?`}
+        open={showRestoreConfirm}
+        onClose={() => setShowRestoreConfirm(false)}
+        title={`Move ${selectedIds.size} ${selectedIds.size === 1 ? 'piece' : 'pieces'} back to board?`}
       >
         <div className="flex flex-col gap-3 pb-2">
           <p className="text-sm text-muted">
-            This permanently removes {selectedIds.size === 1 ? 'it' : 'them'} from your account. This cannot be undone.
+            {selectedIds.size === 1 ? 'This piece' : 'These pieces'} will reappear on your board.
           </p>
           <button
-            onClick={async () => {
-              setShowDeleteConfirm(false)
-              await handleBulkDelete()
-            }}
-            disabled={bulkDeleting}
-            className="w-full bg-red-500 text-white font-semibold py-3.5 rounded-2xl active:bg-red-600 disabled:opacity-50 cursor-pointer hover:bg-red-600"
+            onClick={handleBulkRestore}
+            disabled={bulkWorking}
+            className="w-full bg-clay text-white font-semibold py-3.5 rounded-2xl active:bg-clay-dark disabled:opacity-50 cursor-pointer hover:bg-clay-dark"
           >
-            {bulkDeleting ? 'Deleting…' : 'Yes, delete forever'}
+            {bulkWorking ? 'Moving…' : 'Yes, move back'}
           </button>
           <button
-            onClick={() => setShowDeleteConfirm(false)}
+            onClick={() => setShowRestoreConfirm(false)}
             className="w-full bg-surface-warm text-ink-soft font-semibold py-3.5 rounded-2xl active:bg-surface-warm-hover cursor-pointer hover:bg-surface-warm-hover"
           >
             Cancel

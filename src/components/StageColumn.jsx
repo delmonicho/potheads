@@ -43,9 +43,10 @@ export const PieceCard = memo(function PieceCard({ piece, thumbUrl, formTag, gla
 
   return (
     <div
-      className={`flex flex-col rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow active:opacity-90 cursor-pointer relative border ${
-        isCelebrated ? 'border-gold bg-gold/12' : 'border-line'
-      }`}
+      className={`flex flex-col rounded-2xl overflow-hidden shadow-sm active:opacity-90 cursor-pointer relative border group ${isCelebrated
+        ? 'border-gold bg-gold/12 hover:shadow-md transition-shadow'
+        : 'border-line hover:shadow-md transition-shadow'
+        }`}
       style={tintStyle}
       onClick={handleTap}
     >
@@ -66,11 +67,10 @@ export const PieceCard = memo(function PieceCard({ piece, thumbUrl, formTag, gla
       {/* Selection overlay */}
       {selectMode && (
         <div className={`absolute inset-0 rounded-2xl transition-colors ${selected ? 'bg-clay/20' : ''}`}>
-          <div className={`absolute top-2 left-2 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
-            selected
-              ? 'bg-clay border-clay'
-              : 'bg-white/70 border-white'
-          }`}>
+          <div className={`absolute top-2 left-2 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${selected
+            ? 'bg-clay border-clay'
+            : 'bg-white/70 border-white'
+            }`}>
             {selected && (
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="2 6 5 9 10 3" />
@@ -84,7 +84,7 @@ export const PieceCard = memo(function PieceCard({ piece, thumbUrl, formTag, gla
           top-left selection checkbox. */}
       {isCelebrated && (
         <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-gold flex items-center justify-center shadow-sm">
-          <SparkleIcon className="text-white" />
+          <SparkleIcon className="text-white group-hover:animate-[star-glow_1.2s_ease-in-out_infinite]" />
         </div>
       )}
 
@@ -119,16 +119,12 @@ export default memo(function StageColumn({ stage, pieces, thumbUrls, formTags, g
         onClick={() => onToggleCollapsed?.(stage)}
         className={`w-full flex items-baseline justify-between mb-3 pb-2 border-b cursor-pointer hover:opacity-80 transition-opacity ${isFinished ? 'border-gold/50' : 'border-line'}`}
       >
-        <h2 className="flex items-center gap-1.5 font-display italic text-2xl text-ink">
+        <h2 className="flex items-center gap-2 font-display italic text-2xl text-ink">
           {isFinished && <SparkleIcon size={16} className="text-gold" />}
-          {STAGE_LABELS[stage]}
+          {STAGE_LABELS[stage] ?? stage}
+          <span className="text-sm text-muted tabular-nums not-italic">{String(pieces.length).padStart(2, '0')}</span>
         </h2>
-        <span className="flex items-center gap-2">
-          <span className="text-sm text-muted tabular-nums">
-            {String(pieces.length).padStart(2, '0')}
-          </span>
-          <ChevronIcon className={`text-muted transition-transform ${collapsed ? '-rotate-90' : ''}`} />
-        </span>
+        <ChevronIcon className={`text-muted transition-transform ${collapsed ? '-rotate-90' : ''}`} />
       </button>
       {!collapsed && (
         <div className="grid grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
