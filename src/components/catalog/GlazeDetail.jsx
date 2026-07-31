@@ -20,6 +20,7 @@ function GlazeForm({ glaze, saving, error, onSave, onCancel }) {
   const [finish, setFinish] = useState(glaze.finish || '')
   const [family, setFamily] = useState(glaze.family || '')
   const [baseColor, setBaseColor] = useState(glaze.base_color || '')
+  const [cone, setCone] = useState(glaze.cone || '')
   const [foodSafe, setFoodSafe] = useState(glaze.food_safe ?? true)
   const [notes, setNotes] = useState(glaze.notes || '')
 
@@ -33,6 +34,7 @@ function GlazeForm({ glaze, saving, error, onSave, onCancel }) {
       finish: finish || null,
       family: family.trim() || null,
       base_color: baseColor.trim() || null,
+      cone: cone.trim() || null,
       food_safe: foodSafe,
       notes: notes.trim() || null,
     })
@@ -108,6 +110,15 @@ function GlazeForm({ glaze, saving, error, onSave, onCancel }) {
             placeholder="e.g. soft blue-grey"
             value={baseColor}
             onChange={(e) => setBaseColor(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Cone</label>
+          <input
+            className="w-full border border-line rounded-xl px-3 py-2 text-sm bg-surface-warm text-ink"
+            placeholder="e.g. 6, 06, 10"
+            value={cone}
+            onChange={(e) => setCone(e.target.value)}
           />
         </div>
       </div>

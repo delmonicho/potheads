@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { listClayBodies } from '../lib/catalog.js'
+import { listClayBodies, createClay } from '../lib/catalog.js'
 import { getClayBodies } from '../lib/pieces.js'
 
 const ADD_SENTINEL = '__add__'
@@ -7,18 +7,15 @@ const ADD_SENTINEL = '__add__'
 export default function ClayBodyPicker({ value, onChange, userId, active = true }) {
   const [catalogList, setCatalogList] = useState([])
   const [pastList, setPastList] = useState([])
-  const [sessionAdded, setSessionAdded] = useState([])
   const [mode, setMode] = useState('select')
   const [customDraft, setCustomDraft] = useState('')
+  const [saving, setSaving] = useState(false)
   const inputRef = useRef(null)
 
-  // Defer the two catalog queries until the picker is actually in use. Callers
-  // render this inside a BottomSheet, which keeps children mounted while closed
-  // — without this gate the queries fire on every page that hosts the sheet.
   useEffect(() => {
     if (!active) return
     let cancelled = false
-    Promise.all([listClayBodies(), getClayBodies(userId)])
+    Promise.all([listClayBodies(userId), getClayBodies(userId)])
       .then(([catalog, past]) => {
         if (cancelled) return
         setCatalogList(catalog || [])
@@ -35,14 +32,9 @@ export default function ClayBodyPicker({ value, onChange, userId, active = true 
   const catalogNames = catalogList.map(cb => cb.name)
   const lc = s => s.toLowerCase()
   const catalogLc = new Set(catalogNames.map(lc))
-  const sessionLc = new Set(sessionAdded.map(lc))
-  const pastFiltered = pastList.filter(p => !catalogLc.has(lc(p)) && !sessionLc.has(lc(p)))
+  const pastFiltered = pastList.filter(p => !catalogLc.has(lc(p)))
 
-  const allKnownLc = new Set([
-    ...catalogNames.map(lc),
-    ...pastFiltered.map(lc),
-    ...sessionAdded.map(lc),
-  ])
+  const allKnownLc = new Set([...catalogNames.map(lc), ...pastFiltered.map(lc)])
   const showOrphan = value && !allKnownLc.has(lc(value))
 
   function handleSelectChange(e) {
@@ -55,28 +47,42 @@ export default function ClayBodyPicker({ value, onChange, userId, active = true 
     onChange(next)
   }
 
-  function commitCustom() {
+  async function commitCustom() {
     const trimmed = customDraft.trim()
     if (!trimmed) {
       setMode('select')
       setCustomDraft('')
       return
     }
-    const trimmedLc = lc(trimmed)
-    const catalogMatch = catalogNames.find(n => lc(n) === trimmedLc)
+    // If it already exists in catalog or past, just select it
+    const catalogMatch = catalogNames.find(n => lc(n) === lc(trimmed))
     if (catalogMatch) {
       onChange(catalogMatch)
-    } else {
-      const pastMatch = pastList.find(p => lc(p) === trimmedLc)
-      const sessionMatch = sessionAdded.find(s => lc(s) === trimmedLc)
-      const canonical = pastMatch || sessionMatch || trimmed
-      if (!pastMatch && !sessionMatch) {
-        setSessionAdded(prev => [...prev, trimmed])
-      }
-      onChange(canonical)
+      setCustomDraft('')
+      setMode('select')
+      return
     }
-    setCustomDraft('')
-    setMode('select')
+    const pastMatch = pastList.find(p => lc(p) === lc(trimmed))
+    if (pastMatch) {
+      onChange(pastMatch)
+      setCustomDraft('')
+      setMode('select')
+      return
+    }
+    // New clay — save to catalog
+    setSaving(true)
+    try {
+      const created = await createClay(userId, { name: trimmed })
+      setCatalogList(await listClayBodies(userId))
+      onChange(created.name)
+    } catch {
+      // Fallback: still select the typed name so the user isn't blocked
+      onChange(trimmed)
+    } finally {
+      setSaving(false)
+      setCustomDraft('')
+      setMode('select')
+    }
   }
 
   function cancelCustom() {
@@ -101,14 +107,15 @@ export default function ClayBodyPicker({ value, onChange, userId, active = true 
         />
         <button
           onClick={commitCustom}
-          disabled={!customDraft.trim()}
+          disabled={!customDraft.trim() || saving}
           className="px-4 py-3 rounded-xl bg-clay text-white text-sm font-semibold cursor-pointer hover:bg-clay-dark disabled:opacity-50"
         >
-          Save
+          {saving ? '…' : 'Save'}
         </button>
         <button
           onClick={cancelCustom}
-          className="px-4 py-3 rounded-xl border border-line text-ink-soft text-sm cursor-pointer hover:bg-surface-warm-hover"
+          disabled={saving}
+          className="px-4 py-3 rounded-xl border border-line text-ink-soft text-sm cursor-pointer hover:bg-surface-warm-hover disabled:opacity-50"
         >
           Cancel
         </button>
@@ -129,9 +136,6 @@ export default function ClayBodyPicker({ value, onChange, userId, active = true 
       ))}
       {pastFiltered.map(name => (
         <option key={`past:${name}`} value={name}>{name}</option>
-      ))}
-      {sessionAdded.map(name => (
-        <option key={`session:${name}`} value={name}>{name}</option>
       ))}
       <option value={ADD_SENTINEL}>+ Add new clay…</option>
     </select>

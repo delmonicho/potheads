@@ -336,7 +336,7 @@ export default function PieceDetail({ user }) {
     clayCatalogLoadedRef.current = true
     try {
       const [clays, faves] = await Promise.all([
-        listClayBodies(),
+        listClayBodies(user.id),
         listClayFavorites(user.id),
       ])
       setClayCatalog(clays)
@@ -1435,12 +1435,13 @@ export default function PieceDetail({ user }) {
             </div>
 
             {/* Send to Reclaim / Gift */}
-            <div className="px-5 pt-6 pb-10 border-t border-line flex flex-col gap-3">
+            <div className="px-5 pt-6 pb-10 border-t border-line flex flex-col sm:flex-row gap-3">
               {!piece.gifted && (
                 <button
                   onClick={() => setShowMarkGiftedConfirm(true)}
                   className="w-full py-3 rounded-2xl border border-line text-muted text-sm font-medium cursor-pointer hover:border-stage-complete/50 hover:text-stage-complete transition-colors"
                 >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block mr-1.5 -mt-0.5"><polyline points="20 12 20 22 4 22 4 12" /><rect x="2" y="7" width="20" height="5" /><line x1="12" y1="22" x2="12" y2="7" /><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" /><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" /></svg>
                   Gift this piece
                 </button>
               )}

@@ -1,26 +1,27 @@
 import { supabase } from './supabase.js'
 import { recordCache } from './diagnostics.js'
 
-// Reference-catalog cache. clay_bodies is fully global/static; glazes is global
-// seed rows + the signed-in user's own custom rows (RLS), so the glaze cache is
-// keyed by user id and invalidated on createGlaze/updateGlaze. Persisted to
-// localStorage so the catalog survives reloads of this home-screen PWA — this
-// data essentially never changes, so re-fetching it on every Catalog mount and
-// every PieceDetail glaze load is pure waste.
-// Shape: { clay: { rows, expiresAt }, glaze: { [userId]: { rows, expiresAt } } }
+// Reference-catalog cache. Both clay_bodies and glazes now support user-scoped
+// custom rows (RLS), so both caches are keyed by userId and invalidated on
+// create/update. Persisted to localStorage so the catalog survives reloads of
+// this home-screen PWA — this data essentially never changes between mutations.
+// Shape: { clay: { [userId]: { rows, expiresAt } }, glaze: { [userId]: { rows, expiresAt } } }
 const CATALOG_CACHE_KEY = 'potheads_catalog_cache'
 const CATALOG_TTL_MS = 24 * 60 * 60 * 1000 // 24h
 
 const catalogCache = loadCatalogCache()
 
 function loadCatalogCache() {
-  const base = { clay: null, glaze: {} }
+  const base = { clay: {}, glaze: {} }
   try {
     const raw = localStorage.getItem(CATALOG_CACHE_KEY)
     if (raw) {
       const parsed = JSON.parse(raw)
       if (parsed && typeof parsed === 'object') {
-        base.clay = parsed.clay || null
+        // Migrate old shape where clay was a single entry (not keyed by userId)
+        base.clay = (parsed.clay && typeof parsed.clay === 'object' && !parsed.clay.rows)
+          ? parsed.clay
+          : {}
         base.glaze = parsed.glaze || {}
       }
     }
@@ -43,8 +44,9 @@ function freshEntry(entry) {
   return entry && entry.expiresAt > Date.now() ? entry.rows : null
 }
 
-export async function listClayBodies() {
-  const cached = freshEntry(catalogCache.clay)
+export async function listClayBodies(userId) {
+  const key = userId || 'anon'
+  const cached = freshEntry(catalogCache.clay[key])
   if (cached) {
     recordCache('catalog', { hit: true })
     return cached
@@ -55,8 +57,25 @@ export async function listClayBodies() {
     .select('*')
     .order('name', { ascending: true })
   if (error) throw error
-  catalogCache.clay = { rows: data, expiresAt: Date.now() + CATALOG_TTL_MS }
+  catalogCache.clay[key] = { rows: data, expiresAt: Date.now() + CATALOG_TTL_MS }
   persistCatalogCache()
+  return data
+}
+
+function invalidateClayCache() {
+  catalogCache.clay = {}
+  persistCatalogCache()
+}
+
+export async function createClay(userId, { name }) {
+  const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${crypto.randomUUID().slice(0, 8)}`
+  const { data, error } = await supabase
+    .from('clay_bodies')
+    .insert({ user_id: userId, slug, name: name.trim() })
+    .select()
+    .single()
+  if (error) throw error
+  invalidateClayCache()
   return data
 }
 
@@ -88,17 +107,17 @@ function invalidateGlazeCache() {
 }
 
 export function clearCatalogCache() {
-  catalogCache.clay = null
+  catalogCache.clay = {}
   catalogCache.glaze = {}
   try { localStorage.removeItem(CATALOG_CACHE_KEY) } catch { /* ignore */ }
 }
 
 export function getCatalogCacheStats() {
-  const clayFresh = !!freshEntry(catalogCache.clay)
+  const clayKeys = Object.keys(catalogCache.clay).filter((k) => freshEntry(catalogCache.clay[k]))
   const glazeKeys = Object.keys(catalogCache.glaze).filter((k) => freshEntry(catalogCache.glaze[k]))
   return {
-    clayCached: clayFresh,
-    clayRows: clayFresh ? catalogCache.clay.rows.length : 0,
+    clayCached: clayKeys.length > 0,
+    clayRows: clayKeys.reduce((n, k) => n + catalogCache.clay[k].rows.length, 0),
     glazeUsers: glazeKeys.length,
     glazeRows: glazeKeys.reduce((n, k) => n + catalogCache.glaze[k].rows.length, 0),
   }
@@ -143,7 +162,7 @@ export function matchClay(index, name) {
   return index.get(name.trim().toLowerCase()) || null
 }
 
-const GLAZE_EDITABLE_FIELDS = ['name', 'finish', 'family', 'base_color', 'hex_swatch', 'food_safe', 'notes']
+const GLAZE_EDITABLE_FIELDS = ['name', 'finish', 'family', 'base_color', 'hex_swatch', 'food_safe', 'notes', 'cone']
 
 function slugifyGlaze(name) {
   const base = (name || '')

@@ -50,6 +50,11 @@
   color-scheme: dark;
 }
 
+body {
+  background-image: url('/texture-grain.svg');
+  background-repeat: repeat;
+}
+
 @keyframes star-glow {
   0%, 100% { filter: drop-shadow(0 0 2px rgba(255,255,255,0.5)); transform: rotate(0deg); }
   25%       { filter: drop-shadow(0 0 4px rgba(255,255,255,0.8)); transform: rotate(-15deg); }

@@ -108,26 +108,41 @@ export const PieceCard = memo(function PieceCard({ piece, thumbUrl, formTag, gla
   )
 })
 
-export default memo(function StageColumn({ stage, pieces, thumbUrls, formTags, glazeTags, stageDates, selectMode, selectedIds, onToggleSelect, collapsed, onToggleCollapsed }) {
+export function GroupHeader({ label, count, collapsed, onToggle, borderClass = 'border-line', prefix }) {
+  const Tag = onToggle ? 'button' : 'div'
+  return (
+    <Tag
+      type={onToggle ? 'button' : undefined}
+      onClick={onToggle}
+      className={`w-full flex items-baseline justify-between mb-3 pb-2 border-b ${borderClass} ${onToggle ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+    >
+      <h2 className="flex items-center gap-2 font-display italic text-2xl text-ink capitalize">
+        {prefix}
+        {label}
+        <span className="text-sm text-muted tabular-nums not-italic">{String(count).padStart(2, '0')}</span>
+      </h2>
+      {onToggle && <ChevronIcon className={`text-muted transition-transform ${collapsed ? '-rotate-90' : ''}`} />}
+    </Tag>
+  )
+}
+
+export default memo(function StageColumn({ stage, pieces, thumbUrls, formTags, glazeTags, stageDates, selectMode, selectedIds, onToggleSelect, collapsed, onToggleCollapsed, density }) {
   if (!pieces || pieces.length === 0) return null
   const isFinished = stage === 'finished'
+  const gridCols = density === 'comfortable' ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-3'
 
   return (
     <div className="mb-8">
-      <button
-        type="button"
-        onClick={() => onToggleCollapsed?.(stage)}
-        className={`w-full flex items-baseline justify-between mb-3 pb-2 border-b cursor-pointer hover:opacity-80 transition-opacity ${isFinished ? 'border-gold/50' : 'border-line'}`}
-      >
-        <h2 className="flex items-center gap-2 font-display italic text-2xl text-ink">
-          {isFinished && <SparkleIcon size={16} className="text-gold" />}
-          {STAGE_LABELS[stage] ?? stage}
-          <span className="text-sm text-muted tabular-nums not-italic">{String(pieces.length).padStart(2, '0')}</span>
-        </h2>
-        <ChevronIcon className={`text-muted transition-transform ${collapsed ? '-rotate-90' : ''}`} />
-      </button>
+      <GroupHeader
+        label={STAGE_LABELS[stage] ?? stage}
+        count={pieces.length}
+        collapsed={collapsed}
+        onToggle={() => onToggleCollapsed?.(stage)}
+        borderClass={isFinished ? 'border-gold/50' : 'border-line'}
+        prefix={isFinished ? <SparkleIcon size={16} className="text-gold" /> : null}
+      />
       {!collapsed && (
-        <div className="grid grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+        <div className={`grid ${gridCols} lg:grid-cols-5 gap-3 sm:gap-4`}>
           {pieces.map((piece) => (
             <PieceCard
               key={piece.id}

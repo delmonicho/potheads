@@ -248,7 +248,7 @@ export default function AddPiece({ open, onClose, onAdded, user }) {
               <button
                 key={tag}
                 onClick={() => setSelectedForm(selectedForm === tag ? null : tag)}
-                className={`px-4 py-1.5 rounded-full text-sm border transition-colors cursor-pointer ${selectedForm === tag
+                className={`px-4 py-1.5 rounded-full text-sm border transition-colors cursor-pointer capitalize ${selectedForm === tag
                     ? 'bg-clay text-white border-clay hover:bg-clay-dark'
                     : 'border-line-strong text-ink-soft bg-surface-warm hover:bg-surface-warm'
                   }`}

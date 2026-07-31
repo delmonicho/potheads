@@ -7,6 +7,7 @@ import {
   listGlazeFavorites,
   toggleClayFavorite,
   toggleGlazeFavorite,
+  updateGlaze,
 } from '../lib/catalog.js'
 import ClayCard from '../components/catalog/ClayCard.jsx'
 import GlazeCard from '../components/catalog/GlazeCard.jsx'
@@ -61,12 +62,14 @@ export default function Catalog({ user }) {
   // detail sheet
   const [selectedClay, setSelectedClay] = useState(null)
   const [selectedGlaze, setSelectedGlaze] = useState(null)
+  const [glazeSaving, setGlazeSaving] = useState(false)
+  const [glazeSaveError, setGlazeSaveError] = useState(null)
 
   const fetchAll = useCallback(async () => {
     try {
       setLoading(true)
       const [cb, gz, cf, gf] = await Promise.all([
-        listClayBodies(),
+        listClayBodies(user.id),
         listGlazes(user.id),
         listClayFavorites(user.id),
         listGlazeFavorites(user.id),
@@ -136,6 +139,21 @@ export default function Catalog({ user }) {
         return next
       })
       setError(err.message)
+    }
+  }
+
+  async function handleSaveGlaze(fields) {
+    if (!selectedGlaze) return
+    setGlazeSaving(true)
+    setGlazeSaveError(null)
+    try {
+      const updated = await updateGlaze(selectedGlaze.id, fields)
+      setGlazes(prev => prev.map(g => g.id === updated.id ? updated : g))
+      setSelectedGlaze(updated)
+    } catch (err) {
+      setGlazeSaveError(err.message)
+    } finally {
+      setGlazeSaving(false)
     }
   }
 
@@ -331,9 +349,14 @@ export default function Catalog({ user }) {
         title={selectedGlaze?.name}
       >
         <GlazeDetail
+          key={selectedGlaze?.id}
           glaze={selectedGlaze}
           favorite={selectedGlaze ? glazeFaves.has(selectedGlaze.id) : false}
           onToggleFavorite={handleToggleGlaze}
+          editable={!!selectedGlaze?.user_id && selectedGlaze.user_id === user.id}
+          onSave={handleSaveGlaze}
+          saving={glazeSaving}
+          saveError={glazeSaveError}
         />
       </BottomSheet>
     </div>

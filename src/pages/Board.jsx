@@ -6,7 +6,7 @@ import { getCustomStages } from '../lib/stages.js'
 import { buildActivityByDay, parseDayKey } from '../lib/calendar.js'
 import { getPhotosForPieces, getPhotoUrls } from '../lib/photos.js'
 import { getTagsForPieces, getOrCreateTag, addTagToPiece, getUserTags, PRESET_TAGS } from '../lib/tags.js'
-import StageColumn, { PieceCard } from '../components/StageColumn.jsx'
+import StageColumn, { PieceCard, GroupHeader } from '../components/StageColumn.jsx'
 import AddPiece from '../components/AddPiece.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
 import SegmentedControl from '../components/SegmentedControl.jsx'
@@ -109,6 +109,7 @@ export default function Board({ user }) {
   const [density, setDensityState] = useState(getDensity)
   const handleThemeChange = (t) => { setThemeState(t); setTheme(t) }
   const handleDensityChange = (d) => { setDensityState(d); setDensity(d) }
+  const gridCols = density === 'comfortable' ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-3'
 
   const [studioName, setStudioName] = useState(user.user_metadata?.studio_name || '')
   const [editStudioName, setEditStudioName] = useState('')
@@ -124,6 +125,9 @@ export default function Board({ user }) {
       return next
     })
   }
+
+  const [collapsedGroups, setCollapsedGroups] = useState({})
+  const toggleGroup = (key) => setCollapsedGroups(prev => ({ ...prev, [key]: !prev[key] }))
 
   const fetchAll = useCallback(async () => {
     try {
@@ -450,20 +454,6 @@ export default function Board({ user }) {
               <BookIcon />
             </button>
             <button
-              onClick={() => navigate('/gifted')}
-              className="text-muted active:text-ink-soft cursor-pointer hover:text-ink-soft"
-              aria-label="Gifted"
-            >
-              <GiftIcon />
-            </button>
-            <button
-              onClick={() => navigate('/graveyard')}
-              className="text-muted active:text-ink-soft cursor-pointer hover:text-ink-soft"
-              aria-label="Reclaim"
-            >
-              <BrokenVaseIcon />
-            </button>
-            <button
               onClick={() => setShowProfile(true)}
               className="w-9 h-9 rounded-full bg-clay flex items-center justify-center active:bg-clay-dark cursor-pointer hover:bg-clay-dark"
               aria-label="Profile"
@@ -507,7 +497,8 @@ export default function Board({ user }) {
           ) : (
             <>
               <h1 className="font-display italic text-4xl text-ink">Potheads.</h1>
-              <div className="relative flex items-center">
+              <div className="relative flex items-center gap-1.5">
+                <span className="text-xs font-semibold text-muted">Sort by</span>
                 <select
                   value={viewMode}
                   onChange={e => setViewMode(e.target.value)}
@@ -541,7 +532,7 @@ export default function Board({ user }) {
       </header>
 
       {/* Main */}
-      <main className="flex-1 overflow-y-auto px-4 compact:px-3 py-4 pb-24">
+      <main className="flex-1 overflow-y-auto px-4 compact:px-3 py-4 pb-36">
         {loading && (
           <div className="flex justify-center py-12">
             <div className="w-8 h-8 border-4 border-clay border-t-transparent rounded-full animate-spin" />
@@ -601,7 +592,7 @@ export default function Board({ user }) {
               </h2>
               <span className="text-sm text-muted tabular-nums">{String(groupPieces.length).padStart(2, '0')}</span>
             </div>
-            <div className="grid grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+            <div className={`grid ${gridCols} lg:grid-cols-5 gap-3 sm:gap-4`}>
               {groupPieces.map((piece) => (
                 <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} glazeTag={glazeTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
               ))}
@@ -622,45 +613,43 @@ export default function Board({ user }) {
             onToggleSelect={toggleSelect}
             collapsed={!!collapsedStages[stage]}
             onToggleCollapsed={handleToggleStageCollapsed}
+            density={density}
           />
         ))}
-{!loading && !error && !dayKey && pieces.length > 0 && viewMode === 'clay_body' && clayBodyGroups.map(({ key, label, pieces: groupPieces }) => (
+        {!loading && !error && !dayKey && pieces.length > 0 && viewMode === 'clay_body' && clayBodyGroups.map(({ key, label, pieces: groupPieces }) => (
           <div key={key} className="mb-8">
-            <div className="flex items-baseline justify-between mb-3 border-b border-line pb-2">
-              <h2 className="font-display italic text-2xl text-ink capitalize">{label}</h2>
-              <span className="text-sm text-muted tabular-nums">{String(groupPieces.length).padStart(2, '0')}</span>
-            </div>
-            <div className="grid grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-              {groupPieces.map((piece) => (
-                <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} glazeTag={glazeTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
-              ))}
-            </div>
+            <GroupHeader label={label} count={groupPieces.length} collapsed={!!collapsedGroups[key]} onToggle={() => toggleGroup(key)} />
+            {!collapsedGroups[key] && (
+              <div className={`grid ${gridCols} lg:grid-cols-5 gap-3 sm:gap-4`}>
+                {groupPieces.map((piece) => (
+                  <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} glazeTag={glazeTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
+                ))}
+              </div>
+            )}
           </div>
         ))}
         {!loading && !error && !dayKey && pieces.length > 0 && viewMode === 'glaze' && glazeGroups.map(({ key, label, pieces: groupPieces }) => (
           <div key={key} className="mb-8">
-            <div className="flex items-baseline justify-between mb-3 border-b border-line pb-2">
-              <h2 className="font-display italic text-2xl text-ink capitalize">{label}</h2>
-              <span className="text-sm text-muted tabular-nums">{String(groupPieces.length).padStart(2, '0')}</span>
-            </div>
-            <div className="grid grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-              {groupPieces.map((piece) => (
-                <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} glazeTag={glazeTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
-              ))}
-            </div>
+            <GroupHeader label={label} count={groupPieces.length} collapsed={!!collapsedGroups[key]} onToggle={() => toggleGroup(key)} />
+            {!collapsedGroups[key] && (
+              <div className={`grid ${gridCols} lg:grid-cols-5 gap-3 sm:gap-4`}>
+                {groupPieces.map((piece) => (
+                  <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} glazeTag={glazeTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
+                ))}
+              </div>
+            )}
           </div>
         ))}
         {!loading && !error && !dayKey && pieces.length > 0 && viewMode === 'form' && formGroups.map(({ key, label, pieces: groupPieces }) => (
           <div key={key} className="mb-8">
-            <div className="flex items-baseline justify-between mb-3 border-b border-line pb-2">
-              <h2 className="font-display italic text-2xl text-ink capitalize">{label}</h2>
-              <span className="text-sm text-muted tabular-nums">{String(groupPieces.length).padStart(2, '0')}</span>
-            </div>
-            <div className="grid grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-              {groupPieces.map((piece) => (
-                <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} glazeTag={glazeTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
-              ))}
-            </div>
+            <GroupHeader label={label} count={groupPieces.length} collapsed={!!collapsedGroups[key]} onToggle={() => toggleGroup(key)} />
+            {!collapsedGroups[key] && (
+              <div className={`grid ${gridCols} lg:grid-cols-5 gap-3 sm:gap-4`}>
+                {groupPieces.map((piece) => (
+                  <PieceCard key={piece.id} piece={piece} thumbUrl={thumbUrls?.[piece.id] ?? null} formTag={formTags?.[piece.id] ?? null} glazeTag={glazeTags?.[piece.id] ?? null} selectMode={selectMode} selected={selectedIds?.has(piece.id) ?? false} onToggleSelect={toggleSelect} />
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </main>
@@ -669,7 +658,7 @@ export default function Board({ user }) {
       {!selectMode && pieces.length > 0 && (
         <button
           onClick={() => setShowAddPiece(true)}
-          className="fixed bottom-8 right-5 w-14 h-14 compact:w-12 compact:h-12 bg-clay text-white text-3xl rounded-full shadow-lg flex items-center justify-center active:bg-clay-dark cursor-pointer hover:bg-clay-dark"
+          className="fixed bottom-18 right-5 w-14 h-14 compact:w-12 compact:h-12 bg-clay text-white text-3xl rounded-full shadow-lg flex items-center justify-center active:bg-clay-dark cursor-pointer hover:bg-clay-dark"
           aria-label="Add piece"
         >
           +
@@ -900,6 +889,17 @@ export default function Board({ user }) {
           </button>
         </div>
       </BottomSheet>
+
+      {!selectMode && (
+        <footer className="fixed bottom-0 inset-x-0 pb-safe bg-surface/80 backdrop-blur-sm border-t border-line/50 flex items-center justify-center gap-8 pt-2">
+          <button onClick={() => navigate('/gifted')} className="text-xs uppercase tracking-widest text-muted hover:text-clay cursor-pointer transition-colors py-1">
+            Gifts
+          </button>
+          <button onClick={() => navigate('/graveyard')} className="text-xs uppercase tracking-widest text-muted hover:text-clay cursor-pointer transition-colors py-1">
+            Reclaim
+          </button>
+        </footer>
+      )}
     </div>
   )
 }

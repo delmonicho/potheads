@@ -106,7 +106,7 @@ export default function Gifted({ user }) {
   return (
     <div className="flex flex-col min-h-screen bg-surface">
       <PageHeader
-        title="Gifted."
+        title="Gifts."
         onBack={() => navigate('/board')}
         trailing={pieces.length > 0 && (
           selectMode ? (
