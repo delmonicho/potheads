@@ -886,10 +886,21 @@ export default function PieceDetail({ user }) {
     setMarkingGifted(true)
     try {
       await markGifted(id, true)
-      navigate('/board')
+      await fetchAll()
+      setShowMarkGiftedConfirm(false)
     } catch (err) {
       setError(err.message)
+    } finally {
       setMarkingGifted(false)
+    }
+  }
+
+  async function handleRemoveGift() {
+    try {
+      await markGifted(id, false)
+      await fetchAll()
+    } catch (err) {
+      setError(err.message)
     }
   }
 
@@ -1436,7 +1447,14 @@ export default function PieceDetail({ user }) {
 
             {/* Send to Reclaim / Gift */}
             <div className="px-5 pt-6 pb-10 border-t border-line flex flex-col sm:flex-row gap-3">
-              {!piece.gifted && (
+              {piece.gifted ? (
+                <button
+                  onClick={handleRemoveGift}
+                  className="w-full py-3 rounded-2xl border border-line text-muted text-sm font-medium cursor-pointer hover:border-line-strong hover:text-ink transition-colors"
+                >
+                  Remove gift
+                </button>
+              ) : (
                 <button
                   onClick={() => setShowMarkGiftedConfirm(true)}
                   className="w-full py-3 rounded-2xl border border-line text-muted text-sm font-medium cursor-pointer hover:border-stage-complete/50 hover:text-stage-complete transition-colors"
@@ -2283,7 +2301,7 @@ export default function PieceDetail({ user }) {
       >
         <div className="flex flex-col gap-3 pb-2">
           <p className="text-sm text-muted">
-            This piece will move to your Gifted collection and be hidden from the board.
+            This piece will stay on the board and be marked with a gift badge.
           </p>
           <button
             onClick={handleMarkGifted}

@@ -260,7 +260,7 @@ export default function Board({ user }) {
     exitSelectMode()
   }
 
-  const activepieces = useMemo(() => pieces.filter(p => !p.lost && !p.gifted), [pieces])
+  const activepieces = useMemo(() => pieces.filter(p => !p.lost), [pieces])
 
   const pieceById = useMemo(() => {
     const m = new Map()
@@ -843,7 +843,7 @@ export default function Board({ user }) {
       >
         <div className="flex flex-col gap-3 pb-2">
           <p className="text-sm text-muted">
-            {selectedIds.size === 1 ? 'It' : 'They'} will be moved to your Gifted collection and hidden from the board.
+            {selectedIds.size === 1 ? 'It' : 'They'} will stay on the board and be marked with a gift badge.
           </p>
           <button
             onClick={handleBulkGift}
@@ -891,10 +891,7 @@ export default function Board({ user }) {
       </BottomSheet>
 
       {!selectMode && (
-        <footer className="fixed bottom-0 inset-x-0 pb-safe bg-surface/80 backdrop-blur-sm border-t border-line/50 flex items-center justify-center gap-8 pt-2">
-          <button onClick={() => navigate('/gifted')} className="text-xs uppercase tracking-widest text-muted hover:text-clay cursor-pointer transition-colors py-1">
-            Gifts
-          </button>
+        <footer className="fixed bottom-0 inset-x-0 pb-safe bg-surface/80 backdrop-blur-sm border-t border-line/50 flex items-center justify-center pt-2">
           <button onClick={() => navigate('/graveyard')} className="text-xs uppercase tracking-widest text-muted hover:text-clay cursor-pointer transition-colors py-1">
             Reclaim
           </button>
