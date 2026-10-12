@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase.js'
 import { STAGES, STAGE_LABELS, nextStage, advanceStage, markLost, markGifted, getStageEvents, updatePiece, getPieceIds, getPiecesByIds, upsertStageNote, fmtStageDate } from '../lib/pieces.js'
 import { getPhotosForPiece, getPhotosForPieces, uploadPhoto, getPhotoUrls, updatePhotoStage, deletePhoto } from '../lib/photos.js'
 import { getTagsForPiece, getOrCreateTag, addTagToPiece, removeTagFromPiece, getUserTags, updateTagColor, renameTag, deleteTag, countPiecesForTag, PRESET_TAGS } from '../lib/tags.js'
-import { listGlazes, listGlazeFavorites, toggleGlazeFavorite, createGlaze, updateGlaze, buildGlazeIndex, matchGlaze, listClayBodies, listClayFavorites, toggleClayFavorite, buildClayIndex, matchClay } from '../lib/catalog.js'
+import { listGlazes, listGlazeFavorites, toggleGlazeFavorite, createGlaze, updateGlaze, deleteGlaze, buildGlazeIndex, matchGlaze, listClayBodies, listClayFavorites, toggleClayFavorite, buildClayIndex, matchClay } from '../lib/catalog.js'
 import TagChip from '../components/TagChip.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
 import PotteryPlaceholder from '../components/PotteryPlaceholder.jsx'
@@ -64,6 +64,7 @@ export default function PieceDetail({ user }) {
   const [addingGlaze, setAddingGlaze] = useState(false)
   const [glazeSaving, setGlazeSaving] = useState(false)
   const [glazeSaveError, setGlazeSaveError] = useState(null)
+  const [deletingGlaze, setDeletingGlaze] = useState(false)
   const glazeIndex = useMemo(() => buildGlazeIndex(glazeCatalog), [glazeCatalog])
   const glazeTags = useMemo(() => tags.filter(t => t.category === 'glaze'), [tags])
   const otherTags = useMemo(() => tags.filter(t => t.category !== 'glaze'), [tags])
@@ -325,8 +326,8 @@ export default function PieceDetail({ user }) {
   useEffect(() => {
     const advanceWantsGlaze = showAdvanceSheet &&
       (advanceTargetStage === 'glazed' || advanceTargetStage === 'finished')
-    if (showTagSheet || advanceWantsGlaze || tags.some(t => t.category === 'glaze')) loadGlazeCatalog()
-  }, [showTagSheet, showAdvanceSheet, advanceTargetStage, tags, loadGlazeCatalog])
+    if (showTagSheet || showEditPieceSheet || advanceWantsGlaze || tags.some(t => t.category === 'glaze')) loadGlazeCatalog()
+  }, [showTagSheet, showEditPieceSheet, showAdvanceSheet, advanceTargetStage, tags, loadGlazeCatalog])
 
   // Clay catalog (lazy, read-only) — fetched once the piece has a clay_body so the
   // Clay Body chip can resolve its swatch + open a ClayDetail sheet.
@@ -440,6 +441,32 @@ export default function PieceDetail({ user }) {
       throw err
     } finally {
       setGlazeSaving(false)
+    }
+  }
+
+  // Delete a custom glaze: removes all its tags from all pieces, then deletes the catalog row.
+  async function handleDeleteGlaze(glazeId) {
+    if (!selectedGlaze) return
+    setDeletingGlaze(true)
+    try {
+      const glazeName = (selectedGlaze.name || '').toLowerCase()
+      const allUserTags = await getUserTags(user.id)
+      const matchingTags = allUserTags.filter(t => t.category === 'glaze' && t.name === glazeName)
+      await Promise.all(matchingTags.map(t => deleteTag(t.id).catch(() => null)))
+      await deleteGlaze(glazeId)
+      const [glazes, refreshedTags, ut] = await Promise.all([
+        listGlazes(user.id),
+        getTagsForPiece(id),
+        getUserTags(user.id),
+      ])
+      setGlazeCatalog(glazes)
+      setTags(refreshedTags)
+      setUserTags(ut)
+      setSelectedGlaze(null)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setDeletingGlaze(false)
     }
   }
 
@@ -1405,9 +1432,6 @@ export default function PieceDetail({ user }) {
             <div className="px-5 py-4 border-t border-line">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs uppercase tracking-widest text-muted">Glaze</p>
-                <button onClick={() => setShowTagSheet(true)} className="text-clay text-sm font-medium cursor-pointer hover:text-clay-dark">
-                  Edit
-                </button>
               </div>
               {glazeTags.length === 0 ? (
                 <p className="text-muted text-sm">No glaze yet</p>
@@ -1694,6 +1718,8 @@ export default function PieceDetail({ user }) {
           onSave={handleSaveGlaze}
           saving={glazeSaving}
           saveError={glazeSaveError}
+          onDelete={!!selectedGlaze?.user_id && selectedGlaze.user_id === user.id ? handleDeleteGlaze : undefined}
+          deleting={deletingGlaze}
         />
       </BottomSheet>
 
@@ -2247,6 +2273,20 @@ export default function PieceDetail({ user }) {
               placeholder="Any details about this piece…"
               value={editNotes}
               onChange={(e) => setEditNotes(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-muted mb-1.5">Glaze</label>
+            <GlazePicker
+              glazeTags={glazeTags}
+              glazeIndex={glazeIndex}
+              glazeCatalog={glazeCatalog}
+              glazeQuery={glazeQuery}
+              setGlazeQuery={setGlazeQuery}
+              onToggle={handleTagToggle}
+              onAddCustom={handleAddCustomGlaze}
+              addingGlaze={addingGlaze}
+              tagColors={tagColors}
             />
           </div>
           <button

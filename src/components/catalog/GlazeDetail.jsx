@@ -164,8 +164,9 @@ function GlazeForm({ glaze, saving, error, onSave, onCancel }) {
   )
 }
 
-export default function GlazeDetail({ glaze, favorite, onToggleFavorite, editable = false, onSave, saving = false, saveError = null }) {
+export default function GlazeDetail({ glaze, favorite, onToggleFavorite, editable = false, onSave, saving = false, saveError = null, onDelete, deleting = false }) {
   const [editing, setEditing] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   if (!glaze) return null
 
   async function handleSave(fields) {
@@ -186,6 +187,28 @@ export default function GlazeDetail({ glaze, favorite, onToggleFavorite, editabl
         onSave={handleSave}
         onCancel={() => setEditing(false)}
       />
+    )
+  }
+
+  if (confirmDelete) {
+    return (
+      <div className="flex flex-col gap-3 pb-2">
+        <p className="text-sm text-muted">Delete <span className="font-semibold text-ink">{glaze.name}</span> from your catalog? This will also remove it from any pieces it's on.</p>
+        <button
+          onClick={() => onDelete(glaze.id)}
+          disabled={deleting}
+          className="w-full bg-red-500 text-white font-semibold py-3.5 rounded-2xl active:bg-red-600 disabled:opacity-50 cursor-pointer hover:bg-red-600"
+        >
+          {deleting ? 'Deleting…' : 'Yes, delete glaze'}
+        </button>
+        <button
+          onClick={() => setConfirmDelete(false)}
+          disabled={deleting}
+          className="w-full bg-surface-warm text-ink-soft font-semibold py-3.5 rounded-2xl active:bg-surface-warm-hover cursor-pointer hover:bg-surface-warm-hover disabled:opacity-40"
+        >
+          Cancel
+        </button>
+      </div>
     )
   }
 
@@ -271,12 +294,22 @@ export default function GlazeDetail({ glaze, favorite, onToggleFavorite, editabl
       )}
 
       {editable && (
-        <button
-          onClick={() => setEditing(true)}
-          className="w-full mt-1 border border-line text-ink-soft font-semibold py-2.5 rounded-2xl cursor-pointer hover:bg-surface-warm-hover"
-        >
-          Edit glaze
-        </button>
+        <>
+          <button
+            onClick={() => setEditing(true)}
+            className="w-full mt-1 border border-line text-ink-soft font-semibold py-2.5 rounded-2xl cursor-pointer hover:bg-surface-warm-hover"
+          >
+            Edit glaze
+          </button>
+          {onDelete && (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="w-full text-red-500 font-semibold py-2 cursor-pointer hover:text-red-700"
+            >
+              Delete glaze
+            </button>
+          )}
+        </>
       )}
     </div>
   )

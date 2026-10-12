@@ -208,6 +208,12 @@ export async function updateGlaze(glazeId, fields) {
   return data
 }
 
+export async function deleteGlaze(glazeId) {
+  const { error } = await supabase.from('glazes').delete().eq('id', glazeId)
+  if (error) throw error
+  invalidateGlazeCache()
+}
+
 export async function listClayFavorites(userId) {
   const { data, error } = await supabase
     .from('user_clay_favorites')
